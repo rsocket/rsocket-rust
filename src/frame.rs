@@ -3,6 +3,30 @@ extern crate bytes;
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 use std::time::Duration;
 
+const FLAG_NEXT: u16 = 0x01 << 5;
+const FLAG_COMPLETE: u16 = 0x01 << 6;
+const FLAG_FOLLOW: u16 = 0x01 << 7;
+const FLAG_METADATA: u16 = 0x01 << 8;
+const FLAG_IGNORE: u16 = 0x01 << 9;
+const FLAG_LEASE: u16 = FLAG_COMPLETE;
+const FLAG_RESUME: u16 = FLAG_FOLLOW;
+const FLAG_RESPOND: u16 = FLAG_FOLLOW;
+
+const TYPE_SETUP: u16 = 0x01;
+const TYPE_LEASE: u16 = 0x02;
+const TYPE_KEEPALIVE: u16 = 0x03;
+const TYPE_REQUEST_RESPONSE: u16 = 0x04;
+const TYPE_REQUEST_FNF: u16 = 0x05;
+const TYPE_REQUEST_STREAM: u16 = 0x06;
+const TYPE_REQUEST_CHANNEL: u16 = 0x07;
+const TYPE_REQUEST_N: u16 = 0x08;
+const TYPE_CANCEL: u16 = 0x09;
+const TYPE_PAYLOAD: u16 = 0x0A;
+const TYPE_ERROR: u16 = 0x0B;
+const TYPE_METADATA_PUSH: u16 = 0x0C;
+const TYPE_RESUME: u16 = 0x0D;
+const TYPE_RESUME_OK: u16 = 0x0E;
+
 pub const MIME_BINARY: &str = "application/binary";
 
 #[derive(Debug)]
@@ -25,46 +49,52 @@ pub enum Body {
 
 #[derive(Debug)]
 pub struct Frame {
-  pub stream_id: u32,
-  pub body: Body,
-  pub flag: u16,
+  stream_id: u32,
+  body: Body,
+  flag: u16,
 }
 
 impl Frame {
 
-  pub fn new(stream_id: u32, body: Body, flag: u16) -> Frame {
-    Frame {
-      stream_id,
-      body,
-      flag,
-    }
+  pub fn get_body(&self) -> &Body {
+    &self.body
   }
 
-  pub fn to_bytes(&self) -> Bytes {
-    let mut bm = BytesMut::new();
-    bm.put_u32_be(self.stream_id);
-    bm.put_u16_be((to_frame_type(&self.body) << 10) | self.flag);
-    bm.freeze().clone()
+  pub fn get_flag(&self) -> u16 {
+    self.flag.clone()
+  }
+
+  pub fn get_stream_id(&self) -> u32 {
+    self.stream_id.clone()
+  }
+
+  pub fn write_to(&self, bf: &mut BytesMut) {
+    bf.put_u32_be(self.stream_id);
+    bf.put_u16_be((to_frame_type(&self.body) << 10) | self.flag);
+    match &self.body {
+      Body::Setup(v) => v.write_to(bf),
+      _ => unimplemented!(),
+    }
   }
 
 }
 
 fn to_frame_type(body: &Body) -> u16 {
   return match body {
-    Body::Setup(_) => 0x01,
-    Body::Lease(_) => 0x02,
-    Body::Keepalive(_) => 0x03,
-    Body::RequestResponse(_) => 0x04,
-    Body::RequestFNF(_) => 0x05,
-    Body::RequestStream(_) => 0x06,
-    Body::RequestChannel(_) => 0x07,
-    Body::RequestN(_) => 0x08,
-    Body::Cancel(_) => 0x09,
-    Body::Payload(_) => 0x0A,
-    Body::Error(_) => 0x0B,
-    Body::MetadataPush(_) => 0x0C,
-    Body::Resume(_) => 0x0D,
-    Body::ResumeOK(_) => 0x0E,
+    Body::Setup(_) => TYPE_SETUP,
+    Body::Lease(_) => TYPE_LEASE,
+    Body::Keepalive(_) => TYPE_KEEPALIVE,
+    Body::RequestResponse(_) => TYPE_REQUEST_RESPONSE,
+    Body::RequestFNF(_) => TYPE_REQUEST_FNF,
+    Body::RequestStream(_) => TYPE_REQUEST_STREAM,
+    Body::RequestChannel(_) => TYPE_REQUEST_CHANNEL,
+    Body::RequestN(_) => TYPE_REQUEST_N,
+    Body::Cancel(_) => TYPE_CANCEL,
+    Body::Payload(_) => TYPE_PAYLOAD,
+    Body::Error(_) => TYPE_ERROR,
+    Body::MetadataPush(_) => TYPE_METADATA_PUSH,
+    Body::Resume(_) => TYPE_RESUME,
+    Body::ResumeOK(_) => TYPE_RESUME_OK,
   };
 }
 
@@ -75,9 +105,24 @@ pub struct Version {
 }
 
 impl Version {
+
   fn new(major: u16, minor: u16) -> Version {
     Version { major, minor }
   }
+
+  pub fn get_major(&self) -> u16 {
+    self.major.clone()
+  }
+
+  pub fn get_minor(&self) -> u16 {
+    self.minor.clone()
+  }
+
+  pub fn write_to(&self, bf: &mut BytesMut) {
+    bf.put_u16_be(self.major);
+    bf.put_u16_be(self.minor);
+  }
+
 }
 
 #[derive(Debug, Clone)]
@@ -96,6 +141,68 @@ impl Setup {
   pub fn builder(stream_id: u32, flag: u16) -> SetupBuilder {
     SetupBuilder::new(stream_id, flag)
   }
+
+  pub fn get_version(&self) -> &Version {
+    &self.version
+  }
+
+  pub fn get_keepalive(&self) -> Duration {
+    Duration::from_millis(self.keepalive as u64)
+  }
+  pub fn get_lifetime(&self) -> Duration {
+    Duration::from_millis(self.lifetime as u64)
+  }
+
+  pub fn get_token(&self) -> Option<Bytes> {
+    self.token.clone()
+  }
+
+  pub fn get_mime_metadata(&self) -> &String {
+    &self.mime_metadata
+  }
+
+  pub fn get_mime_data(&self) -> &String {
+    &self.mime_data
+  }
+  pub fn get_metadata(&self) -> Option<Bytes> {
+    self.meatadata.clone()
+  }
+  pub fn get_data(&self) -> Option<Bytes> {
+    self.data.clone()
+  }
+
+  pub fn write_to(&self, bf: &mut BytesMut) {
+    self.version.write_to(bf);
+    bf.put_u32_be(self.keepalive);
+    bf.put_u32_be(self.lifetime);
+    match &self.token {
+      Some(v) => {
+        bf.put_u16_be(v.len() as u16);
+        bf.put(v);
+      }
+      None => (),
+    }
+    bf.put_u8(self.mime_metadata.len() as u8);
+    bf.put(&self.mime_metadata);
+    bf.put_u8(self.mime_data.len() as u8);
+    bf.put(&self.mime_data);
+
+    match &self.meatadata {
+      Some(v) => {
+        let l = v.len();
+        bf.put_u8((0xFF & (l >> 16)) as u8);
+        bf.put_u8((0xFF & (l >> 8)) as u8);
+        bf.put_u8((0xFF & l) as u8);
+        bf.put(v);
+      }
+      None => (),
+    }
+    match &self.data {
+      Some(v) => bf.put(v),
+      None => (),
+    }
+  }
+
 }
 
 pub struct SetupBuilder {
@@ -123,7 +230,11 @@ impl SetupBuilder {
   }
 
   pub fn build(&mut self) -> Frame {
-    Frame::new(self.stream_id, Body::Setup(self.setup.clone()), self.flag)
+    Frame {
+      stream_id: self.stream_id,
+      body: Body::Setup(self.setup.clone()),
+      flag: self.flag,
+    }
   }
 
   pub fn set_data(&mut self, bs: Bytes) -> &mut SetupBuilder {
@@ -132,6 +243,7 @@ impl SetupBuilder {
   }
 
   pub fn set_metadata(&mut self, bs: Bytes) -> &mut SetupBuilder {
+    self.flag |= FLAG_METADATA;
     self.setup.meatadata = Some(bs);
     self
   }

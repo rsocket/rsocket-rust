@@ -3,13 +3,9 @@ use tokio::codec::LinesCodec;
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 
-#[test]
+// #[test]
 fn test_serve() {
-
-
-
-
-let addr = "127.0.0.1:8787".parse().unwrap();
+  let addr = "127.0.0.1:8787".parse().unwrap();
   let listener = TcpListener::bind(&addr).unwrap();
   let server = listener
     .incoming()
