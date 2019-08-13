@@ -1,139 +1,9 @@
 extern crate bytes;
 
+use crate::mime::MIME_BINARY;
+use crate::frame::{Body, Frame, Writeable, FLAG_METADATA, FLAG_RESUME};
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
-
 use std::time::Duration;
-const FLAG_NEXT: u16 = 0x01 << 5;
-const FLAG_COMPLETE: u16 = 0x01 << 6;
-const FLAG_FOLLOW: u16 = 0x01 << 7;
-const FLAG_METADATA: u16 = 0x01 << 8;
-const FLAG_IGNORE: u16 = 0x01 << 9;
-const FLAG_LEASE: u16 = FLAG_COMPLETE;
-const FLAG_RESUME: u16 = FLAG_FOLLOW;
-const FLAG_RESPOND: u16 = FLAG_FOLLOW;
-
-const TYPE_SETUP: u16 = 0x01;
-const TYPE_LEASE: u16 = 0x02;
-const TYPE_KEEPALIVE: u16 = 0x03;
-const TYPE_REQUEST_RESPONSE: u16 = 0x04;
-const TYPE_REQUEST_FNF: u16 = 0x05;
-const TYPE_REQUEST_STREAM: u16 = 0x06;
-const TYPE_REQUEST_CHANNEL: u16 = 0x07;
-const TYPE_REQUEST_N: u16 = 0x08;
-const TYPE_CANCEL: u16 = 0x09;
-const TYPE_PAYLOAD: u16 = 0x0A;
-const TYPE_ERROR: u16 = 0x0B;
-const TYPE_METADATA_PUSH: u16 = 0x0C;
-const TYPE_RESUME: u16 = 0x0D;
-const TYPE_RESUME_OK: u16 = 0x0E;
-
-pub const MIME_BINARY: &str = "application/binary";
-
-pub trait Writeable {
-  fn write_to(&self, bf: &mut BytesMut);
-  fn len(&self) -> u32;
-}
-
-#[derive(Debug)]
-pub enum Body {
-  Setup(Setup),
-  Lease(Lease),
-  Keepalive(Keepalive),
-  RequestFNF(RequestFNF),
-  RequestResponse(RequestResponse),
-  RequestStream(RequestStream),
-  RequestChannel(RequestChannel),
-  RequestN(RequestN),
-  Cancel(Cancel),
-  Payload(Payload),
-  Error(Error),
-  MetadataPush(MetadataPush),
-  Resume(Resume),
-  ResumeOK(ResumeOK),
-}
-
-#[derive(Debug)]
-pub struct Frame {
-  stream_id: u32,
-  body: Body,
-  flag: u16,
-}
-
-impl Writeable for Frame {
-
-  fn write_to(&self, bf: &mut BytesMut) {
-    bf.put_u32_be(self.stream_id);
-    bf.put_u16_be((to_frame_type(&self.body) << 10) | self.flag);
-    match &self.body {
-      Body::Setup(v) => v.write_to(bf),
-      _ => unimplemented!(),
-    }
-  }
-
-  fn len(&self) -> u32 {
-    // header len
-    let mut n: u32 = 6;
-    match &self.body {
-      Body::Setup(v) => n += v.len(),
-      _ => unimplemented!(),
-    }
-    n
-  }
-}
-
-impl Frame {
-  pub fn decode(b: &mut Bytes) -> Option<Frame> {
-    let hd = b.split_to(6);
-    let v = &hd.to_vec();
-    let sid = BigEndian::read_u32(v);
-    let n = (v[4] as u16) << 8 + (v[5] as u16);
-    let flag = n & 0x03FF;
-    let t = (n & 0xFC00) >> 10;
-    // println!("**** type={}, sid={}, flag={}", t, sid, flag);
-    match t {
-      TYPE_SETUP => {
-        return Some(Frame {
-          stream_id: sid,
-          flag: flag,
-          body: Body::Setup(Setup::decode(flag, b).unwrap()),
-        })
-      }
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn get_body(&self) -> &Body {
-    &self.body
-  }
-
-  pub fn get_flag(&self) -> u16 {
-    self.flag.clone()
-  }
-
-  pub fn get_stream_id(&self) -> u32 {
-    self.stream_id.clone()
-  }
-
-}
-
-fn to_frame_type(body: &Body) -> u16 {
-  return match body {
-    Body::Setup(_) => TYPE_SETUP,
-    Body::Lease(_) => TYPE_LEASE,
-    Body::Keepalive(_) => TYPE_KEEPALIVE,
-    Body::RequestResponse(_) => TYPE_REQUEST_RESPONSE,
-    Body::RequestFNF(_) => TYPE_REQUEST_FNF,
-    Body::RequestStream(_) => TYPE_REQUEST_STREAM,
-    Body::RequestChannel(_) => TYPE_REQUEST_CHANNEL,
-    Body::RequestN(_) => TYPE_REQUEST_N,
-    Body::Cancel(_) => TYPE_CANCEL,
-    Body::Payload(_) => TYPE_PAYLOAD,
-    Body::Error(_) => TYPE_ERROR,
-    Body::MetadataPush(_) => TYPE_METADATA_PUSH,
-    Body::Resume(_) => TYPE_RESUME,
-    Body::ResumeOK(_) => TYPE_RESUME_OK,
-  };
-}
 
 #[derive(Debug, Clone)]
 pub struct Version {
@@ -235,7 +105,7 @@ impl Writeable for Setup {
 
 impl Setup {
 
-  fn decode(flag: u16, b: &mut Bytes) -> Option<Setup> {
+  pub fn decode(flag: u16, b: &mut Bytes) -> Option<Setup> {
     let major = BigEndian::read_u16(b);
     b.advance(2);
     let minor = BigEndian::read_u16(b);
@@ -256,7 +126,6 @@ impl Setup {
     len_mime = b[0] as usize;
     b.advance(1);
     let mime_data = b.split_to(len_mime);
-
     let mut metadata: Option<Bytes> = None;
     if flag & FLAG_METADATA != 0 {
       let bar = b.split_to(3);
@@ -343,11 +212,7 @@ impl SetupBuilder {
   }
 
   pub fn build(&mut self) -> Frame {
-    Frame {
-      stream_id: self.stream_id,
-      body: Body::Setup(self.setup.clone()),
-      flag: self.flag,
-    }
+    Frame::new(self.stream_id, Body::Setup(self.setup.clone()), self.flag)
   }
 
   pub fn set_data(&mut self, bs: Bytes) -> &mut SetupBuilder {
@@ -378,6 +243,7 @@ impl SetupBuilder {
 
   pub fn set_token(&mut self, token: Bytes) -> &mut SetupBuilder {
     self.setup.token = Some(token);
+    self.flag |= FLAG_RESUME;
     self
   }
 
@@ -392,42 +258,3 @@ impl SetupBuilder {
   }
 
 }
-
-#[derive(Debug)]
-pub struct Lease {}
-
-#[derive(Debug)]
-pub struct Keepalive {}
-
-#[derive(Debug)]
-pub struct RequestFNF {}
-
-#[derive(Debug)]
-pub struct RequestResponse {}
-
-#[derive(Debug)]
-pub struct RequestStream {}
-
-#[derive(Debug)]
-pub struct RequestChannel {}
-
-#[derive(Debug)]
-pub struct RequestN {}
-
-#[derive(Debug)]
-pub struct Cancel {}
-
-#[derive(Debug)]
-pub struct Payload {}
-
-#[derive(Debug)]
-pub struct Error {}
-
-#[derive(Debug)]
-pub struct MetadataPush {}
-
-#[derive(Debug)]
-pub struct Resume {}
-
-#[derive(Debug)]
-pub struct ResumeOK {}

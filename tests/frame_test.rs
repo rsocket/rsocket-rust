@@ -10,6 +10,7 @@ fn test_build_setup() {
   let f = Setup::builder(1234, 0)
     .set_mime_data("application/binary")
     .set_mime_metadata("text/plain")
+    .set_token(Bytes::from("this_is_a_token"))
     .set_data(Bytes::from(String::from("Hello World!")))
     .set_metadata(Bytes::from(String::from("foobar")))
     .build();
