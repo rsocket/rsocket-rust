@@ -1,8 +1,8 @@
 extern crate bytes;
 
-use bytes::{BigEndian, BufMut, Bytes, BytesMut};
-use std::time::Duration;
+use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 
+use std::time::Duration;
 const FLAG_NEXT: u16 = 0x01 << 5;
 const FLAG_COMPLETE: u16 = 0x01 << 6;
 const FLAG_FOLLOW: u16 = 0x01 << 7;
@@ -29,6 +29,11 @@ const TYPE_RESUME_OK: u16 = 0x0E;
 
 pub const MIME_BINARY: &str = "application/binary";
 
+pub trait Writeable {
+  fn write_to(&self, bf: &mut BytesMut);
+  fn len(&self) -> u32;
+}
+
 #[derive(Debug)]
 pub enum Body {
   Setup(Setup),
@@ -54,7 +59,48 @@ pub struct Frame {
   flag: u16,
 }
 
+impl Writeable for Frame {
+
+  fn write_to(&self, bf: &mut BytesMut) {
+    bf.put_u32_be(self.stream_id);
+    bf.put_u16_be((to_frame_type(&self.body) << 10) | self.flag);
+    match &self.body {
+      Body::Setup(v) => v.write_to(bf),
+      _ => unimplemented!(),
+    }
+  }
+
+  fn len(&self) -> u32 {
+    // header len
+    let mut n: u32 = 6;
+    match &self.body {
+      Body::Setup(v) => n += v.len(),
+      _ => unimplemented!(),
+    }
+    n
+  }
+}
+
 impl Frame {
+  pub fn decode(b: &mut Bytes) -> Option<Frame> {
+    let hd = b.split_to(6);
+    let v = &hd.to_vec();
+    let sid = BigEndian::read_u32(v);
+    let n = (v[4] as u16) << 8 + (v[5] as u16);
+    let flag = n & 0x03FF;
+    let t = (n & 0xFC00) >> 10;
+    // println!("**** type={}, sid={}, flag={}", t, sid, flag);
+    match t {
+      TYPE_SETUP => {
+        return Some(Frame {
+          stream_id: sid,
+          flag: flag,
+          body: Body::Setup(Setup::decode(flag, b).unwrap()),
+        })
+      }
+      _ => unimplemented!(),
+    }
+  }
 
   pub fn get_body(&self) -> &Body {
     &self.body
@@ -66,15 +112,6 @@ impl Frame {
 
   pub fn get_stream_id(&self) -> u32 {
     self.stream_id.clone()
-  }
-
-  pub fn write_to(&self, bf: &mut BytesMut) {
-    bf.put_u32_be(self.stream_id);
-    bf.put_u16_be((to_frame_type(&self.body) << 10) | self.flag);
-    match &self.body {
-      Body::Setup(v) => v.write_to(bf),
-      _ => unimplemented!(),
-    }
   }
 
 }
@@ -133,11 +170,118 @@ pub struct Setup {
   token: Option<Bytes>,
   mime_metadata: String,
   mime_data: String,
-  meatadata: Option<Bytes>,
+  metadata: Option<Bytes>,
   data: Option<Bytes>,
 }
 
+impl Writeable for Setup {
+  fn len(&self) -> u32 {
+    let mut n: u32 = 12;
+    match &self.token {
+      Some(v) => n += 2 + (v.len() as u32),
+      None => (),
+    }
+    n += 1;
+    n += self.mime_metadata.len() as u32;
+    n += 1;
+    n += self.mime_data.len() as u32;
+    match &self.metadata {
+      Some(v) => {
+        n += 3;
+        n += v.len() as u32;
+      }
+      None => (),
+    }
+    match &self.data {
+      Some(v) => n += v.len() as u32,
+      None => (),
+    }
+    n
+  }
+
+  fn write_to(&self, bf: &mut BytesMut) {
+    self.version.write_to(bf);
+    bf.put_u32_be(self.keepalive);
+    bf.put_u32_be(self.lifetime);
+    match &self.token {
+      Some(v) => {
+        bf.put_u16_be(v.len() as u16);
+        bf.put(v);
+      }
+      None => (),
+    }
+    bf.put_u8(self.mime_metadata.len() as u8);
+    bf.put(&self.mime_metadata);
+    bf.put_u8(self.mime_data.len() as u8);
+    bf.put(&self.mime_data);
+
+    match &self.metadata {
+      Some(v) => {
+        let l = v.len();
+        bf.put_u8((0xFF & (l >> 16)) as u8);
+        bf.put_u8((0xFF & (l >> 8)) as u8);
+        bf.put_u8((0xFF & l) as u8);
+        bf.put(v);
+      }
+      None => (),
+    }
+    match &self.data {
+      Some(v) => bf.put(v),
+      None => (),
+    }
+  }
+
+}
+
 impl Setup {
+
+  fn decode(flag: u16, b: &mut Bytes) -> Option<Setup> {
+    let major = BigEndian::read_u16(b);
+    b.advance(2);
+    let minor = BigEndian::read_u16(b);
+    b.advance(2);
+    let keepalive = BigEndian::read_u32(b);
+    b.advance(4);
+    let lifetime = BigEndian::read_u32(b);
+    b.advance(4);
+    let mut token: Option<Bytes> = None;
+    if flag & FLAG_RESUME != 0 {
+      let l = BigEndian::read_u16(b);
+      b.advance(2);
+      token = Some(Bytes::from(b.split_to(l as usize)));
+    }
+    let mut len_mime: usize = b[0] as usize;
+    b.advance(1);
+    let mime_metadata = b.split_to(len_mime);
+    len_mime = b[0] as usize;
+    b.advance(1);
+    let mime_data = b.split_to(len_mime);
+
+    let mut metadata: Option<Bytes> = None;
+    if flag & FLAG_METADATA != 0 {
+      let bar = b.split_to(3);
+      let mut l: u32 = 0;
+      l += (bar[0] as u32) << 16;
+      l += (bar[1] as u32) << 8;
+      l += bar[2] as u32;
+      metadata = Some(b.split_to(l as usize));
+    }
+    let mut data: Option<Bytes> = None;
+    if !b.is_empty() {
+      data = Some(Bytes::from(b.to_vec()));
+    }
+    Some(Setup {
+      version: Version::new(major, minor),
+      keepalive: keepalive,
+      lifetime: lifetime,
+      token: token,
+      mime_metadata: String::from_utf8(mime_metadata.to_vec()).unwrap(),
+      mime_data: String::from_utf8(mime_data.to_vec()).unwrap(),
+      metadata: metadata,
+      data: data,
+    })
+  }
+
   pub fn builder(stream_id: u32, flag: u16) -> SetupBuilder {
     SetupBuilder::new(stream_id, flag)
   }
@@ -165,42 +309,10 @@ impl Setup {
     &self.mime_data
   }
   pub fn get_metadata(&self) -> Option<Bytes> {
-    self.meatadata.clone()
+    self.metadata.clone()
   }
   pub fn get_data(&self) -> Option<Bytes> {
     self.data.clone()
-  }
-
-  pub fn write_to(&self, bf: &mut BytesMut) {
-    self.version.write_to(bf);
-    bf.put_u32_be(self.keepalive);
-    bf.put_u32_be(self.lifetime);
-    match &self.token {
-      Some(v) => {
-        bf.put_u16_be(v.len() as u16);
-        bf.put(v);
-      }
-      None => (),
-    }
-    bf.put_u8(self.mime_metadata.len() as u8);
-    bf.put(&self.mime_metadata);
-    bf.put_u8(self.mime_data.len() as u8);
-    bf.put(&self.mime_data);
-
-    match &self.meatadata {
-      Some(v) => {
-        let l = v.len();
-        bf.put_u8((0xFF & (l >> 16)) as u8);
-        bf.put_u8((0xFF & (l >> 8)) as u8);
-        bf.put_u8((0xFF & l) as u8);
-        bf.put(v);
-      }
-      None => (),
-    }
-    match &self.data {
-      Some(v) => bf.put(v),
-      None => (),
-    }
   }
 
 }
@@ -223,7 +335,7 @@ impl SetupBuilder {
         token: None,
         mime_metadata: String::from(MIME_BINARY),
         mime_data: String::from(MIME_BINARY),
-        meatadata: None,
+        metadata: None,
         data: None,
       },
     }
@@ -244,7 +356,7 @@ impl SetupBuilder {
 
   pub fn set_metadata(&mut self, bs: Bytes) -> &mut SetupBuilder {
     self.flag |= FLAG_METADATA;
-    self.setup.meatadata = Some(bs);
+    self.setup.metadata = Some(bs);
     self
   }
 
