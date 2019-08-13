@@ -23,3 +23,12 @@ fn test_build_setup() {
   let f2 = Frame::decode(&mut bb).unwrap();
   println!("----> decode: {:?}", f2)
 }
+
+#[test]
+fn test_build_keepalive() {
+  let ka = Keepalive::builder(1234, FLAG_RESPOND)
+    .set_last_received_position(123)
+    .set_data(Bytes::from("foobar"))
+    .build();
+  println!("@@@@@@ keepalive: {:?}", ka);
+}
