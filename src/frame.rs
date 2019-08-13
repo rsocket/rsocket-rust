@@ -324,6 +324,7 @@ pub struct SetupBuilder {
 }
 
 impl SetupBuilder {
+
   fn new(stream_id: u32, flag: u16) -> SetupBuilder {
     SetupBuilder {
       stream_id: stream_id,
@@ -380,13 +381,13 @@ impl SetupBuilder {
     self
   }
 
-  pub fn set_mime_metadata(&mut self, mime: String) -> &mut SetupBuilder {
-    self.setup.mime_metadata = mime;
+  pub fn set_mime_metadata(&mut self, mime: &str) -> &mut SetupBuilder {
+    self.setup.mime_metadata = String::from(mime);
     self
   }
 
-  pub fn set_mime_data(&mut self, mime: String) -> &mut SetupBuilder {
-    self.setup.mime_data = mime;
+  pub fn set_mime_data(&mut self, mime: &str) -> &mut SetupBuilder {
+    self.setup.mime_data = String::from(mime);
     self
   }
 
