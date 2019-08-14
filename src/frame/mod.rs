@@ -16,6 +16,7 @@ mod request_stream;
 mod resume;
 mod resume_ok;
 mod setup;
+mod utils;
 
 pub use cancel::Cancel;
 pub use error::Error;
@@ -31,6 +32,7 @@ pub use request_stream::RequestStream;
 pub use resume::Resume;
 pub use resume_ok::ResumeOK;
 pub use setup::{Setup, SetupBuilder};
+pub use utils::{U24};
 
 pub const FLAG_NEXT: u16 = 0x01 << 5;
 pub const FLAG_COMPLETE: u16 = 0x01 << 6;
@@ -87,12 +89,12 @@ pub struct Frame {
 }
 
 impl Writeable for Frame {
-
   fn write_to(&self, bf: &mut BytesMut) {
     bf.put_u32_be(self.stream_id);
     bf.put_u16_be((to_frame_type(&self.body) << 10) | self.flag);
     match &self.body {
       Body::Setup(v) => v.write_to(bf),
+      Body::RequestResponse(v) => v.write_to(bf),
       _ => unimplemented!(),
     }
   }
@@ -102,6 +104,7 @@ impl Writeable for Frame {
     let mut n: u32 = 6;
     match &self.body {
       Body::Setup(v) => n += v.len(),
+      Body::RequestResponse(v) => n += v.len(),
       _ => unimplemented!(),
     }
     n
@@ -133,6 +136,13 @@ impl Frame {
           body: Body::Setup(Setup::decode(flag, b).unwrap()),
         })
       }
+      TYPE_REQUEST_RESPONSE => {
+        return Some(Frame {
+          stream_id: sid,
+          flag: flag,
+          body: Body::RequestResponse(RequestResponse::decode(flag, b).unwrap()),
+        })
+      }
       _ => unimplemented!(),
     }
   }
@@ -148,7 +158,6 @@ impl Frame {
   pub fn get_stream_id(&self) -> u32 {
     self.stream_id.clone()
   }
-
 }
 
 fn to_frame_type(body: &Body) -> u16 {
@@ -169,4 +178,3 @@ fn to_frame_type(body: &Body) -> u16 {
     Body::ResumeOK(_) => TYPE_RESUME_OK,
   };
 }
-

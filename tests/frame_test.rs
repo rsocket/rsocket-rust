@@ -15,13 +15,16 @@ fn test_build_setup() {
     .set_metadata(Bytes::from(String::from("foobar")))
     .build();
   println!("=======> build: {:?}", f);
-  println!("***** frame size: {}", f.len());
+  try_encode_decode(&f);
+}
+
+fn try_encode_decode(f: &Frame) {
   let mut bf = BytesMut::with_capacity(f.len() as usize);
   f.write_to(&mut bf);
   let mut bb = bf.take().freeze();
-  println!("======> hex: {}", hex::encode(bb.to_vec()));
+  println!("####### encode: {}", hex::encode(bb.to_vec()));
   let f2 = Frame::decode(&mut bb).unwrap();
-  println!("----> decode: {:?}", f2)
+  println!("####### decode: {:?}", f2);
 }
 
 #[test]
@@ -31,4 +34,14 @@ fn test_build_keepalive() {
     .set_data(Bytes::from("foobar"))
     .build();
   println!("@@@@@@ keepalive: {:?}", ka);
+}
+
+#[test]
+fn test_request_response() {
+  let f = RequestResponse::builder(1234, 0)
+    .set_data(Bytes::from("Hello World"))
+    .set_metadata(Bytes::from("Foobar"))
+    .build();
+  println!("----> build: {:?}", f);
+  try_encode_decode(&f);
 }

@@ -1,7 +1,7 @@
 extern crate bytes;
 
+use crate::frame::{Body, Frame, Writeable, FLAG_METADATA, FLAG_RESUME, U24};
 use crate::mime::MIME_BINARY;
-use crate::frame::{Body, Frame, Writeable, FLAG_METADATA, FLAG_RESUME};
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 use std::time::Duration;
 
@@ -12,7 +12,6 @@ pub struct Version {
 }
 
 impl Version {
-
   fn new(major: u16, minor: u16) -> Version {
     Version { major, minor }
   }
@@ -29,7 +28,6 @@ impl Version {
     bf.put_u16_be(self.major);
     bf.put_u16_be(self.minor);
   }
-
 }
 
 #[derive(Debug, Clone)]
@@ -87,10 +85,7 @@ impl Writeable for Setup {
 
     match &self.metadata {
       Some(v) => {
-        let l = v.len();
-        bf.put_u8((0xFF & (l >> 16)) as u8);
-        bf.put_u8((0xFF & (l >> 8)) as u8);
-        bf.put_u8((0xFF & l) as u8);
+        U24::write(v.len() as u32, bf);
         bf.put(v);
       }
       None => (),
@@ -100,11 +95,9 @@ impl Writeable for Setup {
       None => (),
     }
   }
-
 }
 
 impl Setup {
-
   pub fn decode(flag: u16, b: &mut Bytes) -> Option<Setup> {
     let major = BigEndian::read_u16(b);
     b.advance(2);
@@ -128,11 +121,7 @@ impl Setup {
     let mime_data = b.split_to(len_mime);
     let mut metadata: Option<Bytes> = None;
     if flag & FLAG_METADATA != 0 {
-      let bar = b.split_to(3);
-      let mut l: u32 = 0;
-      l += (bar[0] as u32) << 16;
-      l += (bar[1] as u32) << 8;
-      l += bar[2] as u32;
+      let l = U24::advance(b);
       metadata = Some(b.split_to(l as usize));
     }
     let mut data: Option<Bytes> = None;
@@ -183,7 +172,6 @@ impl Setup {
   pub fn get_data(&self) -> Option<Bytes> {
     self.data.clone()
   }
-
 }
 
 pub struct SetupBuilder {
@@ -193,7 +181,6 @@ pub struct SetupBuilder {
 }
 
 impl SetupBuilder {
-
   fn new(stream_id: u32, flag: u16) -> SetupBuilder {
     SetupBuilder {
       stream_id: stream_id,
@@ -256,5 +243,4 @@ impl SetupBuilder {
     self.setup.mime_data = String::from(mime);
     self
   }
-
 }
