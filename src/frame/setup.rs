@@ -99,7 +99,7 @@ impl Writeable for Setup {
 }
 
 impl Setup {
-  pub fn decode(flag: u16, b: &mut Bytes) -> Option<Setup> {
+  pub fn decode(flag: u16, b: &mut BytesMut) -> Option<Setup> {
     let major = BigEndian::read_u16(b);
     b.advance(2);
     let minor = BigEndian::read_u16(b);
@@ -122,8 +122,8 @@ impl Setup {
     b.advance(1);
     let mime_data = b.split_to(len_mime);
     let metadata: Option<Bytes> = if flag & FLAG_METADATA != 0 {
-      let l = U24::advance(b);
-      Some(b.split_to(l as usize))
+      let l = U24::read(b);
+      Some(Bytes::from( b.split_to(l as usize)))
     } else {
       None
     };

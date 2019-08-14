@@ -10,7 +10,7 @@ impl U24 {
     bf.put_u8((0xFF & n) as u8);
   }
 
-  pub fn advance(bf: &mut Bytes) -> u32 {
+  pub fn read(bf: &mut BytesMut) -> u32 {
     let mut n: u32 = 0;
     let bar = bf.split_to(3);
     n += (bar[0] as u32) << 16;

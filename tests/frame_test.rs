@@ -48,7 +48,7 @@ fn try_encode_decode(f: &Frame) {
   println!("******* codec: {:?}", f);
   let mut bf = BytesMut::with_capacity(f.len() as usize);
   f.write_to(&mut bf);
-  let mut bb = bf.take().freeze();
+  let mut bb = bf.take();
   println!("####### encode: {}", hex::encode(bb.to_vec()));
   let f2 = Frame::decode(&mut bb).unwrap();
   println!("####### decode: {:?}", f2);

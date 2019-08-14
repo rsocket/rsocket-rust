@@ -64,7 +64,7 @@ impl Writeable for Keepalive {
 }
 
 impl Keepalive {
-  pub fn decode(flag: u16, bf: &mut Bytes) -> Option<Keepalive> {
+  pub fn decode(flag: u16, bf: &mut BytesMut) -> Option<Keepalive> {
     let position = BigEndian::read_u64(bf);
     bf.advance(8);
     let mut d: Option<Bytes> = None;

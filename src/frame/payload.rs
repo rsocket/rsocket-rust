@@ -44,10 +44,10 @@ impl PayloadBuilder {
 }
 
 impl Payload {
-  pub fn decode(flag: u16, bf: &mut Bytes) -> Option<Payload> {
+  pub fn decode(flag: u16, bf: &mut BytesMut) -> Option<Payload> {
     let m: Option<Bytes> = if flag & FLAG_METADATA != 0 {
-      let n = U24::advance(bf);
-      Some(bf.split_to(n as usize))
+      let n = U24::read(bf);
+      Some(Bytes::from(bf.split_to(n as usize)))
     } else {
       None
     };

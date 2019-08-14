@@ -76,10 +76,10 @@ impl Writeable for RequestResponse {
 }
 
 impl RequestResponse {
-  pub fn decode(flag: u16, bf: &mut Bytes) -> Option<RequestResponse> {
+  pub fn decode(flag: u16, bf: &mut BytesMut) -> Option<RequestResponse> {
     let m: Option<Bytes> = if flag & FLAG_METADATA != 0 {
-      let n = U24::advance(bf);
-      Some(bf.split_to(n as usize))
+      let n = U24::read(bf);
+      Some(Bytes::from(bf.split_to(n as usize)))
     } else {
       None
     };
