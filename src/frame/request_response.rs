@@ -63,33 +63,31 @@ impl Writeable for RequestResponse {
   }
 
   fn len(&self) -> u32 {
-    let mut n: u32 = 0;
-    match &self.metadata {
-      Some(v) => {
-        n += 3;
-        n += v.len() as u32;
-      }
-      None => (),
-    }
-    match &self.data {
-      Some(v) => n += v.len() as u32,
-      None => (),
-    }
-    n
+    let a: u32 = match &self.metadata {
+      Some(v) => 3 + (v.len() as u32),
+      None => 0,
+    };
+    let b: u32 = match &self.data {
+      Some(v) => v.len() as u32,
+      None => 0,
+    };
+    a + b
   }
 }
 
 impl RequestResponse {
   pub fn decode(flag: u16, bf: &mut Bytes) -> Option<RequestResponse> {
-    let mut m: Option<Bytes> = None;
-    if flag & FLAG_METADATA != 0 {
+    let m: Option<Bytes> = if flag & FLAG_METADATA != 0 {
       let n = U24::advance(bf);
-      m = Some(bf.split_to(n as usize));
-    }
-    let mut d: Option<Bytes> = None;
-    if !bf.is_empty() {
-      d = Some(Bytes::from(bf.to_vec()));
-    }
+      Some(bf.split_to(n as usize))
+    } else {
+      None
+    };
+    let d: Option<Bytes> = if bf.is_empty() {
+      None
+    } else {
+      Some(Bytes::from(bf.to_vec()))
+    };
     Some(RequestResponse {
       metadata: m,
       data: d,

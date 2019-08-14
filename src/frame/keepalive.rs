@@ -56,9 +56,9 @@ impl Writeable for Keepalive {
   }
 
   fn len(&self) -> u32 {
-    match &self.data {
-      Some(v) => 8 + (v.len() as u32),
-      None => 8,
+    8 + match &self.data {
+      Some(v) => v.len() as u32,
+      None => 0,
     }
   }
 }

@@ -58,6 +58,8 @@ pub const TYPE_METADATA_PUSH: u16 = 0x0C;
 pub const TYPE_RESUME: u16 = 0x0D;
 pub const TYPE_RESUME_OK: u16 = 0x0E;
 
+const LEN_HEADER: u32 = 6;
+
 pub trait Writeable {
   fn write_to(&self, bf: &mut BytesMut);
   fn len(&self) -> u32;
@@ -96,20 +98,21 @@ impl Writeable for Frame {
       Body::Setup(v) => v.write_to(bf),
       Body::RequestResponse(v) => v.write_to(bf),
       Body::Keepalive(v) => v.write_to(bf),
+      Body::Payload(v) => v.write_to(bf),
       _ => unimplemented!(),
     }
   }
 
   fn len(&self) -> u32 {
     // header len
-    let mut n: u32 = 6;
-    match &self.body {
-      Body::Setup(v) => n += v.len(),
-      Body::RequestResponse(v) => n += v.len(),
-      Body::Keepalive(v) => n += v.len(),
-      _ => unimplemented!(),
-    }
-    n
+    LEN_HEADER
+      + match &self.body {
+        Body::Setup(v) => v.len(),
+        Body::RequestResponse(v) => v.len(),
+        Body::Keepalive(v) => v.len(),
+        Body::Payload(v) => v.len(),
+        _ => unimplemented!(),
+      }
   }
 }
 
@@ -127,33 +130,15 @@ impl Frame {
     b.advance(4);
     let n = BigEndian::read_u16(b);
     b.advance(2);
-    let flag = n & 0x03FF;
-    let t = (n & 0xFC00) >> 10;
-    // println!("**** type={}, sid={}, flag={}", t, sid, flag);
-    match t {
-      TYPE_SETUP => {
-        return Some(Frame {
-          stream_id: sid,
-          flag: flag,
-          body: Body::Setup(Setup::decode(flag, b).unwrap()),
-        })
-      }
-      TYPE_REQUEST_RESPONSE => {
-        return Some(Frame {
-          stream_id: sid,
-          flag: flag,
-          body: Body::RequestResponse(RequestResponse::decode(flag, b).unwrap()),
-        })
-      }
-      TYPE_KEEPALIVE => {
-        return Some(Frame {
-          stream_id: sid,
-          flag: flag,
-          body: Body::Keepalive(Keepalive::decode(flag, b).unwrap()),
-        })
-      }
+    let (flag, kind) = (n & 0x03FF, (n & 0xFC00) >> 10);
+    let body = match kind {
+      TYPE_SETUP => Body::Setup(Setup::decode(flag, b).unwrap()),
+      TYPE_REQUEST_RESPONSE => Body::RequestResponse(RequestResponse::decode(flag, b).unwrap()),
+      TYPE_KEEPALIVE => Body::Keepalive(Keepalive::decode(flag, b).unwrap()),
+      TYPE_PAYLOAD => Body::Payload(Payload::decode(flag, b).unwrap()),
       _ => unimplemented!(),
-    }
+    };
+    Some(Frame::new(sid, body, flag))
   }
 
   pub fn get_body(&self) -> &Body {

@@ -12,6 +12,10 @@ pub struct Version {
 }
 
 impl Version {
+  pub fn default() -> Version {
+    Version { major: 1, minor: 0 }
+  }
+
   fn new(major: u16, minor: u16) -> Version {
     Version { major, minor }
   }
@@ -45,25 +49,22 @@ pub struct Setup {
 impl Writeable for Setup {
   fn len(&self) -> u32 {
     let mut n: u32 = 12;
-    match &self.token {
-      Some(v) => n += 2 + (v.len() as u32),
-      None => (),
-    }
+    n += match &self.token {
+      Some(v) => 2 + (v.len() as u32),
+      None => 0,
+    };
     n += 1;
     n += self.mime_metadata.len() as u32;
     n += 1;
     n += self.mime_data.len() as u32;
-    match &self.metadata {
-      Some(v) => {
-        n += 3;
-        n += v.len() as u32;
-      }
-      None => (),
-    }
-    match &self.data {
-      Some(v) => n += v.len() as u32,
-      None => (),
-    }
+    n += match &self.metadata {
+      Some(v) => 3 + (v.len() as u32),
+      None => 0,
+    };
+    n += match &self.data {
+      Some(v) => v.len() as u32,
+      None => 0,
+    };
     n
   }
 
@@ -107,27 +108,30 @@ impl Setup {
     b.advance(4);
     let lifetime = BigEndian::read_u32(b);
     b.advance(4);
-    let mut token: Option<Bytes> = None;
-    if flag & FLAG_RESUME != 0 {
+    let token: Option<Bytes> = if flag & FLAG_RESUME != 0 {
       let l = BigEndian::read_u16(b);
       b.advance(2);
-      token = Some(Bytes::from(b.split_to(l as usize)));
-    }
+      Some(Bytes::from(b.split_to(l as usize)))
+    } else {
+      None
+    };
     let mut len_mime: usize = b[0] as usize;
     b.advance(1);
     let mime_metadata = b.split_to(len_mime);
     len_mime = b[0] as usize;
     b.advance(1);
     let mime_data = b.split_to(len_mime);
-    let mut metadata: Option<Bytes> = None;
-    if flag & FLAG_METADATA != 0 {
+    let metadata: Option<Bytes> = if flag & FLAG_METADATA != 0 {
       let l = U24::advance(b);
-      metadata = Some(b.split_to(l as usize));
-    }
-    let mut data: Option<Bytes> = None;
-    if !b.is_empty() {
-      data = Some(Bytes::from(b.to_vec()));
-    }
+      Some(b.split_to(l as usize))
+    } else {
+      None
+    };
+    let data: Option<Bytes> = if b.is_empty() {
+      None
+    } else {
+      Some(Bytes::from(b.to_vec()))
+    };
     Some(Setup {
       version: Version::new(major, minor),
       keepalive: keepalive,
@@ -151,6 +155,7 @@ impl Setup {
   pub fn get_keepalive(&self) -> Duration {
     Duration::from_millis(self.keepalive as u64)
   }
+
   pub fn get_lifetime(&self) -> Duration {
     Duration::from_millis(self.lifetime as u64)
   }
@@ -166,9 +171,11 @@ impl Setup {
   pub fn get_mime_data(&self) -> &String {
     &self.mime_data
   }
+
   pub fn get_metadata(&self) -> Option<Bytes> {
     self.metadata.clone()
   }
+
   pub fn get_data(&self) -> Option<Bytes> {
     self.data.clone()
   }
@@ -177,7 +184,7 @@ impl Setup {
 pub struct SetupBuilder {
   stream_id: u32,
   flag: u16,
-  setup: Setup,
+  value: Setup,
 }
 
 impl SetupBuilder {
@@ -185,8 +192,8 @@ impl SetupBuilder {
     SetupBuilder {
       stream_id: stream_id,
       flag: flag,
-      setup: Setup {
-        version: Version::new(1, 0),
+      value: Setup {
+        version: Version::default(),
         keepalive: 30_000,
         lifetime: 90_000,
         token: None,
@@ -199,48 +206,54 @@ impl SetupBuilder {
   }
 
   pub fn build(&mut self) -> Frame {
-    Frame::new(self.stream_id, Body::Setup(self.setup.clone()), self.flag)
+    Frame::new(self.stream_id, Body::Setup(self.value.clone()), self.flag)
   }
 
   pub fn set_data(&mut self, bs: Bytes) -> &mut SetupBuilder {
-    self.setup.data = Some(bs);
+    self.value.data = Some(bs);
     self
   }
 
   pub fn set_metadata(&mut self, bs: Bytes) -> &mut SetupBuilder {
     self.flag |= FLAG_METADATA;
-    self.setup.metadata = Some(bs);
+    self.value.metadata = Some(bs);
     self
   }
 
   pub fn set_version(&mut self, major: u16, minor: u16) -> &mut SetupBuilder {
-    self.setup.version = Version::new(major, minor);
+    self.value.version = Version::new(major, minor);
     self
   }
 
   pub fn set_keepalive(&mut self, duration: Duration) -> &mut SetupBuilder {
-    self.setup.keepalive = duration.as_millis() as u32;
+    self.value.keepalive = duration.as_millis() as u32;
     self
   }
 
   pub fn set_lifetime(&mut self, duration: Duration) -> &mut SetupBuilder {
-    self.setup.lifetime = duration.as_millis() as u32;
+    self.value.lifetime = duration.as_millis() as u32;
     self
   }
 
   pub fn set_token(&mut self, token: Bytes) -> &mut SetupBuilder {
-    self.setup.token = Some(token);
+    self.value.token = Some(token);
     self.flag |= FLAG_RESUME;
     self
   }
 
   pub fn set_mime_metadata(&mut self, mime: &str) -> &mut SetupBuilder {
-    self.setup.mime_metadata = String::from(mime);
+    if mime.len() > 256 {
+      panic!("maximum mime length is 256");
+    }
+    self.value.mime_metadata = String::from(mime);
     self
   }
 
   pub fn set_mime_data(&mut self, mime: &str) -> &mut SetupBuilder {
-    self.setup.mime_data = String::from(mime);
+    if mime.len() > 256 {
+      panic!("maximum mime length is 256");
+    }
+    self.value.mime_data = String::from(mime);
     self
   }
 }

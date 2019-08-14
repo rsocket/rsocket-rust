@@ -5,10 +5,12 @@ learn rust && implement rsocket. 😭
  - Codec
    - [x] Setup
    - [x] Keepalive
+   - [x] Payload
    - [x] RequestResponse
    - [ ] RequestStream
    - [ ] RequestChannel
    - [ ] RequestFireAndForget
+   - [ ] MetadataPush
    - [ ] RequestN
    - [ ] Resume
    - [ ] ResumeOK

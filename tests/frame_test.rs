@@ -6,7 +6,7 @@ use bytes::{Bytes, BytesMut};
 use rsocket::frame::*;
 
 #[test]
-fn test_build_setup() {
+fn test_setup() {
   let f = Setup::builder(1234, 0)
     .set_mime_data("application/binary")
     .set_mime_metadata("text/plain")
@@ -31,6 +31,15 @@ fn test_request_response() {
   let f = RequestResponse::builder(1234, 0)
     .set_data(Bytes::from("Hello World"))
     .set_metadata(Bytes::from("Foobar"))
+    .build();
+  try_encode_decode(&f);
+}
+
+#[test]
+fn test_payload() {
+  let f = Payload::builder(1234, FLAG_NEXT | FLAG_COMPLETE)
+    .set_data(Bytes::from("Hello World!"))
+    .set_metadata(Bytes::from("foobar"))
     .build();
   try_encode_decode(&f);
 }
