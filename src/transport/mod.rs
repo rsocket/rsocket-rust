@@ -13,6 +13,9 @@ impl Decoder for FrameCodec {
   type Error = io::Error;
 
   fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+    if buf.len() < 3 {
+      return Ok(None);
+    }
     let l = U24::read(buf);
     let mut bb = buf.split_to(l as usize);
     Ok(Frame::decode(&mut bb))
@@ -27,5 +30,11 @@ impl Encoder for FrameCodec {
     U24::write(l, buf);
     item.write_to(buf);
     Ok(())
+  }
+}
+
+impl FrameCodec {
+  pub fn new() -> FrameCodec {
+    FrameCodec {}
   }
 }

@@ -3,6 +3,7 @@ name = "rsocket"
 version = "0.1.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
+license = "Apache-2.0"
 
 [dependencies]
 bytes = "0.4.12"
