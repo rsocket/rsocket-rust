@@ -44,6 +44,12 @@ fn test_payload() {
   try_encode_decode(&f);
 }
 
+#[test]
+fn test_cancel() {
+  let f = Cancel::new(1234, 0);
+  try_encode_decode(&f);
+}
+
 fn try_encode_decode(f: &Frame) {
   println!("******* codec: {:?}", f);
   let mut bf = BytesMut::with_capacity(f.len() as usize);

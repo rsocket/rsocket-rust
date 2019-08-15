@@ -58,6 +58,7 @@ pub const TYPE_METADATA_PUSH: u16 = 0x0C;
 pub const TYPE_RESUME: u16 = 0x0D;
 pub const TYPE_RESUME_OK: u16 = 0x0E;
 
+pub const REQUEST_MAX: u32 = 2147483647;
 const LEN_HEADER: u32 = 6;
 
 pub trait Writeable {
@@ -75,7 +76,7 @@ pub enum Body {
   RequestStream(RequestStream),
   RequestChannel(RequestChannel),
   RequestN(RequestN),
-  Cancel(Cancel),
+  Cancel(),
   Payload(Payload),
   Error(Error),
   MetadataPush(MetadataPush),
@@ -97,8 +98,10 @@ impl Writeable for Frame {
     match &self.body {
       Body::Setup(v) => v.write_to(bf),
       Body::RequestResponse(v) => v.write_to(bf),
+      Body::RequestStream(v) => v.write_to(bf),
       Body::Keepalive(v) => v.write_to(bf),
       Body::Payload(v) => v.write_to(bf),
+      Body::Cancel() => (),
       _ => unimplemented!(),
     }
   }
@@ -109,8 +112,10 @@ impl Writeable for Frame {
       + match &self.body {
         Body::Setup(v) => v.len(),
         Body::RequestResponse(v) => v.len(),
+        Body::RequestStream(v) => v.len(),
         Body::Keepalive(v) => v.len(),
         Body::Payload(v) => v.len(),
+        Body::Cancel() => 0,
         _ => unimplemented!(),
       }
   }
@@ -134,8 +139,10 @@ impl Frame {
     let body = match kind {
       TYPE_SETUP => Body::Setup(Setup::decode(flag, b).unwrap()),
       TYPE_REQUEST_RESPONSE => Body::RequestResponse(RequestResponse::decode(flag, b).unwrap()),
+      TYPE_REQUEST_STREAM => Body::RequestStream(RequestStream::decode(flag, b).unwrap()),
       TYPE_KEEPALIVE => Body::Keepalive(Keepalive::decode(flag, b).unwrap()),
       TYPE_PAYLOAD => Body::Payload(Payload::decode(flag, b).unwrap()),
+      TYPE_CANCEL => Body::Cancel(),
       _ => unimplemented!(),
     };
     Some(Frame::new(sid, body, flag))
@@ -164,7 +171,7 @@ fn to_frame_type(body: &Body) -> u16 {
     Body::RequestStream(_) => TYPE_REQUEST_STREAM,
     Body::RequestChannel(_) => TYPE_REQUEST_CHANNEL,
     Body::RequestN(_) => TYPE_REQUEST_N,
-    Body::Cancel(_) => TYPE_CANCEL,
+    Body::Cancel() => TYPE_CANCEL,
     Body::Payload(_) => TYPE_PAYLOAD,
     Body::Error(_) => TYPE_ERROR,
     Body::MetadataPush(_) => TYPE_METADATA_PUSH,
