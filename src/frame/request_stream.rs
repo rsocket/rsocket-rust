@@ -1,7 +1,7 @@
 extern crate bytes;
 
-use crate::frame::{Body, Frame, Writeable, REQUEST_MAX};
-use bytes::{BigEndian, BufMut, Bytes, BytesMut};
+use crate::frame::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA, REQUEST_MAX, U24};
+use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 
 #[derive(Debug, Clone)]
 pub struct RequestStream {
@@ -37,24 +37,33 @@ impl RequestStreamBuilder {
 
   pub fn set_metadata(&mut self, metadata: Bytes) -> &mut RequestStreamBuilder {
     self.value.metadata = Some(metadata);
+    self.flag |= FLAG_METADATA;
     self
   }
 }
 
 impl Writeable for RequestStream {
   fn write_to(&self, bf: &mut BytesMut) {
-    unimplemented!()
+    bf.put_u32_be(self.initial_request_n);
+    PayloadSupport::write(bf, &self.metadata, &self.data)
   }
 
   fn len(&self) -> u32 {
-    unimplemented!()
+    4 + PayloadSupport::len(&self.metadata, &self.data)
   }
 }
 
 impl RequestStream {
   
   pub fn decode(flag: u16, bf: &mut BytesMut) -> Option<RequestStream> {
-    unimplemented!()
+    let n = BigEndian::read_u32(bf);
+    bf.advance(4);
+    let (m, d) = PayloadSupport::read(flag, bf);
+    Some(RequestStream {
+      initial_request_n: n,
+      metadata: m,
+      data: d,
+    })
   }
 
   pub fn builder(stream_id: u32, flag: u16) -> RequestStreamBuilder {

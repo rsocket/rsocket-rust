@@ -32,7 +32,7 @@ pub use request_stream::RequestStream;
 pub use resume::Resume;
 pub use resume_ok::ResumeOK;
 pub use setup::{Setup, SetupBuilder};
-pub use utils::U24;
+pub use utils::*;
 
 pub const FLAG_NEXT: u16 = 0x01 << 5;
 pub const FLAG_COMPLETE: u16 = 0x01 << 6;
@@ -99,9 +99,16 @@ impl Writeable for Frame {
       Body::Setup(v) => v.write_to(bf),
       Body::RequestResponse(v) => v.write_to(bf),
       Body::RequestStream(v) => v.write_to(bf),
+      Body::RequestChannel(v) => v.write_to(bf),
+      Body::RequestFNF(v) => v.write_to(bf),
+      Body::RequestN(v) => v.write_to(bf),
+      Body::MetadataPush(v) => v.write_to(bf),
       Body::Keepalive(v) => v.write_to(bf),
       Body::Payload(v) => v.write_to(bf),
+      Body::Lease(v) => v.write_to(bf),
+      Body::Error(v) => v.write_to(bf),
       Body::Cancel() => (),
+      Body::ResumeOK(v) => v.write_to(bf),
       _ => unimplemented!(),
     }
   }
@@ -113,9 +120,16 @@ impl Writeable for Frame {
         Body::Setup(v) => v.len(),
         Body::RequestResponse(v) => v.len(),
         Body::RequestStream(v) => v.len(),
+        Body::RequestChannel(v) => v.len(),
+        Body::RequestFNF(v) => v.len(),
+        Body::RequestN(v) => v.len(),
+        Body::MetadataPush(v) => v.len(),
         Body::Keepalive(v) => v.len(),
         Body::Payload(v) => v.len(),
+        Body::Lease(v) => v.len(),
         Body::Cancel() => 0,
+        Body::Error(v) => v.len(),
+        Body::ResumeOK(v) => v.len(),
         _ => unimplemented!(),
       }
   }
@@ -140,9 +154,16 @@ impl Frame {
       TYPE_SETUP => Body::Setup(Setup::decode(flag, b).unwrap()),
       TYPE_REQUEST_RESPONSE => Body::RequestResponse(RequestResponse::decode(flag, b).unwrap()),
       TYPE_REQUEST_STREAM => Body::RequestStream(RequestStream::decode(flag, b).unwrap()),
+      TYPE_REQUEST_CHANNEL => Body::RequestChannel(RequestChannel::decode(flag, b).unwrap()),
+      TYPE_REQUEST_FNF => Body::RequestFNF(RequestFNF::decode(flag, b).unwrap()),
+      TYPE_REQUEST_N => Body::RequestN(RequestN::decode(flag, b).unwrap()),
+      TYPE_METADATA_PUSH => Body::MetadataPush(MetadataPush::decode(flag, b).unwrap()),
       TYPE_KEEPALIVE => Body::Keepalive(Keepalive::decode(flag, b).unwrap()),
       TYPE_PAYLOAD => Body::Payload(Payload::decode(flag, b).unwrap()),
+      TYPE_LEASE => Body::Lease(Lease::decode(flag, b).unwrap()),
       TYPE_CANCEL => Body::Cancel(),
+      TYPE_ERROR => Body::Error(Error::decode(flag, b).unwrap()),
+      TYPE_RESUME_OK => Body::ResumeOK(ResumeOK::decode(flag, b).unwrap()),
       _ => unimplemented!(),
     };
     Some(Frame::new(sid, body, flag))

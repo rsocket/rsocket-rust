@@ -7,16 +7,16 @@ learn rust && implement rsocket. 😭
    - [x] Keepalive
    - [x] Payload
    - [x] RequestResponse
-   - [ ] RequestStream
-   - [ ] RequestChannel
-   - [ ] RequestFireAndForget
-   - [ ] MetadataPush
-   - [ ] RequestN
+   - [x] RequestStream
+   - [x] RequestChannel
+   - [x] RequestFireAndForget
+   - [x] MetadataPush
+   - [x] RequestN
    - [ ] Resume
-   - [ ] ResumeOK
-   - [ ] Cancel
-   - [ ] Error
-   - [ ] Lease
+   - [x] ResumeOK
+   - [x] Cancel
+   - [x] Error
+   - [x] Lease
  - Transport
    - [ ] TCP
    - [ ] Websocket

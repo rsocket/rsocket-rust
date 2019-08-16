@@ -1,6 +1,6 @@
 extern crate bytes;
 
-use crate::frame::{Body, Frame, Writeable, FLAG_METADATA, U24};
+use crate::frame::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA};
 use bytes::{BufMut, Bytes, BytesMut};
 
 #[derive(Debug, Clone)]
@@ -45,17 +45,7 @@ impl PayloadBuilder {
 
 impl Payload {
   pub fn decode(flag: u16, bf: &mut BytesMut) -> Option<Payload> {
-    let m: Option<Bytes> = if flag & FLAG_METADATA != 0 {
-      let n = U24::read(bf);
-      Some(Bytes::from(bf.split_to(n as usize)))
-    } else {
-      None
-    };
-    let d: Option<Bytes> = if !bf.is_empty() {
-      Some(Bytes::from(bf.to_vec()))
-    } else {
-      None
-    };
+    let (m, d) = PayloadSupport::read(flag, bf);
     Some(Payload {
       metadata: m,
       data: d,
@@ -77,28 +67,10 @@ impl Payload {
 
 impl Writeable for Payload {
   fn write_to(&self, bf: &mut BytesMut) {
-    match &self.metadata {
-      Some(v) => {
-        U24::write(v.len() as u32, bf);
-        bf.put(v);
-      }
-      None => (),
-    }
-    match &self.data {
-      Some(v) => bf.put(v),
-      None => (),
-    }
+    PayloadSupport::write(bf, &self.metadata, &self.data);
   }
 
   fn len(&self) -> u32 {
-    let a: u32 = match &self.metadata {
-      Some(v) => 3 + (v.len() as u32),
-      None => 0,
-    };
-    let b: u32 = match &self.data {
-      Some(v) => v.len() as u32,
-      None => 0,
-    };
-    a + b
+    PayloadSupport::len(&self.metadata, &self.data)
   }
 }

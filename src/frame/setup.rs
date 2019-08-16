@@ -1,6 +1,6 @@
 extern crate bytes;
 
-use crate::frame::{Body, Frame, Writeable, FLAG_METADATA, FLAG_RESUME, U24};
+use crate::frame::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA, FLAG_RESUME, U24};
 use crate::mime::MIME_BINARY;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 use std::time::Duration;
@@ -57,14 +57,7 @@ impl Writeable for Setup {
     n += self.mime_metadata.len() as u32;
     n += 1;
     n += self.mime_data.len() as u32;
-    n += match &self.metadata {
-      Some(v) => 3 + (v.len() as u32),
-      None => 0,
-    };
-    n += match &self.data {
-      Some(v) => v.len() as u32,
-      None => 0,
-    };
+    n += PayloadSupport::len(&self.metadata, &self.data);
     n
   }
 
@@ -83,18 +76,7 @@ impl Writeable for Setup {
     bf.put(&self.mime_metadata);
     bf.put_u8(self.mime_data.len() as u8);
     bf.put(&self.mime_data);
-
-    match &self.metadata {
-      Some(v) => {
-        U24::write(v.len() as u32, bf);
-        bf.put(v);
-      }
-      None => (),
-    }
-    match &self.data {
-      Some(v) => bf.put(v),
-      None => (),
-    }
+    PayloadSupport::write(bf, &self.metadata, &self.data);
   }
 }
 
@@ -121,17 +103,7 @@ impl Setup {
     len_mime = b[0] as usize;
     b.advance(1);
     let mime_data = b.split_to(len_mime);
-    let metadata: Option<Bytes> = if flag & FLAG_METADATA != 0 {
-      let l = U24::read(b);
-      Some(Bytes::from( b.split_to(l as usize)))
-    } else {
-      None
-    };
-    let data: Option<Bytes> = if b.is_empty() {
-      None
-    } else {
-      Some(Bytes::from(b.to_vec()))
-    };
+    let (metadata, data) = PayloadSupport::read(flag, b);
     Some(Setup {
       version: Version::new(major, minor),
       keepalive: keepalive,
