@@ -173,6 +173,10 @@ impl Frame {
     &self.body
   }
 
+  pub fn get_frame_type(&self) -> u16{
+    to_frame_type(&self.body)
+  }
+
   pub fn get_flag(&self) -> u16 {
     self.flag.clone()
   }

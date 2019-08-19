@@ -7,6 +7,6 @@ license = "Apache-2.0"
 
 [dependencies]
 bytes = "0.4.12"
-tokio = "0.1"
+tokio = "0.1.22"
 hex = "0.3.2"
 futures = "0.1.28"
