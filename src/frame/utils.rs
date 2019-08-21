@@ -52,11 +52,13 @@ impl PayloadSupport {
     };
     (m, d)
   }
+
   pub fn write(bf: &mut BytesMut, metadata: &Option<Bytes>, data: &Option<Bytes>) {
     match metadata {
       Some(v) => {
         let n = v.len() as u32;
         U24::write(n, bf);
+        bf.put(v);
       }
       None => (),
     }

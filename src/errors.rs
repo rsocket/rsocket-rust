@@ -1,11 +1,16 @@
+extern crate futures;
+
+use futures::sync::oneshot;
 use std::error::Error;
 use std::fmt;
 use std::io;
+
 
 #[derive(Debug)]
 pub enum ErrorKind {
   WithDescription(&'static str),
   IO(io::Error),
+  Cancelled(),
 }
 
 #[derive(Debug)]
@@ -29,10 +34,31 @@ impl fmt::Display for RSocketError {
   }
 }
 
+impl From<&'static str> for RSocketError{
+
+  fn from(e: &'static str) -> RSocketError {
+    RSocketError{
+      kind: ErrorKind::WithDescription(e),
+    }
+  }
+
+}
+
+impl From<oneshot::Canceled> for RSocketError{
+
+  fn from(e: oneshot::Canceled) -> RSocketError {
+    RSocketError {
+      kind: ErrorKind::Cancelled(),
+    }
+  }
+
+}
+
 impl From<io::Error> for RSocketError {
   fn from(e: io::Error) -> RSocketError {
     RSocketError {
       kind: ErrorKind::IO(e),
     }
   }
+
 }
