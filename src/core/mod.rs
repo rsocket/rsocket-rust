@@ -24,5 +24,7 @@ impl Responder {
 }
 
 mod callers;
+mod socket;
 
-pub use callers::RequestCaller;
+pub use callers::*;
+pub use socket::{DuplexSocket, Response};

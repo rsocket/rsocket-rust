@@ -5,7 +5,6 @@ use std::error::Error;
 use std::fmt;
 use std::io;
 
-
 #[derive(Debug)]
 pub enum ErrorKind {
   WithDescription(&'static str),
@@ -30,28 +29,25 @@ impl Error for RSocketError {
 
 impl fmt::Display for RSocketError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+    println!(">>>>>>>>>>> {:?}", self.kind);
     unimplemented!()
   }
 }
 
-impl From<&'static str> for RSocketError{
-
+impl From<&'static str> for RSocketError {
   fn from(e: &'static str) -> RSocketError {
-    RSocketError{
+    RSocketError {
       kind: ErrorKind::WithDescription(e),
     }
   }
-
 }
 
-impl From<oneshot::Canceled> for RSocketError{
-
+impl From<oneshot::Canceled> for RSocketError {
   fn from(e: oneshot::Canceled) -> RSocketError {
     RSocketError {
       kind: ErrorKind::Cancelled(),
     }
   }
-
 }
 
 impl From<io::Error> for RSocketError {
@@ -60,5 +56,4 @@ impl From<io::Error> for RSocketError {
       kind: ErrorKind::IO(e),
     }
   }
-
 }

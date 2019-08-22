@@ -2,20 +2,18 @@ extern crate bytes;
 extern crate futures;
 
 use crate::errors::RSocketError;
-use crate::frame::{Frame, RequestResponse};
 use crate::payload::Payload;
-use crate::transport::Context;
-use futures::sync::oneshot::{self, Canceled, Receiver, Sender};
-use futures::{Async, Future, Poll};
+use futures::sync::{mpsc, oneshot};
+use futures::{Future, Poll};
 
 pub struct RequestCaller {
-  rx: Receiver<Payload>,
+  rx: oneshot::Receiver<Payload>,
 }
 
 impl RequestCaller {
-  pub fn new() -> (Sender<Payload>,RequestCaller) {
+  pub fn new() -> (oneshot::Sender<Payload>, RequestCaller) {
     let (tx, rx) = oneshot::channel();
-    (tx,RequestCaller { rx: rx })
+    (tx, RequestCaller { rx: rx })
   }
 }
 
@@ -25,5 +23,16 @@ impl Future for RequestCaller {
 
   fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
     self.rx.poll().map_err(|e| RSocketError::from(e))
+  }
+}
+
+pub struct StreamCaller {
+  rx: mpsc::Receiver<Payload>,
+}
+
+impl StreamCaller {
+  pub fn new() -> (mpsc::Sender<Payload>, StreamCaller) {
+    let (tx, rx) = mpsc::channel(0);
+    (tx, StreamCaller { rx: rx })
   }
 }

@@ -54,38 +54,28 @@ impl ContextBuilder {
 
     let task = TcpStream::connect(&addr2)
       .and_then(|socket| {
-        println!("oooo");
-        match Self::process(rx, socket) {
-          Ok(stream) => {
-            println!("dsafasdf");
-            stream.for_each(move |it| {
-              rtx.clone().send(it).wait().unwrap();
-              Ok(())
-            })
-          }
-          Err(e) => unimplemented!(),
-        }
+        let (sink, stream) = Framed::new(socket, FrameCodec::new()).split();
+        let sender: Box<dyn Stream<Item = Frame, Error = io::Error> + Send> =
+          Box::new(rx.map_err(|_| panic!("errors not possible on rx")));
+        tokio::spawn(sender.forward(sink).then(|result| Ok(())));
+        stream.for_each(move |it| {
+          rtx.clone().send(it).wait().unwrap();
+          Ok(())
+        })
       })
+      // .and_then(|socket| match Self::process(rx, socket) {
+      //   Ok(stream) => stream.for_each(move |it| {
+      //     rtx.clone().send(it).wait().unwrap();
+      //     Ok(())
+      //   }),
+      //   Err(e) => unimplemented!(),
+      // })
       .map_err(|e| println!("error reading: {:?}", e));
     // TODO: how do run future daemon???
     std::thread::spawn(move || {
       tokio::run(task);
     });
     Context { tx: tx, rx: rrx }
-  }
-
-  fn process(
-    rx: Receiver<Frame>,
-    socket: TcpStream,
-  ) -> Result<impl Stream<Item = Frame, Error = io::Error>> {
-    let (sink, stream) = Framed::new(socket, FrameCodec::new()).split();
-    let sender: Box<dyn Stream<Item = Frame, Error = io::Error> + Send> =
-      Box::new(rx.map_err(|_| panic!("errors not possible on rx")));
-    tokio::spawn(sender.forward(sink).then(|result| {
-      println!("hahaha");
-      Ok(())
-    }));
-    Ok(stream)
   }
 }
 
@@ -103,5 +93,3 @@ impl ContextBuilder {
 //     .map_err(|e| println!("error reading: {:?}", e));
 //   (tx,task)
 // }
-
-

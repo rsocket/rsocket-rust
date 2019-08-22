@@ -1,11 +1,3 @@
-# rsocket-rust
-learn rust && implement rsocket. 😭
-
-## Example
-
-> Here's a prototype of RSocket API. Yes, It works! 
-
-```rust
 extern crate bytes;
 extern crate futures;
 extern crate rsocket;
@@ -30,30 +22,3 @@ fn test_socket_request() {
   let result = socket.request_response(sending).wait().unwrap();
   println!("********** YES: {:?}", result);
 }
-
-```
-
-## TODO
- - Codec
-   - [x] Setup
-   - [x] Keepalive
-   - [x] Payload
-   - [x] RequestResponse
-   - [x] RequestStream
-   - [x] RequestChannel
-   - [x] RequestFireAndForget
-   - [x] MetadataPush
-   - [x] RequestN
-   - [ ] Resume
-   - [x] ResumeOK
-   - [x] Cancel
-   - [x] Error
-   - [x] Lease
- - Transport
-   - [ ] TCP
-   - [ ] Websocket
- - Rx
-   - [ ] ...
- - High Level APIs
-   - [ ] Client
-   - [ ] Server

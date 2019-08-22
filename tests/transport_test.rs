@@ -117,7 +117,7 @@ fn test_dial() {
 }
 
 fn next_send(mut tx: mpsc::Sender<frame::Frame>) {
-  let setup = frame::Setup::builder(1, 0)
+  let setup = frame::Setup::builder(0, 0)
     .set_data(Bytes::from("Hello Rust"))
     .build();
   tx = tx.send(setup).wait().unwrap();
