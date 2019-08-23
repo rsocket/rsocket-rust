@@ -3,7 +3,7 @@ learn rust && implement rsocket. 😭
 
 ## Example
 
-> Here's a prototype of RSocket API. Yes, It works! 
+> Here's a prototype of RSocket Client API.
 
 ```rust
 extern crate bytes;
@@ -12,23 +12,40 @@ extern crate rsocket;
 extern crate tokio;
 
 use bytes::Bytes;
-use futures::Future;
+use futures::{Future, Stream};
 use rsocket::prelude::*;
 
 #[test]
 fn test_socket_request() {
-  // You can run a mock server by rsocket-cli in golang. (see: https://github.com/rsocket/rsocket-go)
-  // rsocket-cli --request -i 'Hello World!' -m 'text/plain'  -s --debug tcp://127.0.0.1:7878
+  // Prepare a Echo server. (see: https://github.com/rsocket/rsocket-go/tree/master/cmd/echo)
 
   // create a socket.
   let socket = DuplexSocket::connect("127.0.0.1:7878");
-  // request and block future for result.
+  socket.setup(Payload::from("Ready!")).wait().unwrap();
+
+  // request response
+  for n in 0..10 {
+    let sending = Payload::builder()
+      .set_data(Bytes::from(format!("[{}] Hello Rust!", n)))
+      .set_metadata(Bytes::from("text/plain"))
+      .build();
+    let result = socket.request_response(sending).wait().unwrap();
+    println!("********** YES: {:?}", result);
+  }
+
+  // request stream
   let sending = Payload::builder()
     .set_data(Bytes::from("Hello Rust!"))
     .set_metadata(Bytes::from("text/plain"))
     .build();
-  let result = socket.request_response(sending).wait().unwrap();
-  println!("********** YES: {:?}", result);
+  let task = socket
+    .request_stream(sending)
+    .map_err(|_| ())
+    .for_each(|it| {
+      println!("******* STREAM: {:?}", it);
+      Ok(())
+    });
+  tokio::run(task);
 }
 
 ```

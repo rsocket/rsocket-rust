@@ -1,6 +1,7 @@
 extern crate futures;
 
 use futures::sync::oneshot;
+use futures::sync::mpsc;
 use std::error::Error;
 use std::fmt;
 use std::io;

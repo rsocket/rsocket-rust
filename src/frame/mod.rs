@@ -184,6 +184,14 @@ impl Frame {
   pub fn get_stream_id(&self) -> u32 {
     self.stream_id.clone()
   }
+
+  pub fn has_next(&self) -> bool{
+    self.flag & FLAG_NEXT != 0
+  }
+
+  pub fn has_complete(&self) -> bool{
+    self.flag&FLAG_COMPLETE!=0
+  }
 }
 
 fn to_frame_type(body: &Body) -> u16 {
