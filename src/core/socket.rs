@@ -2,6 +2,7 @@ extern crate bytes;
 extern crate futures;
 extern crate tokio;
 
+use crate::core::api::RSocket;
 use crate::core::misc::StreamID;
 use crate::core::{RequestCaller, StreamCaller};
 use crate::errors::RSocketError;
@@ -135,10 +136,34 @@ impl DuplexSocket {
       .map_err(|e| RSocketError::from("send setup frame failed"))
   }
 
-  pub fn request_response(
-    &self,
-    input: Payload,
-  ) -> impl Future<Item = Payload, Error = RSocketError> {
+  fn register_handler(&self, sid: u32, handler: Handler) {
+    let handlers: Arc<Handlers> = self.handlers.clone();
+    let mut senders = handlers.map.lock().unwrap();
+    senders.insert(sid, handler);
+  }
+}
+
+impl RSocket for DuplexSocket {
+  fn request_fnf(&self, req: Payload) -> Box<Future<Item = (), Error = RSocketError>> {
+    let sid = self.seq.next();
+    let mut bu = frame::RequestFNF::builder(sid, 0);
+    if let Some(b) = req.data() {
+      bu.set_data(b);
+    }
+    if let Some(b) = req.metadata() {
+      bu.set_metadata(b);
+    }
+    let sending = bu.build();
+    let task = self
+      .tx
+      .clone()
+      .send(sending)
+      .map(|it| ())
+      .map_err(|e| RSocketError::from("send request FNF failed"));
+    Box::new(task)
+  }
+
+  fn request_response(&self, input: Payload) -> Box<Future<Item = Payload, Error = RSocketError>> {
     let sid = self.seq.next();
     let (tx, caller) = RequestCaller::new();
     // register handler
@@ -155,13 +180,10 @@ impl DuplexSocket {
     // send frame
     self.tx.clone().send(sending).wait().unwrap();
     // tokio::spawn(emitter.send(sent).and_then(|_| Ok(())).map_err(|_| ()));
-    caller
+    Box::new(caller)
   }
 
-  pub fn request_stream(
-    &self,
-    input: Payload,
-  ) -> impl Stream<Item = Payload, Error = RSocketError> {
+  fn request_stream(&self, input: Payload) -> Box<Stream<Item = Payload, Error = RSocketError>> {
     let sid = self.seq.next();
     // register handler
     let (tx, caller) = StreamCaller::new();
@@ -176,13 +198,7 @@ impl DuplexSocket {
     }
     let sending = bu.build();
     self.tx.clone().send(sending).wait().unwrap();
-    caller
-  }
-
-  fn register_handler(&self, sid: u32, handler: Handler) {
-    let handlers: Arc<Handlers> = self.handlers.clone();
-    let mut senders = handlers.map.lock().unwrap();
-    senders.insert(sid, handler);
+    Box::new(caller)
   }
 }
 

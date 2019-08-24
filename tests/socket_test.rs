@@ -15,6 +15,10 @@ fn test_socket_request() {
   let socket = DuplexSocket::connect("127.0.0.1:7878");
   socket.setup(Payload::from("Ready!")).wait().unwrap();
 
+  // request fnf
+  let fnf = Payload::from("Mock FNF");
+  socket.request_fnf(fnf).wait().unwrap();
+
   // request response
   for n in 0..10 {
     let sending = Payload::builder()
@@ -37,5 +41,5 @@ fn test_socket_request() {
       println!("******* STREAM: {:?}", it);
       Ok(())
     });
-  tokio::run(task);
+  task.wait().unwrap();
 }
