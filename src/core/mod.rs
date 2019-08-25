@@ -1,8 +1,8 @@
-mod callers;
-mod socket;
-mod misc;
 mod api;
+mod callers;
+mod misc;
+mod socket;
 
 pub use api::*;
 pub use callers::*;
-pub use socket::{DuplexSocket};
+pub use socket::{DuplexSocket, DuplexSocketBuilder};

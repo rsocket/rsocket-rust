@@ -20,8 +20,9 @@ fn test_socket_request() {
   // Prepare a Echo server. (see: https://github.com/rsocket/rsocket-go/tree/master/cmd/echo)
 
   // create a socket.
-  let socket = DuplexSocket::connect("127.0.0.1:7878");
-  socket.setup(Payload::from("Ready!")).wait().unwrap();
+  let socket = DuplexSocket::builder("127.0.0.1:7878")
+    .set_setup(Payload::from("Ready!"))
+    .connect();
 
   // request fnf
   let fnf = Payload::from("Mock FNF");

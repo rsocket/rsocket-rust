@@ -7,6 +7,7 @@ use crate::core::misc::StreamID;
 use crate::core::{RequestCaller, StreamCaller};
 use crate::errors::RSocketError;
 use crate::frame::{self, Body, Frame};
+use crate::mime::MIME_BINARY;
 use crate::payload::Payload;
 use crate::transport::Context;
 
@@ -15,7 +16,9 @@ use futures::sync::mpsc;
 use futures::sync::oneshot;
 use futures::{Future, Sink, Stream};
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 // use tokio::runtime::Runtime;
 
 #[derive(Debug)]
@@ -41,12 +44,98 @@ pub struct DuplexSocket {
   tx: mpsc::Sender<Frame>,
   handlers: Arc<Handlers>,
   seq: StreamID,
+  responder: Option<Box<RSocket>>,
+}
+
+pub struct DuplexSocketBuilder {
+  addr: String,
+  acceptor: Option<Box<RSocket>>,
+  setup: Option<Payload>,
+  keepalive_interval: Duration,
+  keepalive_lifetime: Duration,
+  mime_data: Option<String>,
+  mime_metadata: Option<String>,
+}
+
+impl DuplexSocketBuilder {
+  fn new(addr: String) -> DuplexSocketBuilder {
+    DuplexSocketBuilder {
+      addr: addr,
+      acceptor: None,
+      setup: None,
+      keepalive_interval: Duration::from_secs(20),
+      keepalive_lifetime: Duration::from_secs(90),
+      mime_data: Some(String::from(MIME_BINARY)),
+      mime_metadata: Some(String::from(MIME_BINARY)),
+    }
+  }
+
+  pub fn set_acceptor(&mut self, acceptor: Box<RSocket>) -> &mut DuplexSocketBuilder {
+    self.acceptor = Some(acceptor);
+    self
+  }
+
+  pub fn set_setup(&mut self, setup: Payload) -> &mut DuplexSocketBuilder {
+    self.setup = Some(setup);
+    self
+  }
+
+  pub fn set_keepalive(
+    &mut self,
+    tick_period: Duration,
+    ack_timeout: Duration,
+    missed_acks: u64,
+  ) -> &mut DuplexSocketBuilder {
+    let lifetime_mills = (ack_timeout.as_millis() as u64) * missed_acks;
+    self.keepalive_interval = tick_period;
+    self.keepalive_lifetime = Duration::from_millis(lifetime_mills);
+    self
+  }
+
+  pub fn set_data_mime_type(&mut self, mime: String) -> &mut DuplexSocketBuilder {
+    self.mime_data = Some(mime);
+    self
+  }
+  pub fn set_metadata_mime_type(&mut self, mime: String) -> &mut DuplexSocketBuilder {
+    self.mime_metadata = Some(mime);
+    self
+  }
+
+  pub fn connect(&mut self) -> DuplexSocket {
+    let addr: SocketAddr = self.addr.parse().unwrap();
+    let ctx = Context::from(&addr);
+    let sk = DuplexSocket::new(ctx);
+    let mut bu = frame::Setup::builder(0, 0);
+    match &self.setup {
+      Some(v) => {
+        if let Some(b) = v.data() {
+          bu.set_data(b);
+        }
+        if let Some(b) = v.metadata() {
+          bu.set_metadata(b);
+        }
+        ()
+      }
+      None => (),
+    };
+    if let Some(s) = &self.mime_data {
+      bu.set_mime_data(&s);
+    }
+    if let Some(s) = &self.mime_metadata {
+      bu.set_mime_metadata(&s);
+    }
+    let sending = bu
+      .set_keepalive(self.keepalive_interval)
+      .set_lifetime(self.keepalive_lifetime)
+      .build();
+    sk.send_frame(sending).wait().unwrap();
+    sk
+  }
 }
 
 impl DuplexSocket {
-  pub fn connect(addr: &'static str) -> DuplexSocket {
-    let ctx = Context::builder(addr).build();
-    Self::new(ctx)
+  pub fn builder(addr: &str) -> DuplexSocketBuilder {
+    DuplexSocketBuilder::new(String::from(addr))
   }
 
   fn new(ctx: Context) -> DuplexSocket {
@@ -61,6 +150,7 @@ impl DuplexSocket {
       tx: tx,
       handlers: handlers,
       seq: StreamID::from(1),
+      responder: None,
     }
   }
 
@@ -113,27 +203,13 @@ impl DuplexSocket {
     });
   }
 
-  pub fn setup(&self, setup: Payload) -> impl Future<Item = (), Error = RSocketError> {
-    let mut bu = frame::Setup::builder(0, 0);
-    match setup.data() {
-      Some(b) => {
-        bu.set_data(b);
-        ()
-      }
-      None => (),
-    };
-    match setup.metadata() {
-      Some(b) => {
-        bu.set_metadata(b);
-        ()
-      }
-      None => (),
-    };
-    let sending = bu.build();
+  fn send_frame(&self, sending: Frame) -> Box<Future<Item = (), Error = RSocketError>> {
     let tx = self.tx.clone();
-    tx.send(sending)
+    let task = tx
+      .send(sending)
       .map(|_| ())
-      .map_err(|e| RSocketError::from("send setup frame failed"))
+      .map_err(|e| RSocketError::from("send frame failed"));
+    Box::new(task)
   }
 
   fn register_handler(&self, sid: u32, handler: Handler) {
@@ -144,6 +220,21 @@ impl DuplexSocket {
 }
 
 impl RSocket for DuplexSocket {
+  fn metadata_push(&self, req: Payload) -> Box<Future<Item = (), Error = RSocketError>> {
+    let sid = self.seq.next();
+    let mut bu = frame::MetadataPush::builder(sid, 0);
+    if let Some(b) = req.metadata() {
+      bu.set_metadata(b);
+    }
+    let sending = bu.build();
+    let tx = self.tx.clone();
+    Box::new(
+      tx.send(sending)
+        .map(|_| ())
+        .map_err(|e| RSocketError::from("send metadata_push failed")),
+    )
+  }
+
   fn request_fnf(&self, req: Payload) -> Box<Future<Item = (), Error = RSocketError>> {
     let sid = self.seq.next();
     let mut bu = frame::RequestFNF::builder(sid, 0);
@@ -154,13 +245,12 @@ impl RSocket for DuplexSocket {
       bu.set_metadata(b);
     }
     let sending = bu.build();
-    let task = self
-      .tx
-      .clone()
-      .send(sending)
-      .map(|it| ())
-      .map_err(|e| RSocketError::from("send request FNF failed"));
-    Box::new(task)
+    let tx = self.tx.clone();
+    Box::new(
+      tx.send(sending)
+        .map(|_| ())
+        .map_err(|e| RSocketError::from("send request FNF failed")),
+    )
   }
 
   fn request_response(&self, input: Payload) -> Box<Future<Item = Payload, Error = RSocketError>> {
@@ -199,11 +289,5 @@ impl RSocket for DuplexSocket {
     let sending = bu.build();
     self.tx.clone().send(sending).wait().unwrap();
     Box::new(caller)
-  }
-}
-
-impl From<Context> for DuplexSocket {
-  fn from(ctx: Context) -> DuplexSocket {
-    DuplexSocket::new(ctx)
   }
 }
