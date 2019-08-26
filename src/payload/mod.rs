@@ -36,7 +36,6 @@ impl PayloadBuilder {
 }
 
 impl Payload {
-
   pub fn builder() -> PayloadBuilder {
     PayloadBuilder::new()
   }
@@ -92,5 +91,41 @@ impl From<(Option<Bytes>, Option<Bytes>)> for Payload {
       None => (),
     };
     bu.build()
+  }
+}
+
+impl From<&frame::Setup> for Payload {
+  fn from(input: &frame::Setup) -> Payload {
+    Payload::from((input.get_data(), input.get_metadata()))
+  }
+}
+
+impl From<&frame::RequestChannel> for Payload {
+  fn from(input: &frame::RequestChannel) -> Payload {
+    Payload::from((input.get_data(), input.get_metadata()))
+  }
+}
+
+impl From<&frame::MetadataPush> for Payload {
+  fn from(input: &frame::MetadataPush) -> Payload {
+    Payload::from((input.get_data(), input.get_metadata()))
+  }
+}
+
+impl From<&frame::RequestStream> for Payload {
+  fn from(input: &frame::RequestStream) -> Payload {
+    Payload::from((input.get_data(), input.get_metadata()))
+  }
+}
+
+impl From<&frame::RequestFNF> for Payload {
+  fn from(input: &frame::RequestFNF) -> Payload {
+    Payload::from((input.get_data(), input.get_metadata()))
+  }
+}
+
+impl From<&frame::RequestResponse> for Payload {
+  fn from(input: &frame::RequestResponse) -> Payload {
+    Payload::from((input.get_data(), input.get_metadata()))
   }
 }
