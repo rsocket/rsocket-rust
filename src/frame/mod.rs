@@ -19,7 +19,7 @@ mod setup;
 mod utils;
 
 pub use cancel::Cancel;
-pub use error::Error;
+pub use error::{Error};
 pub use keepalive::Keepalive;
 pub use lease::Lease;
 pub use metadata_push::MetadataPush;
@@ -57,6 +57,17 @@ pub const TYPE_ERROR: u16 = 0x0B;
 pub const TYPE_METADATA_PUSH: u16 = 0x0C;
 pub const TYPE_RESUME: u16 = 0x0D;
 pub const TYPE_RESUME_OK: u16 = 0x0E;
+
+pub const ERR_INVALID_SETUP: u32 = 0x00000001;
+pub const ERR_UNSUPPORTED_SETUP: u32 = 0x00000002;
+pub const ERR_REJECT_SETUP: u32 = 0x00000003;
+pub const ERR_REJECT_RESUME: u32 = 0x00000004;
+pub const ERR_CONN_FAILED: u32 = 0x00000101;
+pub const ERR_CONN_CLOSED: u32 = 0x00000102;
+pub const ERR_APPLICATION: u32 = 0x00000201;
+pub const ERR_REJECTED: u32 = 0x00000202;
+pub const ERR_CANCELED: u32 = 0x00000203;
+pub const ERR_INVALID: u32 = 0x00000204;
 
 pub const REQUEST_MAX: u32 = 2147483647;
 const LEN_HEADER: u32 = 6;

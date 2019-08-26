@@ -5,6 +5,7 @@ extern crate tokio;
 
 use bytes::Bytes;
 use futures::future::ok;
+use futures::stream::iter_ok;
 use futures::{Future, Stream};
 use rsocket::prelude::*;
 
@@ -27,7 +28,16 @@ impl RSocket for MockResponder {
   }
 
   fn request_stream(&self, req: Payload) -> Box<Stream<Item = Payload, Error = RSocketError>> {
-    unimplemented!()
+    println!(">>>>>>>> accept stream: {:?}", req);
+    let mut results = vec![];
+    for n in 0..10 {
+      let pa = Payload::builder()
+        .set_data(Bytes::from(format!("DATA_{}", n)))
+        .set_metadata(Bytes::from(format!("METADATA_{}", n)))
+        .build();
+      results.push(pa);
+    }
+    Box::new(iter_ok(results))
   }
 }
 
@@ -56,7 +66,7 @@ fn test_socket_request() {
   socket.request_fnf(fnf).wait().unwrap();
 
   // request response
-  for n in 0..10 {
+  for n in 0..3 {
     let sending = Payload::builder()
       .set_data(Bytes::from(format!("[{}] Hello Rust!", n)))
       .set_metadata(Bytes::from("text/plain"))

@@ -5,15 +5,15 @@ extern crate tokio;
 use crate::core::api::RSocket;
 use crate::core::misc::StreamID;
 use crate::core::{RequestCaller, StreamCaller};
-use crate::errors::RSocketError;
+use crate::errors::{ErrorKind, RSocketError};
 use crate::frame::{self, Body, Frame};
 use crate::mime::MIME_BINARY;
 use crate::payload::Payload;
 use crate::transport::Context;
 
 use bytes::Bytes;
-use futures::sync::mpsc;
-use futures::sync::oneshot;
+use futures::sync::{mpsc, oneshot};
+use futures::{future, stream};
 use futures::{Future, Sink, Stream};
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -76,11 +76,26 @@ impl Runner {
     }
   }
 
+  fn respond_metadata_push(&self, input: Payload) {
+    let responder = self.responder.clone();
+    // TODO: use future spawn
+    std::thread::spawn(move || {
+      responder.metadata_push(input).wait().unwrap();
+    });
+  }
+
+  fn respond_fnf(&self, input: Payload) {
+    let responder = self.responder.clone();
+    // TODO: use future spawn
+    std::thread::spawn(move || {
+      responder.request_fnf(input).wait().unwrap();
+    });
+  }
+
   fn respond_request_response(&self, sid: u32, flag: u16, input: Payload) {
-    // TODO: do async
     let responder = self.responder.clone();
     let tx = self.tx.clone();
-
+    // TODO: use future spawn
     std::thread::spawn(move || {
       let sending = responder
         .request_response(input)
@@ -106,6 +121,34 @@ impl Runner {
     //     let bu = frame::Payload::builder(sid, frame::FLAG_COMPLETE);
     //       tx.send(bu.build())
     // });
+  }
+
+  fn respond_request_stream(&self, sid: u32, flag: u16, input: Payload) {
+    let responder = self.responder.clone();
+    let tx = self.tx.clone();
+    // TODO: use future spawn
+    std::thread::spawn(move || {
+      let tx2 = tx.clone();
+      let stream = responder
+        .request_stream(input)
+        .map(|elem| {
+          let mut bu = frame::Payload::builder(sid, frame::FLAG_NEXT);
+          if let Some(b) = elem.data() {
+            bu.set_data(b);
+          }
+          if let Some(b) = elem.metadata() {
+            bu.set_metadata(b);
+          }
+          bu.build()
+        })
+        .map_err(|e| {
+          println!("respond request stream failed: {}", e);
+          unimplemented!()
+        });
+      tx.send_all(stream).wait().unwrap();
+      let complete = frame::Payload::builder(sid, frame::FLAG_COMPLETE).build();
+      tx2.clone().send(complete).wait().unwrap();
+    });
   }
 
   fn run(self, rx: mpsc::Receiver<Frame>) {
@@ -151,6 +194,11 @@ impl Runner {
           let pa = Payload::from(v);
           let flag = f.get_flag();
           self.respond_request_response(sid, flag, pa);
+        }
+        Body::RequestStream(v) => {
+          let pa = Payload::from(v);
+          let flag = f.get_flag();
+          self.respond_request_stream(sid, flag, pa);
         }
         _ => {
           println!("incoming unsupported frame: {:?}", f);
@@ -351,20 +399,26 @@ impl DuplexSocketBuilder {
 
 struct EmptyRSocket;
 
+impl EmptyRSocket {
+  fn must_failed(&self) -> RSocketError {
+    RSocketError::from(ErrorKind::Internal(frame::ERR_APPLICATION, "NOT_IMPLEMENT"))
+  }
+}
+
 impl RSocket for EmptyRSocket {
-  fn metadata_push(&self, req: Payload) -> Box<Future<Item = (), Error = RSocketError>> {
-    unimplemented!()
+  fn metadata_push(&self, _req: Payload) -> Box<Future<Item = (), Error = RSocketError>> {
+    Box::new(future::err(self.must_failed()))
   }
 
-  fn request_fnf(&self, req: Payload) -> Box<Future<Item = (), Error = RSocketError>> {
-    unimplemented!()
+  fn request_fnf(&self, _req: Payload) -> Box<Future<Item = (), Error = RSocketError>> {
+    Box::new(future::err(self.must_failed()))
   }
 
-  fn request_response(&self, req: Payload) -> Box<Future<Item = Payload, Error = RSocketError>> {
-    unimplemented!()
+  fn request_response(&self, _req: Payload) -> Box<Future<Item = Payload, Error = RSocketError>> {
+    Box::new(future::err(self.must_failed()))
   }
 
-  fn request_stream(&self, req: Payload) -> Box<Stream<Item = Payload, Error = RSocketError>> {
-    unimplemented!()
+  fn request_stream(&self, _req: Payload) -> Box<Stream<Item = Payload, Error = RSocketError>> {
+    Box::new(stream::iter_result(Err(self.must_failed())))
   }
 }
