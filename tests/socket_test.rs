@@ -4,52 +4,24 @@ extern crate rsocket;
 extern crate tokio;
 
 use bytes::Bytes;
-use futures::future::ok;
-use futures::stream::iter_ok;
 use futures::{Future, Stream};
 use rsocket::prelude::*;
-
-struct MockResponder;
-
-impl RSocket for MockResponder {
-  fn metadata_push(&self, req: Payload) -> Box<Future<Item = (), Error = RSocketError>> {
-    println!("receive metadata_push: {:?}", req);
-    Box::new(ok(()).map_err(|()| RSocketError::from("foobar")))
-  }
-
-  fn request_fnf(&self, req: Payload) -> Box<Future<Item = (), Error = RSocketError>> {
-    println!("receive request_fnf: {:?}", req);
-    Box::new(ok(()).map_err(|()| RSocketError::from("foobar")))
-  }
-
-  fn request_response(&self, req: Payload) -> Box<Future<Item = Payload, Error = RSocketError>> {
-    println!(">>>>>>>> responder: {:?}", req);
-    Box::new(ok(req))
-  }
-
-  fn request_stream(&self, req: Payload) -> Box<Stream<Item = Payload, Error = RSocketError>> {
-    println!(">>>>>>>> accept stream: {:?}", req);
-    let mut results = vec![];
-    for n in 0..10 {
-      let pa = Payload::builder()
-        .set_data(Bytes::from(format!("DATA_{}", n)))
-        .set_metadata(Bytes::from(format!("METADATA_{}", n)))
-        .build();
-      results.push(pa);
-    }
-    Box::new(iter_ok(results))
-  }
-}
 
 #[test]
 fn test_socket_request() {
   // Prepare a Echo server. (see: https://github.com/rsocket/rsocket-go/tree/master/cmd/echo)
 
+  let addr = "127.0.0.1:7878".parse().unwrap();
   // create a socket.
-  let socket = DuplexSocket::builder("127.0.0.1:7878")
-    .set_setup(Payload::from("Ready!"))
+  let socket = DuplexSocket::builder()
     .set_acceptor(Box::new(MockResponder))
-    .connect();
+    .connect(&addr);
+
+  // setup manual
+  let setup = SetupPayload::builder()
+    .set_data(Bytes::from("Ready!"))
+    .build();
+  socket.setup(setup).wait().unwrap();
 
   // metadata push
   socket

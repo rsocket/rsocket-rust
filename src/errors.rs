@@ -21,7 +21,7 @@ pub struct RSocketError {
 
 impl Error for RSocketError {
   fn description(&self) -> &str {
-    unimplemented!()
+    "this is a rsocket error"
   }
 
   fn cause(&self) -> Option<&dyn Error> {

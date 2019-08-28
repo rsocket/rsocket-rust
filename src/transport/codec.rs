@@ -13,11 +13,15 @@ impl Decoder for FrameCodec {
   type Error = io::Error;
 
   fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-    if buf.len() < 3 {
+    let actual = buf.len();
+    if actual < 3 {
       return Ok(None);
     }
-    let l = U24::read(buf);
-    let mut bb = buf.split_to(l as usize);
+    let l = U24::read(buf) as usize;
+    if actual < 3 + l {
+      return Ok(None);
+    }
+    let mut bb = buf.split_to(l);
     Ok(Frame::decode(&mut bb))
   }
 }

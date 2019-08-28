@@ -1,8 +1,8 @@
-mod api;
 mod callers;
 mod misc;
 mod socket;
+mod spi;
 
-pub use api::*;
 pub use callers::*;
 pub use socket::{DuplexSocket, DuplexSocketBuilder};
+pub use spi::{RSocket,MockResponder};

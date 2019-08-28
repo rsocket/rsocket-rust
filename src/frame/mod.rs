@@ -156,6 +156,7 @@ impl Frame {
   }
 
   pub fn decode(b: &mut BytesMut) -> Option<Frame> {
+    // TODO: check size
     let sid = BigEndian::read_u32(b);
     b.advance(4);
     let n = BigEndian::read_u16(b);
