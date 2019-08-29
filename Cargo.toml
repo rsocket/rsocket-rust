@@ -1,9 +1,15 @@
 [package]
-name = "rsocket"
+name = "rsocket_rust"
 version = "0.1.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
 license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/jjeffcaii/rsocket-rust"
+homepage = "https://github.com/jjeffcaii/rsocket-rust"
+description = """
+rsocket-rust is an implementation of the RSocket protocol in Rust.
+"""
 
 [dependencies]
 bytes = "0.4.12"

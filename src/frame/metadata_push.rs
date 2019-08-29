@@ -1,5 +1,6 @@
 extern crate bytes;
 
+use crate::result::RSocketResult;
 use crate::frame::{Body, Frame, Writeable};
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -38,9 +39,9 @@ impl MetadataPushBuiler {
 }
 
 impl MetadataPush {
-  pub fn decode(flag: u16, bf: &mut BytesMut) -> Option<MetadataPush> {
+  pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<MetadataPush> {
     let m = Bytes::from(bf.to_vec());
-    Some(MetadataPush { metadata: Some(m) })
+    Ok(MetadataPush { metadata: Some(m) })
   }
 
   pub fn builder(stream_id: u32, flag: u16) -> MetadataPushBuiler {

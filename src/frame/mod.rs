@@ -1,5 +1,7 @@
 extern crate bytes;
 
+use crate::result::{RSocketResult};
+use crate::errors::{RSocketError};
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 
 mod cancel;
@@ -155,7 +157,7 @@ impl Frame {
     }
   }
 
-  pub fn decode(b: &mut BytesMut) -> Option<Frame> {
+  pub fn decode(b: &mut BytesMut) -> RSocketResult<Frame> {
     // TODO: check size
     let sid = BigEndian::read_u32(b);
     b.advance(4);
@@ -163,22 +165,22 @@ impl Frame {
     b.advance(2);
     let (flag, kind) = (n & 0x03FF, (n & 0xFC00) >> 10);
     let body = match kind {
-      TYPE_SETUP => Body::Setup(Setup::decode(flag, b).unwrap()),
-      TYPE_REQUEST_RESPONSE => Body::RequestResponse(RequestResponse::decode(flag, b).unwrap()),
-      TYPE_REQUEST_STREAM => Body::RequestStream(RequestStream::decode(flag, b).unwrap()),
-      TYPE_REQUEST_CHANNEL => Body::RequestChannel(RequestChannel::decode(flag, b).unwrap()),
-      TYPE_REQUEST_FNF => Body::RequestFNF(RequestFNF::decode(flag, b).unwrap()),
-      TYPE_REQUEST_N => Body::RequestN(RequestN::decode(flag, b).unwrap()),
-      TYPE_METADATA_PUSH => Body::MetadataPush(MetadataPush::decode(flag, b).unwrap()),
-      TYPE_KEEPALIVE => Body::Keepalive(Keepalive::decode(flag, b).unwrap()),
-      TYPE_PAYLOAD => Body::Payload(Payload::decode(flag, b).unwrap()),
-      TYPE_LEASE => Body::Lease(Lease::decode(flag, b).unwrap()),
-      TYPE_CANCEL => Body::Cancel(),
-      TYPE_ERROR => Body::Error(Error::decode(flag, b).unwrap()),
-      TYPE_RESUME_OK => Body::ResumeOK(ResumeOK::decode(flag, b).unwrap()),
-      _ => unimplemented!(),
+      TYPE_SETUP => Setup::decode(flag, b).map(|it|Body::Setup(it)),
+      TYPE_REQUEST_RESPONSE =>RequestResponse::decode(flag, b).map(|it|Body::RequestResponse(it)),
+      TYPE_REQUEST_STREAM => RequestStream::decode(flag, b).map(|it|Body::RequestStream(it)),
+      TYPE_REQUEST_CHANNEL => RequestChannel::decode(flag, b).map(|it|Body::RequestChannel(it)),
+      TYPE_REQUEST_FNF => RequestFNF::decode(flag, b).map(|it|Body::RequestFNF(it)),
+      TYPE_REQUEST_N => RequestN::decode(flag, b).map(|it|Body::RequestN(it)),
+      TYPE_METADATA_PUSH => MetadataPush::decode(flag, b).map(|it|Body::MetadataPush(it)),
+      TYPE_KEEPALIVE => Keepalive::decode(flag, b).map(|it|Body::Keepalive(it)),
+      TYPE_PAYLOAD => Payload::decode(flag, b).map(|it|Body::Payload(it)),
+      TYPE_LEASE => Lease::decode(flag, b).map(|it|Body::Lease(it)),
+      TYPE_CANCEL => Ok(Body::Cancel()),
+      TYPE_ERROR => Error::decode(flag, b).map(|it|Body::Error(it)),
+      TYPE_RESUME_OK => ResumeOK::decode(flag, b).map(|it|Body::ResumeOK(it)),
+      _ => Err(RSocketError::from("illegal frame type")),
     };
-    Some(Frame::new(sid, body, flag))
+    body.map(|it|Frame::new(sid, it, flag))
   }
 
   pub fn get_body(&self) -> &Body {

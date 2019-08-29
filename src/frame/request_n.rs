@@ -1,5 +1,6 @@
 extern crate bytes;
 
+use crate::result::RSocketResult;
 use crate::frame::{Body, Frame, Writeable, REQUEST_MAX};
 use bytes::{BigEndian, BufMut, ByteOrder, BytesMut};
 
@@ -38,10 +39,10 @@ impl RequestNBuilder {
 }
 
 impl RequestN {
-  pub fn decode(flag: u16, bf: &mut BytesMut) -> Option<RequestN> {
+  pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestN> {
     let n = BigEndian::read_u32(bf);
     bf.advance(4);
-    Some(RequestN { n: n })
+    Ok(RequestN { n: n })
   }
 
   pub fn builder(stream_id: u32, flag: u16) -> RequestNBuilder {

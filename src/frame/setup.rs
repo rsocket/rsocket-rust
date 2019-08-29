@@ -1,5 +1,6 @@
 extern crate bytes;
 
+use crate::result::{RSocketResult};
 use crate::frame::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA, FLAG_RESUME, U24};
 use crate::mime::MIME_BINARY;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
@@ -81,7 +82,8 @@ impl Writeable for Setup {
 }
 
 impl Setup {
-  pub fn decode(flag: u16, b: &mut BytesMut) -> Option<Setup> {
+
+  pub fn decode(flag: u16, b: &mut BytesMut) -> RSocketResult<Setup> {
     let major = BigEndian::read_u16(b);
     b.advance(2);
     let minor = BigEndian::read_u16(b);
@@ -104,7 +106,7 @@ impl Setup {
     b.advance(1);
     let mime_data = b.split_to(len_mime);
     let (metadata, data) = PayloadSupport::read(flag, b);
-    Some(Setup {
+    Ok(Setup {
       version: Version::new(major, minor),
       keepalive: keepalive,
       lifetime: lifetime,

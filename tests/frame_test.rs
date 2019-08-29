@@ -1,9 +1,9 @@
 extern crate bytes;
 extern crate hex;
-extern crate rsocket;
+extern crate rsocket_rust;
 
 use bytes::{Bytes, BytesMut};
-use rsocket::frame::*;
+use rsocket_rust::frame::*;
 
 #[test]
 fn test_setup() {
@@ -19,11 +19,11 @@ fn test_setup() {
 
 #[test]
 fn test_keepalive() {
-  let ka = Keepalive::builder(1234, FLAG_RESPOND)
+  let f = Keepalive::builder(1234, FLAG_RESPOND)
     .set_last_received_position(123)
     .set_data(Bytes::from("foobar"))
     .build();
-  try_codec(&ka);
+  try_codec(&f);
 }
 
 #[test]

@@ -1,5 +1,6 @@
 extern crate bytes;
 
+use crate::result::RSocketResult;
 use crate::frame::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA, U24};
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 
@@ -58,9 +59,9 @@ impl Writeable for RequestResponse {
 }
 
 impl RequestResponse {
-  pub fn decode(flag: u16, bf: &mut BytesMut) -> Option<RequestResponse> {
+  pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestResponse> {
     let (m, d) = PayloadSupport::read(flag, bf);
-    Some(RequestResponse {
+    Ok(RequestResponse {
       metadata: m,
       data: d,
     })

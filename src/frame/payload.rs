@@ -1,5 +1,6 @@
 extern crate bytes;
 
+use crate::result::RSocketResult;
 use crate::frame::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA};
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -44,9 +45,9 @@ impl PayloadBuilder {
 }
 
 impl Payload {
-  pub fn decode(flag: u16, bf: &mut BytesMut) -> Option<Payload> {
+  pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Payload> {
     let (m, d) = PayloadSupport::read(flag, bf);
-    Some(Payload {
+    Ok(Payload {
       metadata: m,
       data: d,
     })

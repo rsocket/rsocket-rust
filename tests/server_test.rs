@@ -1,11 +1,11 @@
 extern crate futures;
-extern crate rsocket;
+extern crate rsocket_rust;
 extern crate tokio;
 
-use rsocket::frame::Frame;
-use rsocket::prelude::*;
-use rsocket::transport::Context;
-use rsocket::transport::FrameCodec;
+use rsocket_rust::frame::Frame;
+use rsocket_rust::prelude::*;
+use rsocket_rust::transport::Context;
+use rsocket_rust::transport::FrameCodec;
 
 use futures::future::Future;
 use futures::sync::mpsc::{self, Receiver, Sender};

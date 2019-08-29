@@ -1,5 +1,6 @@
 extern crate bytes;
 
+use crate::result::RSocketResult;
 use crate::frame::{Body, Frame, Writeable};
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 
@@ -64,14 +65,14 @@ impl Writeable for Keepalive {
 }
 
 impl Keepalive {
-  pub fn decode(flag: u16, bf: &mut BytesMut) -> Option<Keepalive> {
+  pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Keepalive> {
     let position = BigEndian::read_u64(bf);
     bf.advance(8);
     let mut d: Option<Bytes> = None;
     if !bf.is_empty() {
       d = Some(Bytes::from(bf.to_vec()));
     }
-    Some(Keepalive {
+    Ok(Keepalive {
       last_received_position: position,
       data: d,
     })

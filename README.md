@@ -14,12 +14,12 @@
 ```rust
 extern crate bytes;
 extern crate futures;
-extern crate rsocket;
+extern crate rsocket_rust;
 extern crate tokio;
 
 use bytes::Bytes;
 use futures::{Future, Stream};
-use rsocket::prelude::*;
+use rsocket_rust::prelude::*;
 
 #[test]
 fn test_socket_request() {

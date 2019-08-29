@@ -1,6 +1,7 @@
 extern crate bytes;
 extern crate tokio;
 
+use crate::errors::RSocketError;
 use crate::frame::{Frame, Writeable, U24};
 use bytes::{BufMut, BytesMut};
 use std::io;
@@ -10,7 +11,7 @@ pub struct FrameCodec;
 
 impl Decoder for FrameCodec {
   type Item = Frame;
-  type Error = io::Error;
+  type Error = RSocketError;
 
   fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
     let actual = buf.len();
@@ -22,7 +23,7 @@ impl Decoder for FrameCodec {
       return Ok(None);
     }
     let mut bb = buf.split_to(l);
-    Ok(Frame::decode(&mut bb))
+    Frame::decode(&mut bb).map(|it| Some(it))
   }
 }
 

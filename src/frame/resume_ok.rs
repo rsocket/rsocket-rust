@@ -1,5 +1,6 @@
 extern crate bytes;
 
+use crate::result::RSocketResult;
 use crate::frame::{Body, Frame, Writeable};
 use bytes::{BigEndian, BufMut, ByteOrder, BytesMut};
 
@@ -37,10 +38,10 @@ impl ResumeOKBuilder {
 }
 
 impl ResumeOK {
-  pub fn decode(flag: u16, bf: &mut BytesMut) -> Option<ResumeOK> {
+  pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<ResumeOK> {
     let p = BigEndian::read_u64(bf);
     bf.advance(4);
-    Some(ResumeOK { position: p })
+    Ok(ResumeOK { position: p })
   }
 
   pub fn builder(stream_id: u32, flag: u16) -> ResumeOKBuilder {
