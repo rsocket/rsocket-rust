@@ -1,5 +1,11 @@
 # rsocket-rust
-learn rust && implement rsocket. 😭
+![logo](./logo.jpg)
+
+[![License](https://img.shields.io/github/license/jjeffcaii/rsocket-rust.svg)](https://github.com/jjeffcaii/rsocket-rust/blob/master/LICENSE)
+[![GitHub Release](https://img.shields.io/github/release-pre/jjeffcaii/rsocket-rust.svg)](https://github.com/jjeffcaii/rsocket-rust/releases)
+
+> rsocket-rust is an implementation of the RSocket protocol in Rust.
+<br>It is under active development. Do not use it in a production environment.
 
 ## Example
 
