@@ -25,9 +25,18 @@ impl PayloadBuilder {
     self.value.m = Some(metadata);
     self
   }
+
+  pub fn set_metadata_utf8(&mut self, metadata: &str) -> &mut PayloadBuilder {
+    self.set_metadata(Bytes::from(metadata))
+  }
+
   pub fn set_data(&mut self, data: Bytes) -> &mut PayloadBuilder {
     self.value.d = Some(data);
     self
+  }
+
+  pub fn set_data_utf8(&mut self, data: &str) -> &mut PayloadBuilder {
+    self.set_data(Bytes::from(data))
   }
 
   pub fn build(&mut self) -> Payload {

@@ -1,9 +1,7 @@
-extern crate bytes;
 extern crate futures;
 extern crate rsocket_rust;
 extern crate tokio;
 
-use bytes::Bytes;
 use futures::{Future, Stream};
 use rsocket_rust::prelude::*;
 
@@ -18,16 +16,14 @@ fn test_socket_request() {
     .connect(&addr);
 
   // setup manual
-  let setup = SetupPayload::builder()
-    .set_data(Bytes::from("Ready!"))
-    .build();
+  let setup = SetupPayload::builder().set_data_utf8("Ready!").build();
   socket.setup(setup).wait().unwrap();
 
   // metadata push
   socket
     .metadata_push(
       Payload::builder()
-        .set_metadata(Bytes::from("metadata only!"))
+        .set_metadata_utf8("metadata only!")
         .build(),
     )
     .wait()
@@ -40,17 +36,17 @@ fn test_socket_request() {
   // request response
   for n in 0..3 {
     let sending = Payload::builder()
-      .set_data(Bytes::from(format!("[{}] Hello Rust!", n)))
-      .set_metadata(Bytes::from("text/plain"))
+      .set_data_utf8("Hello Rust!")
+      .set_metadata_utf8(&format!("#{}", n))
       .build();
     let result = socket.request_response(sending).wait().unwrap();
-    println!("********** YES: {:?}", result);
+    println!("******* REQUEST: {:?}", result);
   }
 
   // request stream
   let sending = Payload::builder()
-    .set_data(Bytes::from("Hello Rust!"))
-    .set_metadata(Bytes::from("text/plain"))
+    .set_data_utf8("Hello Rust!")
+    .set_metadata_utf8("foobar")
     .build();
   let task = socket
     .request_stream(sending)

@@ -12,6 +12,7 @@ pub enum ErrorKind {
   WithDescription(&'static str),
   IO(io::Error),
   Cancelled(),
+  Send(),
 }
 
 #[derive(Debug)]
@@ -56,6 +57,12 @@ impl From<&'static str> for RSocketError {
 impl From<oneshot::Canceled> for RSocketError {
   fn from(e: oneshot::Canceled) -> RSocketError {
     RSocketError::from(ErrorKind::Cancelled())
+  }
+}
+
+impl<T> From<mpsc::SendError<T>> for RSocketError {
+  fn from(_e: mpsc::SendError<T>) -> RSocketError {
+    RSocketError::from(ErrorKind::Send())
   }
 }
 

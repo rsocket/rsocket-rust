@@ -41,9 +41,17 @@ impl SetupPayloadBuilder {
     self
   }
 
+  pub fn set_metadata_utf8(&mut self, metadata: &str) -> &mut SetupPayloadBuilder {
+    self.set_metadata(Bytes::from(metadata))
+  }
+
   pub fn set_data(&mut self, data: Bytes) -> &mut SetupPayloadBuilder {
     self.inner.d = Some(data);
     self
+  }
+
+  pub fn set_data_utf8(&mut self, data: &str) -> &mut SetupPayloadBuilder {
+    self.set_data(Bytes::from(data))
   }
 
   pub fn set_keepalive(

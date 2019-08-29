@@ -7,19 +7,16 @@ use crate::core::spi::RSocket;
 use crate::core::{RequestCaller, StreamCaller};
 use crate::errors::{ErrorKind, RSocketError};
 use crate::frame::{self, Body, Frame};
-use crate::mime::MIME_BINARY;
 use crate::payload::{Payload, SetupPayload};
-use crate::transport::Context;
+use crate::transport::{self, Context};
 
 use bytes::Bytes;
 use futures::sync::{mpsc, oneshot};
 use futures::{future, lazy, stream};
 use futures::{Future, Sink, Stream};
 use std::collections::HashMap;
-use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 use tokio::net::TcpStream;
 // use tokio::runtime::Runtime;
 
@@ -74,24 +71,23 @@ impl Runner {
 
   fn respond_metadata_push(&self, input: Payload) {
     let responder = self.responder.clone();
-    // TODO: use future spawn
-    std::thread::spawn(move || {
+    tokio::spawn(lazy(move || {
       responder.metadata_push(input).wait().unwrap();
-    });
+      Ok(())
+    }));
   }
 
   fn respond_fnf(&self, input: Payload) {
     let responder = self.responder.clone();
-    // TODO: use future spawn
-    std::thread::spawn(move || {
+    tokio::spawn(lazy(move || {
       responder.request_fnf(input).wait().unwrap();
-    });
+      Ok(())
+    }));
   }
 
   fn respond_request_response(&self, sid: u32, flag: u16, input: Payload) {
     let responder = self.responder.clone();
     let tx = self.tx.clone();
-    // TODO: use future spawn
 
     tokio::spawn(lazy(move || {
       let result = responder
@@ -117,29 +113,15 @@ impl Runner {
       tx.send(sending)
         .map(|_| ())
         .map_err(|e| println!("error: {}", e))
-      // tx.send(sending).wait().unwrap();
-      // // let sending =
-      // //
-      // Ok(())
     }));
-
-    // let res = responder.request_response(input).wait().unwrap();
-
-    // println!(">>> respond: {:?}", sending);
-    // self.tx.clone().send(sending).wait().unwrap();
-    // .and_then(|sending|{
-    //     let bu = frame::Payload::builder(sid, frame::FLAG_COMPLETE);
-    //       tx.send(bu.build())
-    // });
   }
 
   fn respond_request_stream(&self, sid: u32, flag: u16, input: Payload) {
     let responder = self.responder.clone();
     let tx = self.tx.clone();
-    // TODO: use future spawn
-    std::thread::spawn(move || {
+    tokio::spawn(lazy(move || {
       let tx2 = tx.clone();
-      let stream = responder
+      responder
         .request_stream(input)
         .map(|elem| {
           let mut bu = frame::Payload::builder(sid, frame::FLAG_NEXT);
@@ -151,17 +133,18 @@ impl Runner {
           }
           bu.build()
         })
-        .map_err(|e| {
-          println!("respond request stream failed: {}", e);
-          unimplemented!()
-        });
-      tx.send_all(stream).wait().unwrap();
-      let complete = frame::Payload::builder(sid, frame::FLAG_COMPLETE).build();
-      tx2.clone().send(complete).wait().unwrap();
-    });
+        .forward(tx)
+        .and_then(|_| {
+          let complete = frame::Payload::builder(sid, frame::FLAG_COMPLETE).build();
+          tx2.send(complete).map_err(|_e| unreachable!())
+        })
+        .wait()
+        .unwrap();
+      Ok(())
+    }));
   }
 
-  fn run(self, rx: mpsc::Receiver<Frame>) {
+  fn to_future(self, rx: mpsc::Receiver<Frame>) -> impl Future<Item = (), Error = ()> + Send {
     let handlers = self.handlers.clone();
     let task = rx.for_each(move |f: frame::Frame| {
       // println!("[DEBUG] incoming: {:?}", f);
@@ -216,9 +199,11 @@ impl Runner {
       };
       Ok(())
     });
-    std::thread::spawn(move || {
-      tokio::run(task);
-    });
+
+    task
+    // std::thread::spawn(move || {
+    //   tokio::run(task);
+    // });
   }
 }
 
@@ -228,12 +213,24 @@ impl DuplexSocket {
   }
 
   fn new(first_stream_id: u32, ctx: Context, responder: Arc<Box<dyn RSocket>>) -> DuplexSocket {
+    let tp = ctx.0;
+    let task0 = ctx.1;
+
     let handlers = Arc::new(Handlers::new());
     let handlers2 = handlers.clone();
-    let tx1 = ctx.tx();
-    let tx2 = ctx.tx();
-    let runner = Runner::new(tx2, handlers2, responder);
-    runner.run(ctx.rx());
+    let tx1 = tp.tx();
+    let tx2 = tp.tx();
+
+    let task = Runner::new(tx2, handlers2, responder).to_future(tp.rx());
+
+    // TODO: Daemon???
+    std::thread::spawn(move || {
+      tokio::run(lazy(move || {
+        tokio::spawn(task0);
+        task
+      }));
+    });
+
     DuplexSocket {
       tx: tx1,
       handlers: handlers,
@@ -241,7 +238,7 @@ impl DuplexSocket {
     }
   }
 
-  pub fn setup(&self, setup: SetupPayload) -> Box<Future<Item = (), Error = RSocketError>> {
+  pub fn setup(&self, setup: SetupPayload) -> impl Future<Item = (), Error = RSocketError> {
     let mut bu = frame::Setup::builder(0, 0);
 
     if let Some(b) = setup.data() {
@@ -263,7 +260,7 @@ impl DuplexSocket {
     self.send_frame(sending)
   }
 
-  fn send_frame(&self, sending: Frame) -> Box<Future<Item = (), Error = RSocketError>> {
+  fn send_frame(&self, sending: Frame) -> Box<dyn Future<Item = (), Error = RSocketError>> {
     let tx = self.tx.clone();
     let task = tx
       .send(sending)
@@ -280,7 +277,7 @@ impl DuplexSocket {
 }
 
 impl RSocket for DuplexSocket {
-  fn metadata_push(&self, req: Payload) -> Box<Future<Item = (), Error = RSocketError>> {
+  fn metadata_push(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
     let sid = self.seq.next();
     let mut bu = frame::MetadataPush::builder(sid, 0);
     if let Some(b) = req.metadata() {
@@ -288,14 +285,14 @@ impl RSocket for DuplexSocket {
     }
     let sending = bu.build();
     let tx = self.tx.clone();
-    Box::new(
-      tx.send(sending)
-        .map(|_| ())
-        .map_err(|e| RSocketError::from("send metadata_push failed")),
-    )
+    let fu = tx
+      .send(sending)
+      .map(|_| ())
+      .map_err(|e| RSocketError::from(e));
+    Box::new(fu)
   }
 
-  fn request_fnf(&self, req: Payload) -> Box<Future<Item = (), Error = RSocketError>> {
+  fn request_fnf(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
     let sid = self.seq.next();
     let mut bu = frame::RequestFNF::builder(sid, 0);
     if let Some(b) = req.data() {
@@ -306,14 +303,17 @@ impl RSocket for DuplexSocket {
     }
     let sending = bu.build();
     let tx = self.tx.clone();
-    Box::new(
-      tx.send(sending)
-        .map(|_| ())
-        .map_err(|e| RSocketError::from("send request FNF failed")),
-    )
+    let fu = tx
+      .send(sending)
+      .map(|_| ())
+      .map_err(|e| RSocketError::from(e));
+    Box::new(fu)
   }
 
-  fn request_response(&self, input: Payload) -> Box<Future<Item = Payload, Error = RSocketError>> {
+  fn request_response(
+    &self,
+    input: Payload,
+  ) -> Box<dyn Future<Item = Payload, Error = RSocketError>> {
     let sid = self.seq.next();
     let (tx, caller) = RequestCaller::new();
     // register handler
@@ -333,7 +333,10 @@ impl RSocket for DuplexSocket {
     Box::new(caller)
   }
 
-  fn request_stream(&self, input: Payload) -> Box<Stream<Item = Payload, Error = RSocketError>> {
+  fn request_stream(
+    &self,
+    input: Payload,
+  ) -> Box<dyn Stream<Item = Payload, Error = RSocketError>> {
     let sid = self.seq.next();
     // register handler
     let (tx, caller) = StreamCaller::new();
@@ -359,18 +362,23 @@ impl DuplexSocketBuilder {
     }
   }
 
+    pub fn set_acceptor_arc(&mut self, acceptor: Arc< Box<dyn RSocket>>) -> &mut DuplexSocketBuilder {
+      self.acceptor = acceptor;
+      self
+    }
+
   pub fn set_acceptor(&mut self, acceptor: Box<dyn RSocket>) -> &mut DuplexSocketBuilder {
     self.acceptor = Arc::new(acceptor);
     self
   }
 
   pub fn from_socket(&mut self, socket: TcpStream) -> DuplexSocket {
-    let ctx = Context::from(socket);
+    let ctx = transport::from_socket(socket);
     self.build(ctx, 2)
   }
 
   pub fn connect(&mut self, addr: &SocketAddr) -> DuplexSocket {
-    let ctx = Context::from(addr);
+    let ctx = transport::from_addr(addr);
     self.build(ctx, 1)
   }
 
@@ -381,7 +389,7 @@ impl DuplexSocketBuilder {
   }
 }
 
-struct EmptyRSocket;
+pub struct EmptyRSocket;
 
 impl EmptyRSocket {
   fn must_failed(&self) -> RSocketError {
@@ -390,19 +398,22 @@ impl EmptyRSocket {
 }
 
 impl RSocket for EmptyRSocket {
-  fn metadata_push(&self, _req: Payload) -> Box<Future<Item = (), Error = RSocketError>> {
+  fn metadata_push(&self, _req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
     Box::new(future::err(self.must_failed()))
   }
 
-  fn request_fnf(&self, _req: Payload) -> Box<Future<Item = (), Error = RSocketError>> {
+  fn request_fnf(&self, _req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
     Box::new(future::err(self.must_failed()))
   }
 
-  fn request_response(&self, _req: Payload) -> Box<Future<Item = Payload, Error = RSocketError>> {
+  fn request_response(
+    &self,
+    _req: Payload,
+  ) -> Box<dyn Future<Item = Payload, Error = RSocketError>> {
     Box::new(future::err(self.must_failed()))
   }
 
-  fn request_stream(&self, _req: Payload) -> Box<Stream<Item = Payload, Error = RSocketError>> {
+  fn request_stream(&self, _req: Payload) -> Box<dyn Stream<Item = Payload, Error = RSocketError>> {
     Box::new(stream::iter_result(Err(self.must_failed())))
   }
 }
