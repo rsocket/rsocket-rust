@@ -2,10 +2,11 @@ extern crate futures;
 
 use crate::core::{DuplexSocket, EmptyRSocket, RSocket};
 use crate::errors::RSocketError;
-use crate::payload::{Payload, SetupPayload};
+use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::result::RSocketResult;
 use futures::{Future, Stream};
 use std::sync::Arc;
+use std::time::Duration;
 
 pub struct Client {
   socket: DuplexSocket,
@@ -13,7 +14,7 @@ pub struct Client {
 
 pub struct ClientBuilder {
   uri: Option<String>,
-  setup: Option<SetupPayload>,
+  setup: SetupPayloadBuilder,
   acceptor: Arc<Box<dyn RSocket>>,
 }
 
@@ -32,7 +33,7 @@ impl ClientBuilder {
     ClientBuilder {
       uri: None,
       acceptor: Arc::new(Box::new(EmptyRSocket)),
-      setup: None,
+      setup: SetupPayload::builder(),
     }
   }
 
@@ -41,8 +42,35 @@ impl ClientBuilder {
     self
   }
 
-  pub fn set_setup(&mut self, setup: SetupPayload) -> &mut ClientBuilder {
-    self.setup = Some(setup);
+  pub fn set_setup(&mut self, setup: Payload) -> &mut ClientBuilder {
+    if let Some(b) = setup.data() {
+      self.setup.set_data(b);
+    }
+    if let Some(b) = setup.metadata() {
+      self.setup.set_metadata(b);
+    }
+    self
+  }
+
+  pub fn set_keepalive(
+    &mut self,
+    tick_period: Duration,
+    ack_timeout: Duration,
+    missed_acks: u64,
+  ) -> &mut ClientBuilder {
+    self
+      .setup
+      .set_keepalive(tick_period, ack_timeout, missed_acks);
+    self
+  }
+
+  pub fn set_data_mime_type(&mut self, mime_type: &str) -> &mut ClientBuilder {
+    self.setup.set_data_mime_type(String::from(mime_type));
+    self
+  }
+
+  pub fn set_metadata_mime_type(&mut self, mime_type: &str) -> &mut ClientBuilder {
+    self.setup.set_metadata_mime_type(String::from(mime_type));
     self
   }
 
@@ -54,10 +82,7 @@ impl ClientBuilder {
         let socket = DuplexSocket::builder()
           .set_acceptor_arc(acceptor)
           .connect(&addr);
-        let setup = match &self.setup {
-          Some(setup) => setup.clone(),
-          None => SetupPayload::builder().build(),
-        };
+        let setup = self.setup.build();
         socket.setup(setup).wait().unwrap();
         Ok(Client::new(socket))
       }
