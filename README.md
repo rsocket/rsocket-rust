@@ -9,7 +9,28 @@
 
 ## Example
 
-> Here's a prototype of RSocket Client API.
+> Here are some example codes which show how RSocket works in Rust. :sunglasses:
+
+### Server
+```rust
+extern crate futures;
+extern crate rsocket_rust;
+
+use futures::prelude::*;
+use rsocket_rust::prelude::*;
+
+#[test]
+fn test_serve() {
+  RSocketFactory::receive()
+    .transport(URI::Tcp("127.0.0.1:7878"))
+    .acceptor(Box::new(MockResponder))
+    .serve()
+    .wait()
+    .unwrap();
+}
+```
+
+### Client
 
 ```rust
 extern crate futures;
@@ -19,20 +40,20 @@ use futures::prelude::*;
 use rsocket_rust::prelude::*;
 
 #[test]
-fn test_client_request_response() {
-  let cli = Client::builder()
-    .set_uri("127.0.0.1:7878")
-    .set_setup(Payload::from("READY!"))
-    .set_data_mime_type("text/plain")
-    .set_metadata_mime_type("text/plain")
-    .build()
+fn test_client() {
+  let cli = RSocketFactory::connect()
+    .acceptor(Box::new(MockResponder))
+    .transport(URI::Tcp("127.0.0.1:7878"))
+    .setup(Payload::from("READY!"))
+    .mime_type("text/plain", "text/plain")
+    .start()
     .unwrap();
   let pa = Payload::builder()
     .set_data_utf8("Hello World!")
     .set_metadata_utf8("Rust!")
     .build();
   let resp = cli.request_response(pa).wait().unwrap();
-  println!("====> response: {:?}", resp);
+  println!("******* response: {:?}", resp);
 }
 ```
 

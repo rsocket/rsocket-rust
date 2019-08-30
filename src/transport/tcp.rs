@@ -9,7 +9,7 @@ use futures::{lazy, Future, Sink, Stream};
 use std::io;
 use std::net::SocketAddr;
 use tokio::codec::Framed;
-use tokio::net::TcpStream;
+use tokio::net::{TcpStream,TcpListener};
 
 pub fn from_addr(addr: &SocketAddr) -> Context {
   let socket = TcpStream::connect(addr).wait().unwrap();

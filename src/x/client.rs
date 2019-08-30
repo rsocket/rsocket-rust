@@ -1,5 +1,6 @@
 extern crate futures;
 
+use crate::x::URI;
 use crate::core::{DuplexSocket, EmptyRSocket, RSocket};
 use crate::errors::RSocketError;
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
@@ -13,9 +14,9 @@ pub struct Client {
 }
 
 pub struct ClientBuilder {
-  uri: Option<String>,
+  uri: Option<URI>,
   setup: SetupPayloadBuilder,
-  acceptor: Arc<Box<dyn RSocket>>,
+  responder: Arc<Box<dyn RSocket>>,
 }
 
 impl Client {
@@ -32,17 +33,17 @@ impl ClientBuilder {
   fn new() -> ClientBuilder {
     ClientBuilder {
       uri: None,
-      acceptor: Arc::new(Box::new(EmptyRSocket)),
+      responder: Arc::new(Box::new(EmptyRSocket)),
       setup: SetupPayload::builder(),
     }
   }
 
-  pub fn set_uri(&mut self, uri: &str) -> &mut ClientBuilder {
-    self.uri = Some(String::from(uri));
+  pub fn transport(&mut self, uri: URI) -> &mut ClientBuilder {
+    self.uri = Some(uri);
     self
   }
 
-  pub fn set_setup(&mut self, setup: Payload) -> &mut ClientBuilder {
+  pub fn setup(&mut self, setup: Payload) -> &mut ClientBuilder {
     if let Some(b) = setup.data() {
       self.setup.set_data(b);
     }
@@ -52,7 +53,7 @@ impl ClientBuilder {
     self
   }
 
-  pub fn set_keepalive(
+  pub fn keepalive(
     &mut self,
     tick_period: Duration,
     ack_timeout: Duration,
@@ -64,31 +65,48 @@ impl ClientBuilder {
     self
   }
 
-  pub fn set_data_mime_type(&mut self, mime_type: &str) -> &mut ClientBuilder {
+  pub fn mime_type(&mut self,metadata_mime_type:&str,data_mime_type:&str) -> &mut ClientBuilder{
+    self
+    .metadata_mime_type(metadata_mime_type)
+    .data_mime_type(data_mime_type)
+  }
+
+  pub fn data_mime_type(&mut self, mime_type: &str) -> &mut ClientBuilder {
     self.setup.set_data_mime_type(String::from(mime_type));
     self
   }
 
-  pub fn set_metadata_mime_type(&mut self, mime_type: &str) -> &mut ClientBuilder {
+  pub fn metadata_mime_type(&mut self, mime_type: &str) -> &mut ClientBuilder {
     self.setup.set_metadata_mime_type(String::from(mime_type));
     self
   }
 
-  pub fn build(&mut self) -> RSocketResult<Client> {
-    let acceptor = self.acceptor.clone();
+  pub fn acceptor(&mut self,acceptor: Box<dyn RSocket>) -> &mut ClientBuilder{
+    self.responder = Arc::new(acceptor);
+    self
+  }
+
+  pub fn start(&mut self) -> RSocketResult<Client> {
+    let acceptor = self.responder.clone();
     match &self.uri {
       Some(v) => {
-        let addr = v.parse().unwrap();
+        match v{
+          URI::Tcp(vv) => {
+            let addr = vv.parse().unwrap();
         let socket = DuplexSocket::builder()
           .set_acceptor_arc(acceptor)
           .connect(&addr);
         let setup = self.setup.build();
         socket.setup(setup).wait().unwrap();
         Ok(Client::new(socket))
+          }
+          _ => Err(RSocketError::from("unsupported uri")  )
+        }
       }
       None => Err(RSocketError::from("missing rsocket uri")),
     }
   }
+
 }
 
 impl RSocket for Client {
