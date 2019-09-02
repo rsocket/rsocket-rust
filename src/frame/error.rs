@@ -1,7 +1,7 @@
 extern crate bytes;
 
-use crate::result::RSocketResult;
 use crate::frame::{Body, Frame, Writeable};
+use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 
 #[derive(Debug, Clone)]
@@ -28,17 +28,17 @@ impl ErrorBuilder {
     }
   }
 
-  pub fn set_code(&mut self, code: u32) -> &mut ErrorBuilder {
+  pub fn set_code(mut self, code: u32) -> Self {
     self.value.code = code;
     self
   }
 
-  pub fn set_data(&mut self, data: Bytes) -> &mut ErrorBuilder {
+  pub fn set_data(mut self, data: Bytes) -> Self {
     self.value.data = Some(data);
     self
   }
 
-  pub fn build(&mut self) -> Frame {
+  pub fn build(self) -> Frame {
     Frame::new(self.stream_id, Body::Error(self.value.clone()), self.flag)
   }
 }

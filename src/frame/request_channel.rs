@@ -1,7 +1,7 @@
 extern crate bytes;
 
-use crate::result::RSocketResult;
 use crate::frame::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA, REQUEST_MAX};
+use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 
 #[derive(Debug, Clone)]
@@ -30,7 +30,7 @@ impl RequestChannelBuilder {
     }
   }
 
-  pub fn build(&mut self) -> Frame {
+  pub fn build(self) -> Frame {
     Frame::new(
       self.stream_id,
       Body::RequestChannel(self.value.clone()),
@@ -38,18 +38,18 @@ impl RequestChannelBuilder {
     )
   }
 
-  pub fn set_initial_request_n(&mut self, n: u32) -> &mut RequestChannelBuilder {
+  pub fn set_initial_request_n(mut self, n: u32) -> Self {
     self.value.initial_request_n = n;
     self
   }
 
-  pub fn set_metadata(&mut self, metadata: Bytes) -> &mut RequestChannelBuilder {
+  pub fn set_metadata(mut self, metadata: Bytes) -> Self {
     self.value.metadata = Some(metadata);
     self.flag |= FLAG_METADATA;
     self
   }
 
-  pub fn set_data(&mut self, data: Bytes) -> &mut RequestChannelBuilder {
+  pub fn set_data(mut self, data: Bytes) -> Self {
     self.value.data = Some(data);
     self
   }

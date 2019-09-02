@@ -18,7 +18,7 @@ pub struct RequestStreamBuilder {
 }
 
 impl RequestStreamBuilder {
-  pub fn build(&mut self) -> Frame {
+  pub fn build(self) -> Frame {
     Frame::new(
       self.stream_id,
       Body::RequestStream(self.value.clone()),
@@ -26,17 +26,17 @@ impl RequestStreamBuilder {
     )
   }
 
-  pub fn set_initial_request_n(&mut self, n: u32) -> &mut RequestStreamBuilder {
+  pub fn set_initial_request_n(mut self, n: u32) -> Self {
     self.value.initial_request_n = n;
     self
   }
 
-  pub fn set_data(&mut self, data: Bytes) -> &mut RequestStreamBuilder {
+  pub fn set_data(mut self, data: Bytes) -> Self {
     self.value.data = Some(data);
     self
   }
 
-  pub fn set_metadata(&mut self, metadata: Bytes) -> &mut RequestStreamBuilder {
+  pub fn set_metadata(mut self, metadata: Bytes) -> Self {
     self.value.metadata = Some(metadata);
     self.flag |= FLAG_METADATA;
     self

@@ -8,11 +8,10 @@ use rsocket_rust::prelude::*;
 #[test]
 fn test_socket_request() {
   // Prepare a Echo server. (see: https://github.com/rsocket/rsocket-go/tree/master/cmd/echo)
-
   let addr = "127.0.0.1:7878".parse().unwrap();
   // create a socket.
   let socket = DuplexSocket::builder()
-    .set_acceptor(Box::new(MockResponder))
+    .set_acceptor(Acceptor::Direct(Box::new(MockResponder)))
     .connect(&addr);
 
   // setup manual

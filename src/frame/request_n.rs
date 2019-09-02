@@ -24,12 +24,12 @@ impl RequestNBuilder {
     }
   }
 
-  pub fn set_n(&mut self, n: u32) -> &mut RequestNBuilder {
+  pub fn set_n(mut self, n: u32) -> Self {
     self.value.n = n;
     self
   }
 
-  pub fn build(&mut self) -> Frame {
+  pub fn build(self) -> Frame {
     Frame::new(
       self.stream_id,
       Body::RequestN(self.value.clone()),

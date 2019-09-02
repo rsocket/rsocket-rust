@@ -179,43 +179,43 @@ impl SetupBuilder {
     }
   }
 
-  pub fn build(&mut self) -> Frame {
+  pub fn build(self) -> Frame {
     Frame::new(self.stream_id, Body::Setup(self.value.clone()), self.flag)
   }
 
-  pub fn set_data(&mut self, bs: Bytes) -> &mut SetupBuilder {
+  pub fn set_data(mut self, bs: Bytes) -> Self{
     self.value.data = Some(bs);
     self
   }
 
-  pub fn set_metadata(&mut self, bs: Bytes) -> &mut SetupBuilder {
+  pub fn set_metadata(mut self, bs: Bytes) -> Self {
     self.flag |= FLAG_METADATA;
     self.value.metadata = Some(bs);
     self
   }
 
-  pub fn set_version(&mut self, major: u16, minor: u16) -> &mut SetupBuilder {
+  pub fn set_version(mut self, major: u16, minor: u16) -> Self {
     self.value.version = Version::new(major, minor);
     self
   }
 
-  pub fn set_keepalive(&mut self, duration: Duration) -> &mut SetupBuilder {
+  pub fn set_keepalive(mut self, duration: Duration) -> Self {
     self.value.keepalive = duration.as_millis() as u32;
     self
   }
 
-  pub fn set_lifetime(&mut self, duration: Duration) -> &mut SetupBuilder {
+  pub fn set_lifetime(mut self, duration: Duration) -> Self {
     self.value.lifetime = duration.as_millis() as u32;
     self
   }
 
-  pub fn set_token(&mut self, token: Bytes) -> &mut SetupBuilder {
+  pub fn set_token(mut self, token: Bytes) -> Self {
     self.value.token = Some(token);
     self.flag |= FLAG_RESUME;
     self
   }
 
-  pub fn set_mime_metadata(&mut self, mime: &str) -> &mut SetupBuilder {
+  pub fn set_mime_metadata(mut self, mime: &str) -> Self {
     if mime.len() > 256 {
       panic!("maximum mime length is 256");
     }
@@ -223,7 +223,7 @@ impl SetupBuilder {
     self
   }
 
-  pub fn set_mime_data(&mut self, mime: &str) -> &mut SetupBuilder {
+  pub fn set_mime_data(mut self, mime: &str) -> Self {
     if mime.len() > 256 {
       panic!("maximum mime length is 256");
     }

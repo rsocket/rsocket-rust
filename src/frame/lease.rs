@@ -1,7 +1,7 @@
 extern crate bytes;
 
-use crate::result::RSocketResult;
 use crate::frame::{Body, Frame, Writeable, FLAG_METADATA};
+use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 
 #[derive(Debug, Clone)]
@@ -30,23 +30,23 @@ impl LeaseBuilder {
     }
   }
 
-  pub fn set_metadata(&mut self, metadata: Bytes) -> &mut LeaseBuilder {
+  pub fn set_metadata(mut self, metadata: Bytes) -> Self {
     self.value.metadata = Some(metadata);
     self.flag |= FLAG_METADATA;
     self
   }
 
-  pub fn set_ttl(&mut self, ttl: u32) -> &mut LeaseBuilder {
+  pub fn set_ttl(mut self, ttl: u32) -> Self {
     self.value.ttl = ttl;
     self
   }
 
-  pub fn set_number_of_requests(&mut self, n: u32) -> &mut LeaseBuilder {
+  pub fn set_number_of_requests(mut self, n: u32) -> Self {
     self.value.number_of_requests = n;
     self
   }
 
-  pub fn build(&mut self) -> Frame {
+  pub fn build(self) -> Frame {
     Frame::new(self.stream_id, Body::Lease(self.value.clone()), self.flag)
   }
 }
@@ -87,7 +87,6 @@ impl Lease {
 }
 
 impl Writeable for Lease {
-
   fn write_to(&self, bf: &mut BytesMut) {
     bf.put_u32_be(self.ttl);
     bf.put_u32_be(self.number_of_requests);

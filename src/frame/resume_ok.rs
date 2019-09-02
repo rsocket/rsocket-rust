@@ -23,12 +23,12 @@ impl ResumeOKBuilder {
       value: ResumeOK { position: 0 },
     }
   }
-  pub fn set_position(&mut self, position: u64) -> &mut ResumeOKBuilder {
+  pub fn set_position(mut self, position: u64) -> Self {
     self.value.position = position;
     self
   }
 
-  pub fn build(&mut self) -> Frame {
+  pub fn build(self) -> Frame {
     Frame::new(
       self.stream_id,
       Body::ResumeOK(self.value.clone()),

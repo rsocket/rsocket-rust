@@ -4,7 +4,7 @@ use crate::x::{ServerBuilder};
 pub struct RSocketFactory{
 }
 
-impl RSocketFactory{
+impl<'a> RSocketFactory{
   pub fn connect() -> ClientBuilder{
     Client::builder()
   }

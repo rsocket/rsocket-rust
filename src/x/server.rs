@@ -1,8 +1,9 @@
 extern crate futures;
 extern crate tokio;
 
-use crate::core::{DuplexSocket, EmptyRSocket, RSocket};
+use crate::core::{Acceptor, DuplexSocket, EmptyRSocket, RSocket};
 use crate::errors::RSocketError;
+use crate::payload::SetupPayload;
 use crate::x::URI;
 use futures::future;
 use futures::prelude::*;
@@ -10,46 +11,50 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
 
-pub struct Server {}
+fn on_setup_noop(_setup: SetupPayload, _socket: Box<dyn RSocket>) -> Box<dyn RSocket> {
+  Box::new(EmptyRSocket)
+}
 
 pub struct ServerBuilder {
   uri: Option<URI>,
-  responder: Vec<Box<dyn RSocket>>,
+  on_setup: fn(SetupPayload, Box<dyn RSocket>) -> Box<dyn RSocket>,
 }
 
 impl ServerBuilder {
   pub fn new() -> ServerBuilder {
     ServerBuilder {
       uri: None,
-      responder: vec![],
+      on_setup: on_setup_noop,
     }
   }
 
-  pub fn acceptor(&mut self, acceptor: Box<dyn RSocket>) -> &mut ServerBuilder {
-    self.responder.push(acceptor);
+  pub fn acceptor(
+    mut self,
+    handler: fn(SetupPayload, Box<dyn RSocket>) -> Box<dyn RSocket>,
+  ) -> Self {
+    self.on_setup = handler;
     self
   }
 
-  pub fn transport(&mut self, uri: URI) -> &mut ServerBuilder {
+  pub fn transport(mut self, uri: URI) -> Self {
     self.uri = Some(uri);
     self
   }
 
-  pub fn serve(&mut self) -> impl Future<Item = (), Error = ()> {
+  pub fn serve(self) -> impl Future<Item = (), Error = ()> {
     let uri = self.uri.clone().unwrap();
     match uri {
       URI::Tcp(v) => {
-        let acceptor = self.responder.remove(0);
         let addr = v.parse().unwrap();
         let listener = TcpListener::bind(&addr).unwrap();
-        let foo = Arc::new(acceptor);
-        let xx = move || foo.clone();
+        let foo = Arc::new(self.on_setup);
+        let next_acceptor = move || Acceptor::Generate(foo.clone());
         listener
           .incoming()
           .map_err(|e| println!("listen error: {}", e))
           .for_each(move |socket| {
-            let sk = DuplexSocket::builder()
-              .set_acceptor_arc(xx())
+            DuplexSocket::builder()
+              .set_acceptor(next_acceptor())
               .from_socket(socket);
             Ok(())
           })

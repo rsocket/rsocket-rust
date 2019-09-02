@@ -24,12 +24,12 @@ impl MetadataPushBuiler {
     }
   }
 
-  pub fn set_metadata(&mut self, metadata: Bytes) -> &mut MetadataPushBuiler {
+  pub fn set_metadata(mut self, metadata: Bytes) -> Self {
     self.value.metadata = Some(metadata);
     self
   }
 
-  pub fn build(&mut self) -> Frame {
+  pub fn build(self) -> Frame {
     Frame::new(
       self.stream_id,
       Body::MetadataPush(self.value.clone()),

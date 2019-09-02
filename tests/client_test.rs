@@ -13,16 +13,19 @@ fn test_client() {
     .mime_type("text/plain", "text/plain")
     .start()
     .unwrap();
-  let pa = Payload::builder()
-    .set_data_utf8("Hello World!")
-    .set_metadata_utf8("Rust!")
-    .build();
-  let resp = cli.request_response(pa).wait().unwrap();
-  println!("******* response: {:?}", resp);
-  // exec(cli);
+
+  for n in 0..10 {
+    let pa = Payload::builder()
+      .set_data_utf8("Hello World!")
+      .set_metadata_utf8(&format!("#{}", n))
+      .build();
+    let resp = cli.request_response(pa).wait().unwrap();
+    println!("******* response: {:?}", resp);
+  }
+  exec(&cli);
 }
 
-fn exec(socket: impl RSocket) {
+fn exec(socket: &Client) {
   // metadata push
   socket
     .metadata_push(

@@ -29,7 +29,7 @@ impl RSocket for MockResponder {
   }
 
   fn request_response(&self, req: Payload) -> Box<dyn Future<Item = Payload, Error = RSocketError>> {
-    println!(">>>>>>>> responder: {:?}", req);
+    println!(">>>>>>>> mock responder: {:?}", req);
     Box::new(ok(req))
   }
 

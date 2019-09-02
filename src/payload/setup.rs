@@ -1,5 +1,6 @@
 extern crate bytes;
 
+use crate::frame::Setup;
 use crate::mime::MIME_BINARY;
 use bytes::Bytes;
 use std::time::Duration;
@@ -13,6 +14,7 @@ pub struct SetupPayload {
   mime_d: Option<String>,
 }
 
+#[derive(Clone)]
 pub struct SetupPayloadBuilder {
   inner: SetupPayload,
 }
@@ -36,45 +38,45 @@ impl SetupPayloadBuilder {
     }
   }
 
-  pub fn set_metadata(&mut self, metadata: Bytes) -> &mut SetupPayloadBuilder {
+  pub fn set_metadata(mut self, metadata: Bytes) -> Self{
     self.inner.m = Some(metadata);
     self
   }
 
-  pub fn set_metadata_utf8(&mut self, metadata: &str) -> &mut SetupPayloadBuilder {
+  pub fn set_metadata_utf8(mut self, metadata: &str) -> Self{
     self.set_metadata(Bytes::from(metadata))
   }
 
-  pub fn set_data(&mut self, data: Bytes) -> &mut SetupPayloadBuilder {
+  pub fn set_data(mut self, data: Bytes) -> Self {
     self.inner.d = Some(data);
     self
   }
 
-  pub fn set_data_utf8(&mut self, data: &str) -> &mut SetupPayloadBuilder {
+  pub fn set_data_utf8(mut self, data: &str) -> Self {
     self.set_data(Bytes::from(data))
   }
 
   pub fn set_keepalive(
-    &mut self,
+    mut self,
     tick_period: Duration,
     ack_timeout: Duration,
     missed_acks: u64,
-  ) -> &mut SetupPayloadBuilder {
+  ) -> Self {
     let lifetime_mills = (ack_timeout.as_millis() as u64) * missed_acks;
     self.inner.keepalive = (tick_period, Duration::from_millis(lifetime_mills));
     self
   }
 
-  pub fn set_data_mime_type(&mut self, mime: String) -> &mut SetupPayloadBuilder {
-    self.inner.mime_d = Some(mime);
+  pub fn set_data_mime_type(mut self, mime: &str) -> Self {
+    self.inner.mime_d = Some(String::from(mime));
     self
   }
-  pub fn set_metadata_mime_type(&mut self, mime: String) -> &mut SetupPayloadBuilder {
-    self.inner.mime_m = Some(mime);
+  pub fn set_metadata_mime_type(mut self, mime: &str) -> Self {
+    self.inner.mime_m = Some(String::from(mime));
     self
   }
 
-  pub fn build(&mut self) -> SetupPayload {
+  pub fn build(self) -> SetupPayload {
     self.inner.clone()
   }
 }
@@ -102,5 +104,24 @@ impl SetupPayload {
 
   pub fn data_mime_type(&self) -> Option<String> {
     self.mime_d.clone()
+  }
+}
+
+impl From<&Setup> for SetupPayload {
+  fn from(input: &Setup) -> SetupPayload {
+    let mut bu = SetupPayload::builder();
+    if let Some(b) = input.get_data() {
+      bu = bu.set_data(b);
+    }
+    if let Some(b) = input.get_metadata() {
+      bu = bu.set_metadata(b);
+    }
+    // TODO: fill other properties.
+    bu = bu.set_data_mime_type(input.get_mime_data());
+    bu = bu.set_metadata_mime_type(input.get_mime_metadata());
+    // bu.set_data_mime_type(String::input.get_mime_data());
+    let mut pa = bu.build();
+    pa.keepalive = (input.get_keepalive(),input.get_lifetime());
+    pa
   }
 }

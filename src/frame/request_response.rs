@@ -28,18 +28,18 @@ impl RequestResponseBuilder {
     }
   }
 
-  pub fn set_metadata(&mut self, metadata: Bytes) -> &mut RequestResponseBuilder {
+  pub fn set_metadata(mut self, metadata: Bytes) -> Self {
     self.value.metadata = Some(metadata);
     self.flag |= FLAG_METADATA;
     self
   }
 
-  pub fn set_data(&mut self, data: Bytes) -> &mut RequestResponseBuilder {
+  pub fn set_data(mut self, data: Bytes) -> Self {
     self.value.data = Some(data);
     self
   }
 
-  pub fn build(&mut self) -> Frame {
+  pub fn build(self) -> Frame {
     Frame::new(
       self.stream_id,
       Body::RequestResponse(self.value.clone()),
