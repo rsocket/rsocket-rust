@@ -1,39 +1,12 @@
 extern crate bytes;
 
-use crate::result::{RSocketResult};
-use crate::frame::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA, FLAG_RESUME, U24};
+use crate::frame::{
+  Body, Frame, PayloadSupport, Version, Writeable, FLAG_METADATA, FLAG_RESUME, U24,
+};
 use crate::mime::MIME_BINARY;
+use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 use std::time::Duration;
-
-#[derive(Debug, Clone)]
-pub struct Version {
-  major: u16,
-  minor: u16,
-}
-
-impl Version {
-  pub fn default() -> Version {
-    Version { major: 1, minor: 0 }
-  }
-
-  fn new(major: u16, minor: u16) -> Version {
-    Version { major, minor }
-  }
-
-  pub fn get_major(&self) -> u16 {
-    self.major.clone()
-  }
-
-  pub fn get_minor(&self) -> u16 {
-    self.minor.clone()
-  }
-
-  pub fn write_to(&self, bf: &mut BytesMut) {
-    bf.put_u16_be(self.major);
-    bf.put_u16_be(self.minor);
-  }
-}
 
 #[derive(Debug, Clone)]
 pub struct Setup {
@@ -66,12 +39,9 @@ impl Writeable for Setup {
     self.version.write_to(bf);
     bf.put_u32_be(self.keepalive);
     bf.put_u32_be(self.lifetime);
-    match &self.token {
-      Some(v) => {
-        bf.put_u16_be(v.len() as u16);
-        bf.put(v);
-      }
-      None => (),
+    if let Some(b) = &self.token {
+      bf.put_u16_be(b.len() as u16);
+      bf.put(b);
     }
     bf.put_u8(self.mime_metadata.len() as u8);
     bf.put(&self.mime_metadata);
@@ -82,7 +52,6 @@ impl Writeable for Setup {
 }
 
 impl Setup {
-
   pub fn decode(flag: u16, b: &mut BytesMut) -> RSocketResult<Setup> {
     let major = BigEndian::read_u16(b);
     b.advance(2);
@@ -183,7 +152,7 @@ impl SetupBuilder {
     Frame::new(self.stream_id, Body::Setup(self.value.clone()), self.flag)
   }
 
-  pub fn set_data(mut self, bs: Bytes) -> Self{
+  pub fn set_data(mut self, bs: Bytes) -> Self {
     self.value.data = Some(bs);
     self
   }

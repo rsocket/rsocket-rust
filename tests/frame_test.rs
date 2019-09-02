@@ -103,8 +103,18 @@ fn test_error() {
 }
 
 #[test]
-fn test_resume_ok() {
+fn resume_ok() {
   let f = ResumeOK::builder(1234, 0).set_position(2333).build();
+  try_codec(&f);
+}
+
+#[test]
+fn test_resume() {
+  let f = Resume::builder(0, FLAG_RESUME)
+    .set_last_received_server_position(123)
+    .set_first_available_client_position(22)
+    .set_token(Bytes::from("this is a token"))
+    .build();
   try_codec(&f);
 }
 

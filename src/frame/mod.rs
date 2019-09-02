@@ -1,7 +1,7 @@
 extern crate bytes;
 
-use crate::result::{RSocketResult};
-use crate::errors::{RSocketError};
+use crate::errors::RSocketError;
+use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 
 mod cancel;
@@ -19,9 +19,10 @@ mod resume;
 mod resume_ok;
 mod setup;
 mod utils;
+mod version;
 
 pub use cancel::Cancel;
-pub use error::{Error};
+pub use error::Error;
 pub use keepalive::Keepalive;
 pub use lease::Lease;
 pub use metadata_push::MetadataPush;
@@ -35,6 +36,7 @@ pub use resume::Resume;
 pub use resume_ok::ResumeOK;
 pub use setup::{Setup, SetupBuilder};
 pub use utils::*;
+pub use version::Version;
 
 pub const FLAG_NEXT: u16 = 0x01 << 5;
 pub const FLAG_COMPLETE: u16 = 0x01 << 6;
@@ -122,7 +124,7 @@ impl Writeable for Frame {
       Body::Error(v) => v.write_to(bf),
       Body::Cancel() => (),
       Body::ResumeOK(v) => v.write_to(bf),
-      _ => unimplemented!(),
+      Body::Resume(v) => v.write_to(bf),
     }
   }
 
@@ -143,7 +145,7 @@ impl Writeable for Frame {
         Body::Cancel() => 0,
         Body::Error(v) => v.len(),
         Body::ResumeOK(v) => v.len(),
-        _ => unimplemented!(),
+        Body::Resume(v) => v.len(),
       }
   }
 }
@@ -165,29 +167,30 @@ impl Frame {
     b.advance(2);
     let (flag, kind) = (n & 0x03FF, (n & 0xFC00) >> 10);
     let body = match kind {
-      TYPE_SETUP => Setup::decode(flag, b).map(|it|Body::Setup(it)),
-      TYPE_REQUEST_RESPONSE =>RequestResponse::decode(flag, b).map(|it|Body::RequestResponse(it)),
-      TYPE_REQUEST_STREAM => RequestStream::decode(flag, b).map(|it|Body::RequestStream(it)),
-      TYPE_REQUEST_CHANNEL => RequestChannel::decode(flag, b).map(|it|Body::RequestChannel(it)),
-      TYPE_REQUEST_FNF => RequestFNF::decode(flag, b).map(|it|Body::RequestFNF(it)),
-      TYPE_REQUEST_N => RequestN::decode(flag, b).map(|it|Body::RequestN(it)),
-      TYPE_METADATA_PUSH => MetadataPush::decode(flag, b).map(|it|Body::MetadataPush(it)),
-      TYPE_KEEPALIVE => Keepalive::decode(flag, b).map(|it|Body::Keepalive(it)),
-      TYPE_PAYLOAD => Payload::decode(flag, b).map(|it|Body::Payload(it)),
-      TYPE_LEASE => Lease::decode(flag, b).map(|it|Body::Lease(it)),
+      TYPE_SETUP => Setup::decode(flag, b).map(|it| Body::Setup(it)),
+      TYPE_REQUEST_RESPONSE => RequestResponse::decode(flag, b).map(|it| Body::RequestResponse(it)),
+      TYPE_REQUEST_STREAM => RequestStream::decode(flag, b).map(|it| Body::RequestStream(it)),
+      TYPE_REQUEST_CHANNEL => RequestChannel::decode(flag, b).map(|it| Body::RequestChannel(it)),
+      TYPE_REQUEST_FNF => RequestFNF::decode(flag, b).map(|it| Body::RequestFNF(it)),
+      TYPE_REQUEST_N => RequestN::decode(flag, b).map(|it| Body::RequestN(it)),
+      TYPE_METADATA_PUSH => MetadataPush::decode(flag, b).map(|it| Body::MetadataPush(it)),
+      TYPE_KEEPALIVE => Keepalive::decode(flag, b).map(|it| Body::Keepalive(it)),
+      TYPE_PAYLOAD => Payload::decode(flag, b).map(|it| Body::Payload(it)),
+      TYPE_LEASE => Lease::decode(flag, b).map(|it| Body::Lease(it)),
       TYPE_CANCEL => Ok(Body::Cancel()),
-      TYPE_ERROR => Error::decode(flag, b).map(|it|Body::Error(it)),
-      TYPE_RESUME_OK => ResumeOK::decode(flag, b).map(|it|Body::ResumeOK(it)),
+      TYPE_ERROR => Error::decode(flag, b).map(|it| Body::Error(it)),
+      TYPE_RESUME_OK => ResumeOK::decode(flag, b).map(|it| Body::ResumeOK(it)),
+      TYPE_RESUME => Resume::decode(flag, b).map(|it| Body::Resume(it)),
       _ => Err(RSocketError::from("illegal frame type")),
     };
-    body.map(|it|Frame::new(sid, it, flag))
+    body.map(|it| Frame::new(sid, it, flag))
   }
 
   pub fn get_body(&self) -> &Body {
     &self.body
   }
 
-  pub fn get_frame_type(&self) -> u16{
+  pub fn get_frame_type(&self) -> u16 {
     to_frame_type(&self.body)
   }
 
@@ -199,12 +202,12 @@ impl Frame {
     self.stream_id.clone()
   }
 
-  pub fn has_next(&self) -> bool{
+  pub fn has_next(&self) -> bool {
     self.flag & FLAG_NEXT != 0
   }
 
-  pub fn has_complete(&self) -> bool{
-    self.flag&FLAG_COMPLETE!=0
+  pub fn has_complete(&self) -> bool {
+    self.flag & FLAG_COMPLETE != 0
   }
 }
 
