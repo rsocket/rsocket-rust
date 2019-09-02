@@ -92,16 +92,22 @@ fn test_client() {
    - [x] RequestFireAndForget
    - [x] MetadataPush
    - [x] RequestN
-   - [ ] Resume
+   - [x] Resume
    - [x] ResumeOK
    - [x] Cancel
    - [x] Error
    - [x] Lease
+ - Operations
+   - [x] METADATA_PUSH
+   - [x] REQUEST_FNF
+   - [x] REQUEST_RESPONSE
+   - [x] REQUEST_STREAM
+   - [ ] REQUEST_CHANNEL
  - Transport
-   - [ ] TCP
+   - [x] TCP
    - [ ] Websocket
  - Rx
    - [ ] ...
  - High Level APIs
-   - [ ] Client
-   - [ ] Server
+   - [x] Client
+   - [x] Server
