@@ -1,15 +1,12 @@
 extern crate futures;
 extern crate tokio;
 
+use super::URI;
 use crate::core::{Acceptor, DuplexSocket, EmptyRSocket, RSocket};
-use crate::errors::RSocketError;
 use crate::payload::SetupPayload;
-use crate::x::URI;
-use futures::future;
 use futures::prelude::*;
-use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpListener;
 
 fn on_setup_noop(_setup: SetupPayload, _socket: Box<dyn RSocket>) -> Box<dyn RSocket> {
   Box::new(EmptyRSocket)

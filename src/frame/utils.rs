@@ -1,6 +1,6 @@
 extern crate bytes;
 
-use crate::frame::FLAG_METADATA;
+use super::FLAG_METADATA;
 use bytes::{BufMut, Bytes, BytesMut};
 
 pub struct U24 {}
@@ -13,6 +13,14 @@ impl U24 {
   }
 
   pub fn read(bf: &mut BytesMut) -> u32 {
+    let mut n: u32 = 0;
+    n += (bf[0] as u32) << 16;
+    n += (bf[1] as u32) << 8;
+    n += bf[2] as u32;
+    n
+  }
+
+  pub fn read_advance(bf: &mut BytesMut) -> u32 {
     let mut n: u32 = 0;
     let bar = bf.split_to(3);
     n += (bar[0] as u32) << 16;
@@ -40,7 +48,7 @@ impl PayloadSupport {
   // TODO: change to Result
   pub fn read(flag: u16, bf: &mut BytesMut) -> (Option<Bytes>, Option<Bytes>) {
     let m: Option<Bytes> = if flag & FLAG_METADATA != 0 {
-      let n = U24::read(bf);
+      let n = U24::read_advance(bf);
       Some(Bytes::from(bf.split_to(n as usize)))
     } else {
       None

@@ -2,9 +2,9 @@ extern crate bytes;
 extern crate futures;
 extern crate tokio;
 
-use crate::core::misc::StreamID;
-use crate::core::spi::RSocket;
-use crate::core::{RequestCaller, StreamCaller};
+use super::misc::StreamID;
+use super::spi::RSocket;
+use super::{RequestCaller, StreamCaller};
 use crate::errors::{ErrorKind, RSocketError};
 use crate::frame::{self, Body, Frame};
 use crate::payload::{Payload, SetupPayload};

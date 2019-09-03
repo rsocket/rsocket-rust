@@ -1,4 +1,4 @@
-use crate::frame::{Body, Frame};
+use super::{Body, Frame};
 
 #[derive(Debug, Clone)]
 pub struct Cancel {}

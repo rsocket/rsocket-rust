@@ -1,10 +1,10 @@
 extern crate futures;
 
+use super::URI;
 use crate::core::{Acceptor, DuplexSocket, RSocket};
 use crate::errors::RSocketError;
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::result::RSocketResult;
-use crate::x::URI;
 use futures::{Future, Stream};
 use std::time::Duration;
 
@@ -15,7 +15,7 @@ pub struct Client {
 pub struct ClientBuilder {
   uri: Option<URI>,
   setup: SetupPayloadBuilder,
-  responder: Option<Box<dyn RSocket>>,
+  responder: Option<fn() -> Box<dyn RSocket>>,
 }
 
 impl Client {
@@ -65,9 +65,9 @@ impl ClientBuilder {
   }
 
   pub fn mime_type(mut self, metadata_mime_type: &str, data_mime_type: &str) -> Self {
+    self = self.metadata_mime_type(metadata_mime_type);
+    self = self.data_mime_type(data_mime_type);
     self
-      .metadata_mime_type(metadata_mime_type)
-      .data_mime_type(data_mime_type)
   }
 
   pub fn data_mime_type(mut self, mime_type: &str) -> Self {
@@ -80,7 +80,7 @@ impl ClientBuilder {
     self
   }
 
-  pub fn acceptor(mut self, acceptor: Box<dyn RSocket>) -> Self {
+  pub fn acceptor(mut self, acceptor: fn() -> Box<dyn RSocket>) -> Self {
     self.responder = Some(acceptor);
     self
   }
@@ -92,7 +92,7 @@ impl ClientBuilder {
           let addr = vv.parse().unwrap();
           let mut bu = DuplexSocket::builder();
           if let Some(r) = self.responder {
-            bu = bu.set_acceptor(Acceptor::Direct(r));
+            bu = bu.set_acceptor(Acceptor::Direct(r()));
           }
           let socket = bu.connect(&addr);
           let setup = self.setup.build();

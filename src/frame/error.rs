@@ -1,6 +1,6 @@
 extern crate bytes;
 
-use crate::frame::{Body, Frame, Writeable};
+use super::{Body, Frame, Writeable};
 use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 

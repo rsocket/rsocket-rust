@@ -1,14 +1,12 @@
-use crate::x::{Client,ClientBuilder};
-use crate::x::{ServerBuilder};
+use super::{Client, ClientBuilder, ServerBuilder};
 
-pub struct RSocketFactory{
-}
+pub struct RSocketFactory;
 
-impl<'a> RSocketFactory{
-  pub fn connect() -> ClientBuilder{
+impl RSocketFactory {
+  pub fn connect() -> ClientBuilder {
     Client::builder()
   }
-  pub fn receive() -> ServerBuilder{
+  pub fn receive() -> ServerBuilder {
     ServerBuilder::new()
   }
 }

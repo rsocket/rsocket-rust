@@ -3,7 +3,7 @@ extern crate tokio;
 
 use crate::errors::RSocketError;
 use crate::frame::{Frame, Writeable, U24};
-use bytes::{BufMut, BytesMut};
+use bytes::{BufMut, BytesMut, IntoBuf};
 use std::io;
 use tokio::codec::{Decoder, Encoder};
 
@@ -22,6 +22,7 @@ impl Decoder for FrameCodec {
     if actual < 3 + l {
       return Ok(None);
     }
+    buf.advance(3);
     let mut bb = buf.split_to(l);
     Frame::decode(&mut bb).map(|it| Some(it))
   }
@@ -32,6 +33,7 @@ impl Encoder for FrameCodec {
   type Error = io::Error;
   fn encode(&mut self, item: Frame, buf: &mut BytesMut) -> Result<(), Self::Error> {
     let l = item.len();
+    buf.reserve(3 + (l as usize));
     U24::write(l, buf);
     item.write_to(buf);
     Ok(())

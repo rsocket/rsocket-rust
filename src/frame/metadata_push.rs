@@ -1,7 +1,7 @@
 extern crate bytes;
 
 use crate::result::RSocketResult;
-use crate::frame::{Body, Frame, Writeable};
+use super::{Body, Frame, Writeable};
 use bytes::{BufMut, Bytes, BytesMut};
 
 #[derive(Debug, Clone)]

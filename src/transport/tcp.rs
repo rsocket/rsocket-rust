@@ -1,15 +1,14 @@
 extern crate futures;
 extern crate tokio;
 
+use super::{Context, FrameCodec, Transport};
 use crate::frame::Frame;
-use crate::transport::FrameCodec;
-use crate::transport::{Context, Transport};
 use futures::sync::mpsc;
 use futures::{lazy, Future, Sink, Stream};
 use std::io;
 use std::net::SocketAddr;
 use tokio::codec::Framed;
-use tokio::net::{TcpStream,TcpListener};
+use tokio::net::TcpStream;
 
 pub fn from_addr(addr: &SocketAddr) -> Context {
   let socket = TcpStream::connect(addr).wait().unwrap();

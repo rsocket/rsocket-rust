@@ -1,6 +1,6 @@
 extern crate bytes;
 
-use crate::frame::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA, REQUEST_MAX};
+use super::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA, REQUEST_MAX};
 use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 
