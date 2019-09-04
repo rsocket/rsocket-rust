@@ -33,22 +33,15 @@ enum Handler {
 
 #[derive(Debug)]
 struct Handlers {
-  map: Mutex<HashMap<u32, Handler>>,
+  map: RwLock<HashMap<u32, Handler>>,
 }
 
 impl Handlers {
   fn new() -> Handlers {
     Handlers {
-      map: Mutex::new(HashMap::new()),
+      map: RwLock::new(HashMap::new()),
     }
   }
-}
-
-#[derive(Clone)]
-pub struct DuplexSocket {
-  tx: mpsc::Sender<Frame>,
-  seq: StreamID,
-  handlers: Arc<Handlers>,
 }
 
 // #[derive(Clone)]
@@ -97,19 +90,19 @@ impl Runner {
     }));
   }
 
-  fn respond_request_response(&self, sid: u32, flag: u16, input: Payload) {
+  fn respond_request_response(&self, sid: u32, _flag: u16, input: Payload) {
     let responder = self.responder.clone();
     let tx = self.tx.clone();
-
     tokio::spawn(lazy(move || {
       let result = responder
         .request_response(input)
         .map(|res| {
           let mut bu = frame::Payload::builder(sid, frame::FLAG_COMPLETE);
-          if let Some(b) = res.data() {
+          let (data, metadata) = res.split();
+          if let Some(b) = data {
             bu = bu.set_data(b);
           }
-          if let Some(b) = res.metadata() {
+          if let Some(b) = metadata {
             bu = bu.set_metadata(b);
           }
           bu.build()
@@ -117,14 +110,14 @@ impl Runner {
         .wait();
       let sending = match result {
         Ok(sending) => sending,
-        Err(e) => frame::Error::builder(sid, 0)
+        Err(_e) => frame::Error::builder(sid, 0)
           .set_code(frame::ERR_APPLICATION)
           .set_data(Bytes::from("TODO: should be error details"))
           .build(),
       };
       tx.send(sending)
-        .map(|_| ())
-        .map_err(|e| println!("error: {}", e))
+        .map(move |_| ())
+        .map_err(|e| error!("send frame failed: {}", e))
     }));
   }
 
@@ -159,12 +152,12 @@ impl Runner {
   fn to_future(self, rx: mpsc::Receiver<Frame>) -> impl Future<Item = (), Error = ()> + Send {
     let handlers = self.handlers.clone();
     let task = rx.for_each(move |f: frame::Frame| {
-      // println!("[DEBUG] incoming: {:?}", f);
       let sid = f.get_stream_id();
-      let body = f.get_body();
-      match body {
+      let flag = f.get_flag();
+      debug!("incoming frame#{}", sid);
+      match f.get_body() {
         Body::Setup(v) => {
-          let pa = SetupPayload::from(v);
+          let pa = SetupPayload::from(&v);
           match &self.acceptor {
             Acceptor::Generate(f) => {
               let rs = Box::new(self.socket.clone());
@@ -175,9 +168,9 @@ impl Runner {
           };
         }
         Body::Payload(v) => {
-          let pa = Payload::from(v);
+          let pa = Payload::from(&v);
           // pick handler
-          let mut senders = handlers.map.lock().unwrap();
+          let mut senders = handlers.map.write().unwrap();
           let handler = senders.remove(&sid).unwrap();
 
           let mut tx1: Option<oneshot::Sender<Payload>> = None;
@@ -190,11 +183,11 @@ impl Runner {
               ()
             }
             Handler::Stream(sender) => {
-              if f.has_next() {
+              if flag & frame::FLAG_NEXT != 0 {
                 tx2 = Some(sender.clone());
               }
-              if !f.has_complete() {
-                senders.insert(f.get_stream_id(), Handler::Stream(sender));
+              if flag & frame::FLAG_COMPLETE == 0 {
+                senders.insert(sid, Handler::Stream(sender));
               }
               ()
             }
@@ -208,26 +201,31 @@ impl Runner {
         }
         Body::RequestResponse(v) => {
           let pa = Payload::from(v);
-          let flag = f.get_flag();
           self.respond_request_response(sid, flag, pa);
         }
         Body::RequestStream(v) => {
-          let pa = Payload::from(v);
-          let flag = f.get_flag();
+          let pa = Payload::from(&v);
           self.respond_request_stream(sid, flag, pa);
         }
-        _ => {
-          println!("incoming unsupported frame: {:?}", f);
+        Body::Keepalive(v) => {
+          if flag & frame::FLAG_RESPOND != 0 {
+            debug!("got keepalive: {:?}", v);
+          }
         }
+        _ => unimplemented!(),
       };
       Ok(())
     });
 
     task
-    // std::thread::spawn(move || {
-    //   tokio::run(task);
-    // });
   }
+}
+
+#[derive(Clone)]
+pub struct DuplexSocket {
+  tx: mpsc::Sender<Frame>,
+  seq: StreamID,
+  handlers: Arc<Handlers>,
 }
 
 impl DuplexSocket {
@@ -235,7 +233,11 @@ impl DuplexSocket {
     DuplexSocketBuilder::new()
   }
 
-  fn new(first_stream_id: u32, ctx: Context, responder: Acceptor) -> DuplexSocket {
+  fn new(
+    first_stream_id: u32,
+    ctx: Context,
+    responder: Acceptor,
+  ) -> (DuplexSocket, impl Future<Item = (), Error = ()>) {
     let tp = ctx.0;
     let task0 = ctx.1;
 
@@ -251,16 +253,11 @@ impl DuplexSocket {
     };
 
     let task = Runner::new(tx2, handlers2, responder, sk.clone()).to_future(tp.rx());
-
-    // TODO: Daemon???
-    std::thread::spawn(move || {
-      tokio::run(lazy(move || {
-        tokio::spawn(task0);
-        task
-      }));
+    let fu = lazy(move || {
+      tokio::spawn(task0);
+      task
     });
-
-    sk
+    (sk, fu)
   }
 
   pub fn setup(&self, setup: SetupPayload) -> impl Future<Item = (), Error = RSocketError> {
@@ -296,7 +293,7 @@ impl DuplexSocket {
 
   fn register_handler(&self, sid: u32, handler: Handler) {
     let handlers: Arc<Handlers> = self.handlers.clone();
-    let mut senders = handlers.map.lock().unwrap();
+    let mut senders = handlers.map.write().unwrap();
     senders.insert(sid, handler);
   }
 }
@@ -352,7 +349,6 @@ impl RSocket for DuplexSocket {
       bu = bu.set_metadata(b);
     }
     let sending = bu.build();
-    println!("......ready: {:?}", sending);
     // send frame
     self.tx.clone().send(sending).wait().unwrap();
     // tokio::spawn(emitter.send(sent).and_then(|_| Ok(())).map_err(|_| ()));
@@ -397,17 +393,20 @@ impl DuplexSocketBuilder {
     self
   }
 
-  pub fn from_socket(self, socket: TcpStream) -> DuplexSocket {
+  pub fn from_socket(
+    self,
+    socket: TcpStream,
+  ) -> (DuplexSocket, impl Future<Item = (), Error = ()>) {
     let ctx = transport::from_socket(socket);
     self.build(ctx, 2)
   }
 
-  pub fn connect(self, addr: &SocketAddr) -> DuplexSocket {
+  pub fn connect(self, addr: &SocketAddr) -> (DuplexSocket, impl Future<Item = (), Error = ()>) {
     let ctx = transport::from_addr(addr);
     self.build(ctx, 1)
   }
 
-  fn build(self, ctx: Context, starter: u32) -> DuplexSocket {
+  fn build(self, ctx: Context, starter: u32) -> (DuplexSocket, impl Future<Item = (), Error = ()>) {
     DuplexSocket::new(starter, ctx, self.acceptor)
   }
 }
@@ -442,14 +441,12 @@ impl Responder {
 
 impl RSocket for Responder {
   fn metadata_push(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
-    let inner = self.inner.clone();
-    let r = inner.read().unwrap();
+    let r = self.inner.read().unwrap();
     (*r).metadata_push(req)
   }
 
   fn request_fnf(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
-    let inner = self.inner.clone();
-    let r = inner.read().unwrap();
+    let r = self.inner.read().unwrap();
     (*r).request_fnf(req)
   }
 
@@ -457,14 +454,12 @@ impl RSocket for Responder {
     &self,
     req: Payload,
   ) -> Box<dyn Future<Item = Payload, Error = RSocketError>> {
-    let inner = self.inner.clone();
-    let r = inner.read().unwrap();
+    let r = self.inner.read().unwrap();
     (*r).request_response(req)
   }
 
   fn request_stream(&self, req: Payload) -> Box<dyn Stream<Item = Payload, Error = RSocketError>> {
-    let inner = self.inner.clone();
-    let r = inner.read().unwrap();
+    let r = self.inner.read().unwrap();
     (*r).request_stream(req)
   }
 }

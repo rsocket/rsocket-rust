@@ -38,13 +38,14 @@ impl SetupPayloadBuilder {
     }
   }
 
-  pub fn set_metadata(mut self, metadata: Bytes) -> Self{
+  pub fn set_metadata(mut self, metadata: Bytes) -> Self {
     self.inner.m = Some(metadata);
     self
   }
 
-  pub fn set_metadata_utf8(mut self, metadata: &str) -> Self{
-    self.set_metadata(Bytes::from(metadata))
+  pub fn set_metadata_utf8(mut self, metadata: &str) -> Self {
+    self = self.set_metadata(Bytes::from(metadata));
+    self
   }
 
   pub fn set_data(mut self, data: Bytes) -> Self {
@@ -53,7 +54,8 @@ impl SetupPayloadBuilder {
   }
 
   pub fn set_data_utf8(mut self, data: &str) -> Self {
-    self.set_data(Bytes::from(data))
+    self = self.set_data(Bytes::from(data));
+    self
   }
 
   pub fn set_keepalive(
@@ -121,7 +123,7 @@ impl From<&Setup> for SetupPayload {
     bu = bu.set_metadata_mime_type(input.get_mime_metadata());
     // bu.set_data_mime_type(String::input.get_mime_data());
     let mut pa = bu.build();
-    pa.keepalive = (input.get_keepalive(),input.get_lifetime());
+    pa.keepalive = (input.get_keepalive(), input.get_lifetime());
     pa
   }
 }

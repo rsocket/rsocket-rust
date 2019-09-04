@@ -14,7 +14,7 @@ fn test_client() {
     .start()
     .unwrap();
 
-  for n in 0..10000 {
+  for n in 0..11 {
     let pa = Payload::builder()
       .set_data_utf8("Hello World!")
       .set_metadata_utf8(&format!("#{}", n))
@@ -23,18 +23,15 @@ fn test_client() {
     println!("******* response: {:?}", resp);
   }
   exec(&cli);
+  cli.on_close().wait().unwrap();
 }
 
 fn exec(socket: &Client) {
+  let pa = Payload::builder()
+    .set_metadata_utf8("metadata only!")
+    .build();
   // metadata push
-  socket
-    .metadata_push(
-      Payload::builder()
-        .set_metadata_utf8("metadata only!")
-        .build(),
-    )
-    .wait()
-    .unwrap();
+  socket.metadata_push(pa).wait().unwrap();
 
   // request fnf
   let fnf = Payload::from("Mock FNF");

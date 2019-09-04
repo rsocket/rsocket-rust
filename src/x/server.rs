@@ -50,13 +50,12 @@ impl ServerBuilder {
           .incoming()
           .map_err(|e| println!("listen error: {}", e))
           .for_each(move |socket| {
-            DuplexSocket::builder()
+            let (_, task) = DuplexSocket::builder()
               .set_acceptor(next_acceptor())
               .from_socket(socket);
+            tokio::spawn(task);
             Ok(())
           })
-        // tokio::run(server);
-        // unimplemented!()
       }
       _ => unimplemented!(),
     }

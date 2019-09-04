@@ -1,7 +1,7 @@
 extern crate bytes;
 
-use crate::result::RSocketResult;
 use super::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA, U24};
+use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, Clone)]
@@ -77,5 +77,11 @@ impl RequestResponse {
 
   pub fn get_data(&self) -> Option<Bytes> {
     self.data.clone()
+  }
+
+  pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
+    let d = self.data;
+    let m = self.metadata;
+    (d, m)
   }
 }

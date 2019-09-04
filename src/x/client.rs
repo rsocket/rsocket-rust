@@ -1,4 +1,5 @@
 extern crate futures;
+extern crate tokio;
 
 use super::URI;
 use crate::core::{Acceptor, DuplexSocket, RSocket};
@@ -6,10 +7,13 @@ use crate::errors::RSocketError;
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::result::RSocketResult;
 use futures::{Future, Stream};
+
 use std::time::Duration;
+use tokio::runtime::Runtime;
 
 pub struct Client {
   socket: DuplexSocket,
+  rt: Runtime,
 }
 
 pub struct ClientBuilder {
@@ -19,8 +23,15 @@ pub struct ClientBuilder {
 }
 
 impl Client {
-  fn new(socket: DuplexSocket) -> Client {
-    Client { socket }
+  fn new(socket: DuplexSocket, rt: Runtime) -> Client {
+    Client {
+      socket: socket,
+      rt: rt,
+    }
+  }
+
+  pub fn on_close(self) -> impl Future<Item = (), Error = ()> {
+    self.rt.shutdown_on_idle()
   }
 
   pub fn builder() -> ClientBuilder {
@@ -94,10 +105,11 @@ impl ClientBuilder {
           if let Some(r) = self.responder {
             bu = bu.set_acceptor(Acceptor::Direct(r()));
           }
-          let socket = bu.connect(&addr);
-          let setup = self.setup.build();
-          socket.setup(setup).wait().unwrap();
-          Ok(Client::new(socket))
+          let (socket, daemon) = bu.connect(&addr);
+          let mut rt = Runtime::new().unwrap();
+          rt.spawn(daemon);
+          socket.setup(self.setup.build()).wait().unwrap();
+          Ok(Client::new(socket, rt))
         }
         _ => Err(RSocketError::from("unsupported uri")),
       },

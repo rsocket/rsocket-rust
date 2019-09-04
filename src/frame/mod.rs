@@ -186,8 +186,8 @@ impl Frame {
     body.map(|it| Frame::new(sid, it, flag))
   }
 
-  pub fn get_body(&self) -> &Body {
-    &self.body
+  pub fn get_body(self) -> Body {
+    self.body
   }
 
   pub fn get_frame_type(&self) -> u16 {

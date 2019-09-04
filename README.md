@@ -1,4 +1,5 @@
 # rsocket-rust
+
 ![logo](./logo.jpg)
 
 [![Crates.io](https://img.shields.io/crates/v/rsocket_rust)](https://crates.io/crates/rsocket_rust)
@@ -6,14 +7,15 @@
 [![License](https://img.shields.io/github/license/jjeffcaii/rsocket-rust.svg)](https://github.com/jjeffcaii/rsocket-rust/blob/master/LICENSE)
 [![GitHub Release](https://img.shields.io/github/release-pre/jjeffcaii/rsocket-rust.svg)](https://github.com/jjeffcaii/rsocket-rust/releases)
 
-> rsocket-rust is an implementation of the RSocket protocol in Rust.
-<br>It is under active development. Do not use it in a production environment.
+> rsocket-rust is an implementation of the RSocket protocol in Rust.  
+It is under active development. **Do not use it in a production environment!**
 
 ## Example
 
 > Here are some example codes which show how RSocket works in Rust. :sunglasses:
 
 ### Server
+
 ```rust
 extern crate bytes;
 extern crate futures;
@@ -78,36 +80,38 @@ fn test_client() {
 ```
 
 ## Dependencies
-1. [Tokio](https://tokio.rs/)
-2. [futures-rs](http://rust-lang-nursery.github.io/futures-rs/)
+
+- [Tokio](https://tokio.rs/)
+- [futures-rs](http://rust-lang-nursery.github.io/futures-rs/)
 
 ## TODO
- - Codec
-   - [x] Setup
-   - [x] Keepalive
-   - [x] Payload
-   - [x] RequestResponse
-   - [x] RequestStream
-   - [x] RequestChannel
-   - [x] RequestFireAndForget
-   - [x] MetadataPush
-   - [x] RequestN
-   - [x] Resume
-   - [x] ResumeOK
-   - [x] Cancel
-   - [x] Error
-   - [x] Lease
- - Operations
-   - [x] METADATA_PUSH
-   - [x] REQUEST_FNF
-   - [x] REQUEST_RESPONSE
-   - [x] REQUEST_STREAM
-   - [ ] REQUEST_CHANNEL
- - Transport
-   - [x] TCP
-   - [ ] Websocket
- - Rx
-   - [ ] ...
- - High Level APIs
-   - [x] Client
-   - [x] Server
+
+- Codec
+  - [x] Setup
+  - [x] Keepalive
+  - [x] Payload
+  - [x] RequestResponse
+  - [x] RequestStream
+  - [x] RequestChannel
+  - [x] RequestFireAndForget
+  - [x] MetadataPush
+  - [x] RequestN
+  - [x] Resume
+  - [x] ResumeOK
+  - [x] Cancel
+  - [x] Error
+  - [x] Lease
+- Operations
+  - [x] METADATA_PUSH
+  - [x] REQUEST_FNF
+  - [x] REQUEST_RESPONSE
+  - [x] REQUEST_STREAM
+  - [ ] REQUEST_CHANNEL
+- Transport
+  - [x] TCP
+  - [ ] Websocket
+- Rx
+  - [ ] ...
+- High Level APIs
+  - [x] Client
+  - [x] Server

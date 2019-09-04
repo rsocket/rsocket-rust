@@ -56,6 +56,10 @@ impl Payload {
   pub fn data(&self) -> Option<Bytes> {
     self.d.clone()
   }
+
+  pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
+    (self.d, self.m)
+  }
 }
 
 impl From<&'static str> for Payload {
@@ -73,12 +77,6 @@ impl From<(&'static str, &'static str)> for Payload {
       d: Some(Bytes::from(data)),
       m: Some(Bytes::from(metadata)),
     }
-  }
-}
-
-impl From<&frame::Payload> for Payload {
-  fn from(input: &frame::Payload) -> Payload {
-    Payload::from((input.get_data(), input.get_metadata()))
   }
 }
 
@@ -100,6 +98,12 @@ impl From<(Option<Bytes>, Option<Bytes>)> for Payload {
       None => (),
     };
     bu.build()
+  }
+}
+
+impl From<&frame::Payload> for Payload {
+  fn from(input: &frame::Payload) -> Payload {
+    Payload::from((input.get_data(), input.get_metadata()))
   }
 }
 
@@ -136,5 +140,11 @@ impl From<&frame::RequestFNF> for Payload {
 impl From<&frame::RequestResponse> for Payload {
   fn from(input: &frame::RequestResponse) -> Payload {
     Payload::from((input.get_data(), input.get_metadata()))
+  }
+}
+
+impl From<frame::RequestResponse> for Payload {
+  fn from(input: frame::RequestResponse) -> Payload {
+    Payload::from(input.split())
   }
 }

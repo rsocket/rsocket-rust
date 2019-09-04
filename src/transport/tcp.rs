@@ -16,12 +16,11 @@ pub fn from_addr(addr: &SocketAddr) -> Context {
 }
 
 pub fn from_socket(socket: TcpStream) -> Context {
-  let (tx, rx) = mpsc::channel(0);
-  let (rtx, rrx) = mpsc::channel(0);
+  let (tx, rx) = mpsc::channel(64);
+  let (rtx, rrx) = mpsc::channel(64);
   let (sink, stream) = Framed::new(socket, FrameCodec::new()).split();
   let sender: Box<dyn Stream<Item = Frame, Error = io::Error> + Send> =
     Box::new(rx.map_err(|_| panic!("errors not possible on rx")));
-
   let task = stream
     .for_each(move |it| {
       rtx.clone().send(it).wait().unwrap();
