@@ -1,10 +1,10 @@
 extern crate bytes;
 
-use crate::result::RSocketResult;
 use super::{Body, Frame, Writeable};
+use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, BytesMut};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ResumeOK {
   position: u64,
 }
@@ -18,8 +18,8 @@ pub struct ResumeOKBuilder {
 impl ResumeOKBuilder {
   fn new(stream_id: u32, flag: u16) -> ResumeOKBuilder {
     ResumeOKBuilder {
-      stream_id: stream_id,
-      flag: flag,
+      stream_id,
+      flag,
       value: ResumeOK { position: 0 },
     }
   }
@@ -29,11 +29,7 @@ impl ResumeOKBuilder {
   }
 
   pub fn build(self) -> Frame {
-    Frame::new(
-      self.stream_id,
-      Body::ResumeOK(self.value.clone()),
-      self.flag,
-    )
+    Frame::new(self.stream_id, Body::ResumeOK(self.value), self.flag)
   }
 }
 
@@ -55,7 +51,7 @@ impl ResumeOK {
 
 impl Writeable for ResumeOK {
   fn write_to(&self, bf: &mut BytesMut) {
-    bf.put_u64_be(self.position)
+    bf.put_u64_be(self.get_position())
   }
 
   fn len(&self) -> u32 {

@@ -1,6 +1,6 @@
 use super::{Body, Frame};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Cancel {}
 
 impl Cancel {

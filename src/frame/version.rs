@@ -2,7 +2,7 @@ extern crate bytes;
 
 use bytes::{BufMut, BytesMut};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Version {
   major: u16,
   minor: u16,
@@ -18,11 +18,11 @@ impl Version {
   }
 
   pub fn get_major(&self) -> u16 {
-    self.major.clone()
+    self.major
   }
 
   pub fn get_minor(&self) -> u16 {
-    self.minor.clone()
+    self.minor
   }
 
   pub fn write_to(&self, bf: &mut BytesMut) {

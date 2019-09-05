@@ -20,8 +20,8 @@ pub struct LeaseBuilder {
 impl LeaseBuilder {
   fn new(stream_id: u32, flag: u16) -> LeaseBuilder {
     LeaseBuilder {
-      stream_id: stream_id,
-      flag: flag,
+      stream_id,
+      flag,
       value: Lease {
         ttl: 0,
         number_of_requests: 0,
@@ -63,7 +63,7 @@ impl Lease {
       None
     };
     Ok(Lease {
-      ttl: ttl,
+      ttl,
       number_of_requests: n,
       metadata: m,
     })
@@ -77,8 +77,8 @@ impl Lease {
     self.number_of_requests
   }
 
-  pub fn get_metadata(&self) -> Option<Bytes> {
-    self.metadata.clone()
+  pub fn get_metadata(&self) -> &Option<Bytes> {
+    &self.metadata
   }
 
   pub fn get_ttl(&self) -> u32 {

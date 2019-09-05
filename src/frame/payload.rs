@@ -4,7 +4,7 @@ use super::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA};
 use crate::result::RSocketResult;
 use bytes::{BufMut, Bytes, BytesMut};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Payload {
   metadata: Option<Bytes>,
   data: Option<Bytes>,
@@ -19,8 +19,8 @@ pub struct PayloadBuilder {
 impl PayloadBuilder {
   fn new(stream_id: u32, flag: u16) -> PayloadBuilder {
     PayloadBuilder {
-      stream_id: stream_id,
-      flag: flag,
+      stream_id,
+      flag,
       value: Payload {
         metadata: None,
         data: None,
@@ -40,7 +40,7 @@ impl PayloadBuilder {
   }
 
   pub fn build(self) -> Frame {
-    Frame::new(self.stream_id, Body::Payload(self.value.clone()), self.flag)
+    Frame::new(self.stream_id, Body::Payload(self.value), self.flag)
   }
 }
 
@@ -57,21 +57,26 @@ impl Payload {
     PayloadBuilder::new(stream_id, flag)
   }
 
-  pub fn get_metadata(&self) -> Option<Bytes> {
-    self.metadata.clone()
+  pub fn get_metadata(&self) -> &Option<Bytes> {
+    &self.metadata
   }
 
-  pub fn get_data(&self) -> Option<Bytes> {
-    self.data.clone()
+  pub fn get_data(&self) -> &Option<Bytes> {
+    &self.data
   }
+
+  pub fn split(self) -> (Option<Bytes>,Option<Bytes>){
+    (self.data,self.metadata)
+  }
+
 }
 
 impl Writeable for Payload {
   fn write_to(&self, bf: &mut BytesMut) {
-    PayloadSupport::write(bf, &self.metadata, &self.data);
+    PayloadSupport::write(bf, self.get_metadata(), self.get_data());
   }
 
   fn len(&self) -> u32 {
-    PayloadSupport::len(&self.metadata, &self.data)
+    PayloadSupport::len(self.get_metadata(), self.get_data())
   }
 }

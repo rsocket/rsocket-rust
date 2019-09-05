@@ -90,19 +90,20 @@ impl Runner {
     }));
   }
 
+  #[inline]
   fn respond_request_response(&self, sid: u32, _flag: u16, input: Payload) {
     let responder = self.responder.clone();
     let tx = self.tx.clone();
     tokio::spawn(lazy(move || {
       let result = responder
         .request_response(input)
-        .map(|res| {
+        .map(move |res| {
+          let (d, m) = res.split();
           let mut bu = frame::Payload::builder(sid, frame::FLAG_COMPLETE);
-          let (data, metadata) = res.split();
-          if let Some(b) = data {
+          if let Some(b) = d {
             bu = bu.set_data(b);
           }
-          if let Some(b) = metadata {
+          if let Some(b) = m {
             bu = bu.set_metadata(b);
           }
           bu.build()
@@ -115,9 +116,13 @@ impl Runner {
           .set_data(Bytes::from("TODO: should be error details"))
           .build(),
       };
+
       tx.send(sending)
-        .map(move |_| ())
-        .map_err(|e| error!("send frame failed: {}", e))
+        .and_then(move |_it| {
+          debug!("sent");
+          Ok(())
+        })
+        .map_err(move |e| error!("send frame failed: {}", e))
     }));
   }
 
@@ -129,11 +134,12 @@ impl Runner {
       responder
         .request_stream(input)
         .map(|elem| {
+          let (d, m) = elem.split();
           let mut bu = frame::Payload::builder(sid, frame::FLAG_NEXT);
-          if let Some(b) = elem.data() {
+          if let Some(b) = d {
             bu = bu.set_data(b);
           }
-          if let Some(b) = elem.metadata() {
+          if let Some(b) = m {
             bu = bu.set_metadata(b);
           }
           bu.build()
@@ -157,7 +163,7 @@ impl Runner {
       debug!("incoming frame#{}", sid);
       match f.get_body() {
         Body::Setup(v) => {
-          let pa = SetupPayload::from(&v);
+          let pa = SetupPayload::from(v);
           match &self.acceptor {
             Acceptor::Generate(f) => {
               let rs = Box::new(self.socket.clone());
@@ -168,7 +174,7 @@ impl Runner {
           };
         }
         Body::Payload(v) => {
-          let pa = Payload::from(&v);
+          let pa = Payload::from(v);
           // pick handler
           let mut senders = handlers.map.write().unwrap();
           let handler = senders.remove(&sid).unwrap();
@@ -204,8 +210,12 @@ impl Runner {
           self.respond_request_response(sid, flag, pa);
         }
         Body::RequestStream(v) => {
-          let pa = Payload::from(&v);
+          let pa = Payload::from(v);
           self.respond_request_stream(sid, flag, pa);
+        }
+        Body::RequestFNF(v) => {
+          let pa = Payload::from(v);
+          self.respond_fnf(pa);
         }
         Body::Keepalive(v) => {
           if flag & frame::FLAG_RESPOND != 0 {
@@ -262,24 +272,23 @@ impl DuplexSocket {
 
   pub fn setup(&self, setup: SetupPayload) -> impl Future<Item = (), Error = RSocketError> {
     let mut bu = frame::Setup::builder(0, 0);
-
-    if let Some(b) = setup.data() {
-      bu = bu.set_data(b);
-    }
-    if let Some(b) = setup.metadata() {
-      bu = bu.set_metadata(b);
-    }
     if let Some(s) = setup.data_mime_type() {
       bu = bu.set_mime_data(&s);
     }
     if let Some(s) = setup.metadata_mime_type() {
       bu = bu.set_mime_metadata(&s);
     }
-    let sending = bu
+    bu = bu
       .set_keepalive(setup.keepalive_interval())
-      .set_lifetime(setup.keepalive_lifetime())
-      .build();
-    self.send_frame(sending)
+      .set_lifetime(setup.keepalive_lifetime());
+    let (d, m) = setup.split();
+    if let Some(b) = d {
+      bu = bu.set_data(b);
+    }
+    if let Some(b) = m {
+      bu = bu.set_metadata(b);
+    }
+    self.send_frame(bu.build())
   }
 
   fn send_frame(&self, sending: Frame) -> Box<dyn Future<Item = (), Error = RSocketError>> {
@@ -300,9 +309,10 @@ impl DuplexSocket {
 
 impl RSocket for DuplexSocket {
   fn metadata_push(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
+    let (_d, m) = req.split();
     let sid = self.seq.next();
     let mut bu = frame::MetadataPush::builder(sid, 0);
-    if let Some(b) = req.metadata() {
+    if let Some(b) = m {
       bu = bu.set_metadata(b);
     }
     let sending = bu.build();
@@ -315,12 +325,13 @@ impl RSocket for DuplexSocket {
   }
 
   fn request_fnf(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
+    let (d, m) = req.split();
     let sid = self.seq.next();
     let mut bu = frame::RequestFNF::builder(sid, 0);
-    if let Some(b) = req.data() {
+    if let Some(b) = d {
       bu = bu.set_data(b);
     }
-    if let Some(b) = req.metadata() {
+    if let Some(b) = m {
       bu = bu.set_metadata(b);
     }
     let sending = bu.build();
@@ -336,16 +347,17 @@ impl RSocket for DuplexSocket {
     &self,
     input: Payload,
   ) -> Box<dyn Future<Item = Payload, Error = RSocketError>> {
+    let (d, m) = input.split();
     let sid = self.seq.next();
     let (tx, caller) = RequestCaller::new();
     // register handler
     self.register_handler(sid, Handler::Request(tx));
     // crate request frame
     let mut bu = frame::RequestResponse::builder(sid, 0);
-    if let Some(b) = input.data() {
+    if let Some(b) = d {
       bu = bu.set_data(b);
     }
-    if let Some(b) = input.metadata() {
+    if let Some(b) = m {
       bu = bu.set_metadata(b);
     }
     let sending = bu.build();
@@ -359,16 +371,17 @@ impl RSocket for DuplexSocket {
     &self,
     input: Payload,
   ) -> Box<dyn Stream<Item = Payload, Error = RSocketError>> {
+    let (d, m) = input.split();
     let sid = self.seq.next();
     // register handler
     let (tx, caller) = StreamCaller::new();
     self.register_handler(sid, Handler::Stream(tx));
     // crate stream frame
     let mut bu = frame::RequestStream::builder(sid, 0);
-    if let Some(b) = input.data() {
+    if let Some(b) = d {
       bu = bu.set_data(b);
     }
-    if let Some(b) = input.metadata() {
+    if let Some(b) = m {
       bu = bu.set_metadata(b);
     }
     let sending = bu.build();

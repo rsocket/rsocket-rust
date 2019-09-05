@@ -13,7 +13,7 @@ pub struct RequestCaller {
 impl RequestCaller {
   pub fn new() -> (oneshot::Sender<Payload>, RequestCaller) {
     let (tx, rx) = oneshot::channel();
-    (tx, RequestCaller { rx: rx })
+    (tx, RequestCaller { rx })
   }
 }
 
@@ -33,7 +33,7 @@ pub struct StreamCaller {
 impl StreamCaller {
   pub fn new() -> (mpsc::Sender<Payload>, StreamCaller) {
     let (tx, rx) = mpsc::channel(0);
-    (tx, StreamCaller { rx: rx })
+    (tx, StreamCaller { rx })
   }
 }
 

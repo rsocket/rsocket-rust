@@ -9,7 +9,7 @@ pub struct StreamID {
 impl StreamID {
   fn new(value: u32) -> StreamID {
     let inner = Arc::new(AtomicU32::new(value));
-    StreamID { inner: inner }
+    StreamID { inner }
   }
 
   pub fn next(&self) -> u32 {

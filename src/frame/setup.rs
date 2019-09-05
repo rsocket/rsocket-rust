@@ -6,7 +6,7 @@ use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 use std::time::Duration;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Setup {
   version: Version,
   keepalive: u32,
@@ -45,7 +45,7 @@ impl Writeable for Setup {
     bf.put(&self.mime_metadata);
     bf.put_u8(self.mime_data.len() as u8);
     bf.put(&self.mime_data);
-    PayloadSupport::write(bf, &self.metadata, &self.data);
+    PayloadSupport::write(bf, self.get_metadata(), self.get_data());
   }
 }
 
@@ -75,13 +75,13 @@ impl Setup {
     let (metadata, data) = PayloadSupport::read(flag, b);
     Ok(Setup {
       version: Version::new(major, minor),
-      keepalive: keepalive,
-      lifetime: lifetime,
-      token: token,
+      keepalive,
+      lifetime,
+      token,
       mime_metadata: String::from_utf8(mime_metadata.to_vec()).unwrap(),
       mime_data: String::from_utf8(mime_data.to_vec()).unwrap(),
-      metadata: metadata,
-      data: data,
+      metadata,
+      data,
     })
   }
 
@@ -89,8 +89,8 @@ impl Setup {
     SetupBuilder::new(stream_id, flag)
   }
 
-  pub fn get_version(&self) -> &Version {
-    &self.version
+  pub fn get_version(&self) -> Version {
+    self.version
   }
 
   pub fn get_keepalive(&self) -> Duration {
@@ -113,13 +113,18 @@ impl Setup {
     &self.mime_data
   }
 
-  pub fn get_metadata(&self) -> Option<Bytes> {
-    self.metadata.clone()
+  pub fn get_metadata(&self) -> &Option<Bytes> {
+    &self.metadata
   }
 
-  pub fn get_data(&self) -> Option<Bytes> {
-    self.data.clone()
+  pub fn get_data(&self) -> &Option<Bytes> {
+    &self.data
   }
+
+  pub fn split(self) -> (Option<Bytes>,Option<Bytes>){
+    (self.data,self.metadata)
+  }
+
 }
 
 pub struct SetupBuilder {
@@ -131,8 +136,8 @@ pub struct SetupBuilder {
 impl SetupBuilder {
   fn new(stream_id: u32, flag: u16) -> SetupBuilder {
     SetupBuilder {
-      stream_id: stream_id,
-      flag: flag,
+      stream_id,
+      flag,
       value: Setup {
         version: Version::default(),
         keepalive: 30_000,
@@ -147,7 +152,7 @@ impl SetupBuilder {
   }
 
   pub fn build(self) -> Frame {
-    Frame::new(self.stream_id, Body::Setup(self.value.clone()), self.flag)
+    Frame::new(self.stream_id, Body::Setup(self.value), self.flag)
   }
 
   pub fn set_data(mut self, bs: Bytes) -> Self {

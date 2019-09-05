@@ -4,7 +4,7 @@ use super::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA, U24};
 use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RequestResponse {
   metadata: Option<Bytes>,
   data: Option<Bytes>,
@@ -19,8 +19,8 @@ pub struct RequestResponseBuilder {
 impl RequestResponseBuilder {
   fn new(stream_id: u32, flag: u16) -> RequestResponseBuilder {
     RequestResponseBuilder {
-      stream_id: stream_id,
-      flag: flag,
+      stream_id,
+      flag,
       value: RequestResponse {
         metadata: None,
         data: None,
@@ -42,21 +42,12 @@ impl RequestResponseBuilder {
   pub fn build(self) -> Frame {
     Frame::new(
       self.stream_id,
-      Body::RequestResponse(self.value.clone()),
+      Body::RequestResponse(self.value),
       self.flag,
     )
   }
 }
 
-impl Writeable for RequestResponse {
-  fn write_to(&self, bf: &mut BytesMut) {
-    PayloadSupport::write(bf, &self.metadata, &self.data)
-  }
-
-  fn len(&self) -> u32 {
-    PayloadSupport::len(&self.metadata, &self.data)
-  }
-}
 
 impl RequestResponse {
   pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestResponse> {
@@ -71,17 +62,26 @@ impl RequestResponse {
     RequestResponseBuilder::new(stream_id, flag)
   }
 
-  pub fn get_metadata(&self) -> Option<Bytes> {
-    self.metadata.clone()
+  pub fn get_metadata(&self) -> &Option<Bytes> {
+    &self.metadata
   }
 
-  pub fn get_data(&self) -> Option<Bytes> {
-    self.data.clone()
+  pub fn get_data(&self) -> &Option<Bytes> {
+    &self.data
   }
 
-  pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
-    let d = self.data;
-    let m = self.metadata;
-    (d, m)
+  pub fn split(self) -> (Option<Bytes>, Option<Bytes>){
+    (self.data,self.metadata)
+  }
+
+}
+
+impl Writeable for RequestResponse {
+  fn write_to(&self, bf: &mut BytesMut) {
+    PayloadSupport::write(bf, self.get_metadata(), self.get_data())
+  }
+
+  fn len(&self) -> u32 {
+    PayloadSupport::len(self.get_metadata(), self.get_data())
   }
 }

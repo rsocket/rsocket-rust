@@ -3,13 +3,13 @@ extern crate bytes;
 use crate::frame;
 use bytes::Bytes;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Payload {
   m: Option<Bytes>,
   d: Option<Bytes>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct PayloadBuilder {
   value: Payload,
 }
@@ -21,26 +21,28 @@ impl PayloadBuilder {
     }
   }
 
-  pub fn set_metadata(&mut self, metadata: Bytes) -> &mut PayloadBuilder {
+  pub fn set_metadata(mut self, metadata: Bytes) -> Self {
     self.value.m = Some(metadata);
     self
   }
 
-  pub fn set_metadata_utf8(&mut self, metadata: &str) -> &mut PayloadBuilder {
-    self.set_metadata(Bytes::from(metadata))
+  pub fn set_metadata_utf8(mut self, metadata: &str) -> Self{
+    self = self.set_metadata(Bytes::from(metadata));
+    self
   }
 
-  pub fn set_data(&mut self, data: Bytes) -> &mut PayloadBuilder {
+  pub fn set_data(mut self, data: Bytes) -> Self{
     self.value.d = Some(data);
     self
   }
 
-  pub fn set_data_utf8(&mut self, data: &str) -> &mut PayloadBuilder {
-    self.set_data(Bytes::from(data))
+  pub fn set_data_utf8(mut self, data: &str) -> Self{
+    self = self.set_data(Bytes::from(data));
+    self
   }
 
-  pub fn build(&mut self) -> Payload {
-    self.value.clone()
+  pub fn build(self) -> Payload {
+    self.value
   }
 }
 
@@ -49,17 +51,18 @@ impl Payload {
     PayloadBuilder::new()
   }
 
-  pub fn metadata(&self) -> Option<Bytes> {
-    self.m.clone()
+  pub fn metadata(&self) -> &Option<Bytes> {
+    &self.m
   }
 
-  pub fn data(&self) -> Option<Bytes> {
-    self.d.clone()
+  pub fn data(&self) -> &Option<Bytes> {
+    &self.d
   }
 
-  pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
-    (self.d, self.m)
+  pub fn split(self) -> (Option<Bytes>,Option<Bytes>){
+    (self.d,self.m)
   }
+
 }
 
 impl From<&'static str> for Payload {
@@ -83,63 +86,51 @@ impl From<(&'static str, &'static str)> for Payload {
 impl From<(Option<Bytes>, Option<Bytes>)> for Payload {
   fn from((data, metadata): (Option<Bytes>, Option<Bytes>)) -> Payload {
     let mut bu = Payload::builder();
-    match metadata {
-      Some(b) => {
-        bu.set_metadata(b);
-        ()
-      }
-      None => (),
-    };
-    match data {
-      Some(b) => {
-        bu.set_data(b);
-        ()
-      }
-      None => (),
-    };
+    if let Some(b) = metadata{
+bu = bu.set_metadata(b);
+    }
+    if let Some(b) =  data {
+        bu = bu.set_data(b);
+    }
     bu.build()
   }
 }
 
-impl From<&frame::Payload> for Payload {
-  fn from(input: &frame::Payload) -> Payload {
-    Payload::from((input.get_data(), input.get_metadata()))
+impl From<frame::Payload> for Payload {
+  fn from(input: frame::Payload) -> Payload {
+    let d = input.get_data().clone();
+    let m = input.get_metadata().clone();
+    Payload::from((d,m))
   }
 }
 
-impl From<&frame::Setup> for Payload {
-  fn from(input: &frame::Setup) -> Payload {
-    Payload::from((input.get_data(), input.get_metadata()))
+impl From<frame::Setup> for Payload {
+  fn from(input: frame::Setup) -> Payload {
+    Payload::from(input.split())
   }
 }
 
-impl From<&frame::RequestChannel> for Payload {
-  fn from(input: &frame::RequestChannel) -> Payload {
-    Payload::from((input.get_data(), input.get_metadata()))
+impl From<frame::RequestChannel> for Payload {
+  fn from(input: frame::RequestChannel) -> Payload {
+    Payload::from(input.split())
   }
 }
 
-impl From<&frame::MetadataPush> for Payload {
-  fn from(input: &frame::MetadataPush) -> Payload {
-    Payload::from((input.get_data(), input.get_metadata()))
+impl From<frame::MetadataPush> for Payload {
+  fn from(input: frame::MetadataPush) -> Payload {
+    Payload::from(input.split())
   }
 }
 
-impl From<&frame::RequestStream> for Payload {
-  fn from(input: &frame::RequestStream) -> Payload {
-    Payload::from((input.get_data(), input.get_metadata()))
+impl From<frame::RequestStream> for Payload {
+  fn from(input: frame::RequestStream) -> Payload {
+    Payload::from(input.split())
   }
 }
 
-impl From<&frame::RequestFNF> for Payload {
-  fn from(input: &frame::RequestFNF) -> Payload {
-    Payload::from((input.get_data(), input.get_metadata()))
-  }
-}
-
-impl From<&frame::RequestResponse> for Payload {
-  fn from(input: &frame::RequestResponse) -> Payload {
-    Payload::from((input.get_data(), input.get_metadata()))
+impl From<frame::RequestFNF> for Payload {
+  fn from(input: frame::RequestFNF) -> Payload {
+    Payload::from(input.split())
   }
 }
 

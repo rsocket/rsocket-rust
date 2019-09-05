@@ -1,7 +1,7 @@
 extern crate bytes;
 
-use crate::result::RSocketResult;
 use super::{Body, Frame, Writeable};
+use crate::result::RSocketResult;
 use bytes::{BufMut, Bytes, BytesMut};
 
 #[derive(Debug, Clone)]
@@ -18,8 +18,8 @@ pub struct MetadataPushBuiler {
 impl MetadataPushBuiler {
   fn new(stream_id: u32, flag: u16) -> MetadataPushBuiler {
     MetadataPushBuiler {
-      stream_id: stream_id,
-      flag: flag,
+      stream_id,
+      flag,
       value: MetadataPush { metadata: None },
     }
   }
@@ -30,11 +30,7 @@ impl MetadataPushBuiler {
   }
 
   pub fn build(self) -> Frame {
-    Frame::new(
-      self.stream_id,
-      Body::MetadataPush(self.value.clone()),
-      self.flag,
-    )
+    Frame::new(self.stream_id, Body::MetadataPush(self.value), self.flag)
   }
 }
 
@@ -48,13 +44,14 @@ impl MetadataPush {
     MetadataPushBuiler::new(stream_id, flag)
   }
 
-  pub fn get_metadata(&self) -> Option<Bytes> {
-    self.metadata.clone()
+  pub fn get_metadata(&self) -> &Option<Bytes> {
+    &self.metadata
   }
 
-  pub fn get_data(&self) -> Option<Bytes> {
-    None
+  pub fn split(self) -> (Option<Bytes>,Option<Bytes>){
+    (None,self.metadata)
   }
+
 }
 
 impl Writeable for MetadataPush {

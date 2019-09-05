@@ -47,7 +47,7 @@ impl Resume {
     b.advance(8);
     Ok(Resume {
       version: Version::new(major, minor),
-      token: token,
+      token,
       last_received_server_position: p1,
       first_available_client_position: p2,
     })
@@ -58,27 +58,27 @@ impl Resume {
   }
 
   pub fn get_version(&self) -> Version {
-    self.version.clone()
+    self.version
   }
 
-  pub fn get_token(&self) -> Option<Bytes> {
-    self.token.clone()
+  pub fn get_token(&self) -> &Option<Bytes> {
+    &self.token
   }
 
   pub fn get_last_received_server_position(&self) -> u64 {
-    self.last_received_server_position.clone()
+    self.last_received_server_position
   }
 
   pub fn get_first_available_client_position(&self) -> u64 {
-    self.first_available_client_position.clone()
+    self.first_available_client_position
   }
 }
 
 impl ResumeBuilder {
   fn new(stream_id: u32, flag: u16) -> ResumeBuilder {
     ResumeBuilder {
-      stream_id: stream_id,
-      flag: flag,
+      stream_id,
+      flag,
       inner: Resume::new(),
     }
   }
@@ -110,7 +110,7 @@ impl ResumeBuilder {
 impl Writeable for Resume {
   fn write_to(&self, bf: &mut BytesMut) {
     self.version.write_to(bf);
-    if let Some(b) = &self.token {
+    if let Some(b) = self.get_token() {
       bf.put_u16_be(b.len() as u16);
       bf.put(b);
     }
@@ -120,7 +120,7 @@ impl Writeable for Resume {
 
   fn len(&self) -> u32 {
     let mut size: u32 = 22;
-    if let Some(b) = &self.token {
+    if let Some(b) = self.get_token() {
       size += b.len() as u32;
     }
     size

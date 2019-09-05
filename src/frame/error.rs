@@ -4,7 +4,7 @@ use super::{Body, Frame, Writeable};
 use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Error {
   code: u32,
   data: Option<Bytes>,
@@ -19,8 +19,8 @@ pub struct ErrorBuilder {
 impl ErrorBuilder {
   fn new(stream_id: u32, flag: u16) -> ErrorBuilder {
     ErrorBuilder {
-      stream_id: stream_id,
-      flag: flag,
+      stream_id,
+      flag,
       value: Error {
         code: 0,
         data: None,
@@ -39,7 +39,7 @@ impl ErrorBuilder {
   }
 
   pub fn build(self) -> Frame {
-    Frame::new(self.stream_id, Body::Error(self.value.clone()), self.flag)
+    Frame::new(self.stream_id, Body::Error(self.value), self.flag)
   }
 }
 
@@ -52,18 +52,15 @@ impl Error {
     } else {
       Some(Bytes::from(bf.to_vec()))
     };
-    Ok(Error {
-      code: code,
-      data: d,
-    })
+    Ok(Error { code, data: d })
   }
 
   pub fn builder(stream_id: u32, flag: u16) -> ErrorBuilder {
     ErrorBuilder::new(stream_id, flag)
   }
 
-  pub fn get_data(&self) -> Option<Bytes> {
-    self.data.clone()
+  pub fn get_data(&self) -> &Option<Bytes> {
+    &self.data
   }
 
   pub fn get_code(&self) -> u32 {

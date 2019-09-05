@@ -1,10 +1,10 @@
 extern crate bytes;
 
-use crate::result::RSocketResult;
 use super::{Body, Frame, Writeable, REQUEST_MAX};
+use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, BytesMut};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RequestN {
   n: u32,
 }
@@ -18,8 +18,8 @@ pub struct RequestNBuilder {
 impl RequestNBuilder {
   fn new(stream_id: u32, flag: u16) -> RequestNBuilder {
     RequestNBuilder {
-      stream_id: stream_id,
-      flag: flag,
+      stream_id,
+      flag,
       value: RequestN { n: REQUEST_MAX },
     }
   }
@@ -30,11 +30,7 @@ impl RequestNBuilder {
   }
 
   pub fn build(self) -> Frame {
-    Frame::new(
-      self.stream_id,
-      Body::RequestN(self.value.clone()),
-      self.flag,
-    )
+    Frame::new(self.stream_id, Body::RequestN(self.value), self.flag)
   }
 }
 
@@ -42,7 +38,7 @@ impl RequestN {
   pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestN> {
     let n = BigEndian::read_u32(bf);
     bf.advance(4);
-    Ok(RequestN { n: n })
+    Ok(RequestN { n })
   }
 
   pub fn builder(stream_id: u32, flag: u16) -> RequestNBuilder {
@@ -50,13 +46,13 @@ impl RequestN {
   }
 
   pub fn get_n(&self) -> u32 {
-    self.n.clone()
+    self.n
   }
 }
 
 impl Writeable for RequestN {
   fn write_to(&self, bf: &mut BytesMut) {
-    bf.put_u32_be(self.n)
+    bf.put_u32_be(self.get_n())
   }
 
   fn len(&self) -> u32 {

@@ -195,11 +195,11 @@ impl Frame {
   }
 
   pub fn get_flag(&self) -> u16 {
-    self.flag.clone()
+    self.flag
   }
 
   pub fn get_stream_id(&self) -> u32 {
-    self.stream_id.clone()
+    self.stream_id
   }
 
   pub fn has_next(&self) -> bool {

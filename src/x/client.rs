@@ -54,10 +54,11 @@ impl ClientBuilder {
   }
 
   pub fn setup(mut self, setup: Payload) -> Self {
-    if let Some(b) = setup.data() {
+    let (d,m) = setup.split();
+    if let Some(b) = d {
       self.setup = self.setup.set_data(b);
     }
-    if let Some(b) = setup.metadata() {
+    if let Some(b) = m {
       self.setup = self.setup.set_metadata(b);
     }
     self
@@ -108,7 +109,8 @@ impl ClientBuilder {
           let (socket, daemon) = bu.connect(&addr);
           let mut rt = Runtime::new().unwrap();
           rt.spawn(daemon);
-          socket.setup(self.setup.build()).wait().unwrap();
+          let setup = self.setup.build();
+          socket.setup(setup).wait().unwrap();
           Ok(Client::new(socket, rt))
         }
         _ => Err(RSocketError::from("unsupported uri")),

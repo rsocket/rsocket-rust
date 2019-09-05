@@ -5,7 +5,6 @@ use crate::errors::RSocketError;
 use crate::frame::{Frame, Writeable, U24};
 use bytes::{BufMut, BytesMut};
 use std::io;
-use std::time::SystemTime;
 use tokio::codec::{Decoder, Encoder};
 
 pub struct FrameCodec;
@@ -34,16 +33,10 @@ impl Encoder for FrameCodec {
   type Error = io::Error;
   fn encode(&mut self, item: Frame, buf: &mut BytesMut) -> Result<(), Self::Error> {
     let sid = item.get_stream_id();
-    let now = SystemTime::now();
     let l = item.len();
     buf.reserve(3 + (l as usize));
     U24::write(l, buf);
     item.write_to(buf);
-    debug!(
-      "encode frame#{}: cost={}ns",
-      sid,
-      now.elapsed().unwrap().as_nanos()
-    );
     Ok(())
   }
 }

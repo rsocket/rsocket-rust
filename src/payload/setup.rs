@@ -5,7 +5,7 @@ use crate::mime::MIME_BINARY;
 use bytes::Bytes;
 use std::time::Duration;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct SetupPayload {
   m: Option<Bytes>,
   d: Option<Bytes>,
@@ -14,7 +14,7 @@ pub struct SetupPayload {
   mime_d: Option<String>,
 }
 
-#[derive(Clone)]
+#[derive(Debug)]
 pub struct SetupPayloadBuilder {
   inner: SetupPayload,
 }
@@ -79,17 +79,21 @@ impl SetupPayloadBuilder {
   }
 
   pub fn build(self) -> SetupPayload {
-    self.inner.clone()
+    self.inner
   }
 }
 
 impl SetupPayload {
-  pub fn metadata(&self) -> Option<Bytes> {
-    self.m.clone()
+  pub fn metadata(&self) -> &Option<Bytes> {
+    &self.m
   }
 
-  pub fn data(&self) -> Option<Bytes> {
-    self.d.clone()
+  pub fn data(&self) -> &Option<Bytes> {
+    &self.d
+  }
+
+  pub fn split(self) -> (Option<Bytes>,Option<Bytes>){
+    (self.d,self.m)
   }
 
   pub fn keepalive_interval(&self) -> Duration {
@@ -100,30 +104,32 @@ impl SetupPayload {
     self.keepalive.1.clone()
   }
 
-  pub fn metadata_mime_type(&self) -> Option<String> {
-    self.mime_m.clone()
+  pub fn metadata_mime_type(&self) -> &Option<String> {
+    &self.mime_m
   }
 
-  pub fn data_mime_type(&self) -> Option<String> {
-    self.mime_d.clone()
+  pub fn data_mime_type(&self) -> &Option<String>{
+    &self.mime_d
   }
 }
 
-impl From<&Setup> for SetupPayload {
-  fn from(input: &Setup) -> SetupPayload {
+impl From<Setup> for SetupPayload {
+  fn from(input: Setup) -> SetupPayload {
     let mut bu = SetupPayload::builder();
-    if let Some(b) = input.get_data() {
-      bu = bu.set_data(b);
-    }
-    if let Some(b) = input.get_metadata() {
-      bu = bu.set_metadata(b);
-    }
     // TODO: fill other properties.
     bu = bu.set_data_mime_type(input.get_mime_data());
     bu = bu.set_metadata_mime_type(input.get_mime_metadata());
     // bu.set_data_mime_type(String::input.get_mime_data());
+    let ka = (input.get_keepalive(), input.get_lifetime());
+    let (d,m)= input.split();
+    if let Some(b) = d{
+      bu = bu.set_data(b);
+    }
+    if let Some(b) = m{
+      bu = bu.set_metadata(b);
+    }
     let mut pa = bu.build();
-    pa.keepalive = (input.get_keepalive(), input.get_lifetime());
+    pa.keepalive = ka;
     pa
   }
 }

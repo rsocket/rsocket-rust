@@ -4,7 +4,7 @@ use super::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA, REQUEST_MAX};
 use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RequestChannel {
   initial_request_n: u32,
   metadata: Option<Bytes>,
@@ -20,8 +20,8 @@ pub struct RequestChannelBuilder {
 impl RequestChannelBuilder {
   pub fn new(stream_id: u32, flag: u16) -> RequestChannelBuilder {
     RequestChannelBuilder {
-      stream_id: stream_id,
-      flag: flag,
+      stream_id,
+      flag,
       value: RequestChannel {
         initial_request_n: REQUEST_MAX,
         metadata: None,
@@ -31,11 +31,7 @@ impl RequestChannelBuilder {
   }
 
   pub fn build(self) -> Frame {
-    Frame::new(
-      self.stream_id,
-      Body::RequestChannel(self.value.clone()),
-      self.flag,
-    )
+    Frame::new(self.stream_id, Body::RequestChannel(self.value), self.flag)
   }
 
   pub fn set_initial_request_n(mut self, n: u32) -> Self {
@@ -72,24 +68,28 @@ impl RequestChannel {
   }
 
   pub fn get_initial_request_n(&self) -> u32 {
-    self.initial_request_n.clone()
+    self.initial_request_n
   }
 
-  pub fn get_metadata(&self) -> Option<Bytes> {
-    self.metadata.clone()
+  pub fn get_metadata(&self) -> &Option<Bytes> {
+    &self.metadata
   }
-  pub fn get_data(&self) -> Option<Bytes> {
-    self.data.clone()
+  pub fn get_data(&self) -> &Option<Bytes> {
+    &self.data
+  }
+
+  pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
+    (self.data, self.metadata)
   }
 }
 
 impl Writeable for RequestChannel {
   fn write_to(&self, bf: &mut BytesMut) {
     bf.put_u32_be(self.initial_request_n);
-    PayloadSupport::write(bf, &self.metadata, &self.data);
+    PayloadSupport::write(bf, self.get_metadata(), self.get_data());
   }
 
   fn len(&self) -> u32 {
-    4 + PayloadSupport::len(&self.metadata, &self.data)
+    4 + PayloadSupport::len(self.get_metadata(), self.get_data())
   }
 }
