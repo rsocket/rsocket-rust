@@ -125,8 +125,8 @@ impl RSocket for Client {
     self.socket.metadata_push(req)
   }
 
-  fn request_fnf(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
-    self.socket.request_fnf(req)
+  fn fire_and_forget(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
+    self.socket.fire_and_forget(req)
   }
 
   fn request_response(

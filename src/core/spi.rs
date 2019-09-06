@@ -10,7 +10,7 @@ use futures::{Future, Stream};
 
 pub trait RSocket: Sync + Send {
   fn metadata_push(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>>;
-  fn request_fnf(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>>;
+  fn fire_and_forget(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>>;
   fn request_response(&self, req: Payload)
     -> Box<dyn Future<Item = Payload, Error = RSocketError>>;
   fn request_stream(&self, req: Payload) -> Box<dyn Stream<Item = Payload, Error = RSocketError>>;
@@ -24,7 +24,7 @@ impl RSocket for MockResponder {
     Box::new(ok(()).map_err(|()| RSocketError::from("foobar")))
   }
 
-  fn request_fnf(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
+  fn fire_and_forget(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
     debug!("receive request_fnf: {:?}", req);
     Box::new(ok(()).map_err(|()| RSocketError::from("foobar")))
   }

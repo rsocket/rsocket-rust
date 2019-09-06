@@ -16,11 +16,8 @@ impl Transport {
     Transport { _tx: tx, _rx: rx }
   }
 
-  pub fn tx(&self) -> Sender<Frame> {
-    self._tx.clone()
+  pub fn split(self) -> (Sender<Frame>,Receiver<Frame>){
+    (self._tx,self._rx)
   }
 
-  pub fn rx(self) -> Receiver<Frame> {
-    self._rx
-  }
 }

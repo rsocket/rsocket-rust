@@ -16,14 +16,15 @@ pub fn from_addr(addr: &SocketAddr) -> Context {
 }
 
 pub fn from_socket(socket: TcpStream) -> Context {
-  let (tx, rx) = mpsc::channel(0);
-  let (rtx, rrx) = mpsc::channel(0);
+  let (tx_snd, rx_snd) = mpsc::channel::<Frame>(0);
+  let (tx_rcv, rx_rcv) = mpsc::channel::<Frame>(0);
   let (sink, stream) = Framed::new(socket, FrameCodec::new()).split();
   let sender: Box<dyn Stream<Item = Frame, Error = io::Error> + Send> =
-    Box::new(rx.map_err(|_| panic!("errors not possible on rx")));
+    Box::new(rx_snd.map_err(|_| panic!("errors not possible on rx")));
+  let tx_rcv_gen = move || tx_rcv.clone();
   let task = stream
     .for_each(move |it| {
-      rtx.clone().send(it).wait().unwrap();
+      tx_rcv_gen().send(it).wait().unwrap();
       Ok(())
     })
     .map_err(|e| println!("error reading: {:?}", e));
@@ -31,5 +32,5 @@ pub fn from_socket(socket: TcpStream) -> Context {
     tokio::spawn(sender.forward(sink).then(|_| Ok(())));
     task
   });
-  (Transport::new(tx, rrx), Box::new(fu))
+  (Transport::new(tx_snd, rx_rcv), Box::new(fu))
 }

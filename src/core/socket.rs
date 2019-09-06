@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, RwLock};
 use tokio::net::TcpStream;
+use tokio::runtime::Runtime;
 
 pub enum Acceptor {
   Direct(Box<dyn RSocket>),
@@ -74,6 +75,7 @@ impl Runner {
     }
   }
 
+  #[inline]
   fn respond_metadata_push(&self, input: Payload) {
     let responder = self.responder.clone();
     tokio::spawn(lazy(move || {
@@ -82,11 +84,28 @@ impl Runner {
     }));
   }
 
+  #[inline]
   fn respond_fnf(&self, input: Payload) {
     let responder = self.responder.clone();
     tokio::spawn(lazy(move || {
-      responder.request_fnf(input).wait().unwrap();
+      responder.fire_and_forget(input).wait().unwrap();
       Ok(())
+    }));
+  }
+
+  #[inline]
+  fn respond_keepalive(&self, keepalive: frame::Keepalive) {
+    let tx = self.tx.clone();
+    tokio::spawn(lazy(move || {
+      let (d, _) = keepalive.split();
+      let mut bu = frame::Keepalive::builder(0, 0);
+      if let Some(b) = d {
+        bu = bu.set_data(b);
+      }
+      let sending = bu.build();
+      tx.send(sending)
+        .and_then(move |_it| Ok(()))
+        .map_err(move |e| warn!("send frame failed: {}", e))
     }));
   }
 
@@ -116,16 +135,13 @@ impl Runner {
           .set_data(Bytes::from("TODO: should be error details"))
           .build(),
       };
-
       tx.send(sending)
-        .and_then(move |_it| {
-          debug!("sent");
-          Ok(())
-        })
-        .map_err(move |e| error!("send frame failed: {}", e))
+        .and_then(move |_it| Ok(()))
+        .map_err(move |e| warn!("send frame failed: {}", e))
     }));
   }
 
+  #[inline]
   fn respond_request_stream(&self, sid: u32, flag: u16, input: Payload) {
     let responder = self.responder.clone();
     let tx = self.tx.clone();
@@ -155,9 +171,9 @@ impl Runner {
     }));
   }
 
+  #[inline]
   fn to_future(self, rx: mpsc::Receiver<Frame>) -> impl Future<Item = (), Error = ()> + Send {
-    let handlers = self.handlers.clone();
-    let task = rx.for_each(move |f: frame::Frame| {
+    let task = rx.for_each(move |f| {
       let sid = f.get_stream_id();
       let flag = f.get_flag();
       debug!("incoming frame#{}", sid);
@@ -176,6 +192,7 @@ impl Runner {
         Body::Payload(v) => {
           let pa = Payload::from(v);
           // pick handler
+          let handlers = self.handlers.clone();
           let mut senders = handlers.map.write().unwrap();
           let handler = senders.remove(&sid).unwrap();
 
@@ -217,9 +234,14 @@ impl Runner {
           let pa = Payload::from(v);
           self.respond_fnf(pa);
         }
+        Body::MetadataPush(v) => {
+          let pa = Payload::from(v);
+          self.respond_metadata_push(pa);
+        }
         Body::Keepalive(v) => {
           if flag & frame::FLAG_RESPOND != 0 {
             debug!("got keepalive: {:?}", v);
+            self.respond_keepalive(v);
           }
         }
         _ => unimplemented!(),
@@ -243,6 +265,7 @@ impl DuplexSocket {
     DuplexSocketBuilder::new()
   }
 
+  #[inline]
   fn new(
     first_stream_id: u32,
     ctx: Context,
@@ -253,16 +276,15 @@ impl DuplexSocket {
 
     let handlers = Arc::new(Handlers::new());
     let handlers2 = handlers.clone();
-    let tx1 = tp.tx();
-    let tx2 = tp.tx();
+    let (tx, rx) = tp.split();
 
     let sk = DuplexSocket {
-      tx: tx1,
+      tx: tx.clone(),
       handlers: handlers,
       seq: StreamID::from(first_stream_id),
     };
 
-    let task = Runner::new(tx2, handlers2, responder, sk.clone()).to_future(tp.rx());
+    let task = Runner::new(tx, handlers2, responder, sk.clone()).to_future(rx);
     let fu = lazy(move || {
       tokio::spawn(task0);
       task
@@ -296,7 +318,7 @@ impl DuplexSocket {
     let task = tx
       .send(sending)
       .map(|_| ())
-      .map_err(|e| RSocketError::from("send frame failed"));
+      .map_err(|_e| RSocketError::from("send frame failed"));
     Box::new(task)
   }
 
@@ -324,7 +346,7 @@ impl RSocket for DuplexSocket {
     Box::new(fu)
   }
 
-  fn request_fnf(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
+  fn fire_and_forget(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
     let (d, m) = req.split();
     let sid = self.seq.next();
     let mut bu = frame::RequestFNF::builder(sid, 0);
@@ -458,9 +480,9 @@ impl RSocket for Responder {
     (*r).metadata_push(req)
   }
 
-  fn request_fnf(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
+  fn fire_and_forget(&self, req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
     let r = self.inner.read().unwrap();
-    (*r).request_fnf(req)
+    (*r).fire_and_forget(req)
   }
 
   fn request_response(
@@ -490,7 +512,7 @@ impl RSocket for EmptyRSocket {
     Box::new(future::err(self.must_failed()))
   }
 
-  fn request_fnf(&self, _req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
+  fn fire_and_forget(&self, _req: Payload) -> Box<dyn Future<Item = (), Error = RSocketError>> {
     Box::new(future::err(self.must_failed()))
   }
 

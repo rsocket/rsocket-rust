@@ -35,7 +35,7 @@ fn exec(socket: &Client) {
 
   // request fnf
   let fnf = Payload::from("Mock FNF");
-  socket.request_fnf(fnf).wait().unwrap();
+  socket.fire_and_forget(fnf).wait().unwrap();
 
   // request response
   for n in 0..3 {

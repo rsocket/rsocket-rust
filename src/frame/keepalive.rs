@@ -68,6 +68,11 @@ impl Keepalive {
   pub fn get_data(&self) -> &Option<Bytes> {
     &self.data
   }
+
+  pub fn split(self) -> (Option<Bytes>,Option<Bytes>){
+    (self.data,None)
+  }
+
 }
 
 impl Writeable for Keepalive {
