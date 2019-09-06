@@ -7,11 +7,15 @@ use futures::sync::mpsc;
 use futures::{lazy, Future, Sink, Stream};
 use std::io;
 use std::net::SocketAddr;
+use std::net::TcpStream as StdTcpStream;
 use tokio::codec::Framed;
 use tokio::net::TcpStream;
+use tokio::reactor::Handle;
 
 pub fn from_addr(addr: &SocketAddr) -> Context {
-  let socket = TcpStream::connect(addr).wait().unwrap();
+  let origin = StdTcpStream::connect(addr).unwrap();
+  let socket = TcpStream::from_std(origin, &Handle::default()).unwrap();
+  // let socket = TcpStream::connect(addr).wait().unwrap();
   from_socket(socket)
 }
 

@@ -22,3 +22,7 @@ hex = "0.3.2"
 [[example]]
 name = "echo"
 path = "examples/echo/main.rs"
+
+[[example]]
+name = "proxy"
+path = "examples/proxy/main.rs"

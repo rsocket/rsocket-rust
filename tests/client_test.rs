@@ -13,7 +13,6 @@ fn test_client() {
     .mime_type("text/plain", "text/plain")
     .start()
     .unwrap();
-
   for n in 0..11 {
     let pa = Payload::builder()
       .set_data_utf8("Hello World!")
