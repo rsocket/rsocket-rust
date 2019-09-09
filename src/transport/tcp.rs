@@ -22,7 +22,7 @@ pub fn from_addr(addr: &SocketAddr) -> Context {
 pub fn from_socket(socket: TcpStream) -> Context {
   let (tx_snd, rx_snd) = mpsc::channel::<Frame>(0);
   let (tx_rcv, rx_rcv) = mpsc::channel::<Frame>(0);
-  let (sink, stream) = Framed::new(socket, FrameCodec::new()).split();
+  let (sink, stream) = Framed::new(socket, FrameCodec::default()).split();
   let sender: Box<dyn Stream<Item = Frame, Error = io::Error> + Send> =
     Box::new(rx_snd.map_err(|_| panic!("errors not possible on rx")));
   let tx_rcv_gen = move || tx_rcv.clone();

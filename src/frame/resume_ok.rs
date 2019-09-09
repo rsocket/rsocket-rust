@@ -4,7 +4,7 @@ use super::{Body, Frame, Writeable};
 use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, BytesMut};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ResumeOK {
   position: u64,
 }
@@ -54,7 +54,7 @@ impl Writeable for ResumeOK {
     bf.put_u64_be(self.get_position())
   }
 
-  fn len(&self) -> u32 {
+  fn len(&self) -> usize {
     8
   }
 }

@@ -17,6 +17,12 @@ pub struct ServerBuilder {
   on_setup: fn(SetupPayload, Box<dyn RSocket>) -> Box<dyn RSocket>,
 }
 
+impl Default for ServerBuilder {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
 impl ServerBuilder {
   pub fn new() -> ServerBuilder {
     ServerBuilder {
@@ -44,15 +50,15 @@ impl ServerBuilder {
       URI::Tcp(v) => {
         let addr = v.parse().unwrap();
         let listener = TcpListener::bind(&addr).unwrap();
-        let foo = Arc::new(self.on_setup);
-        let next_acceptor = move || Acceptor::Generate(foo.clone());
+        let setuper = Arc::new(self.on_setup);
+        let next_acceptor = move || Acceptor::Generate(setuper.clone());
         listener
           .incoming()
           .map_err(|e| println!("listen error: {}", e))
           .for_each(move |socket| {
             let (_, task) = DuplexSocket::builder()
               .set_acceptor(next_acceptor())
-              .from_socket(socket);
+              .with_socket(socket);
             tokio::spawn(task);
             Ok(())
           })

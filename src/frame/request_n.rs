@@ -4,7 +4,7 @@ use super::{Body, Frame, Writeable, REQUEST_MAX};
 use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, BytesMut};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RequestN {
   n: u32,
 }
@@ -55,7 +55,7 @@ impl Writeable for RequestN {
     bf.put_u32_be(self.get_n())
   }
 
-  fn len(&self) -> u32 {
+  fn len(&self) -> usize {
     4
   }
 }

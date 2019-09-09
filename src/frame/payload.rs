@@ -4,7 +4,7 @@ use super::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA};
 use crate::result::RSocketResult;
 use bytes::{BufMut, Bytes, BytesMut};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Payload {
   metadata: Option<Bytes>,
   data: Option<Bytes>,
@@ -65,10 +65,9 @@ impl Payload {
     &self.data
   }
 
-  pub fn split(self) -> (Option<Bytes>,Option<Bytes>){
-    (self.data,self.metadata)
+  pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
+    (self.data, self.metadata)
   }
-
 }
 
 impl Writeable for Payload {
@@ -76,7 +75,7 @@ impl Writeable for Payload {
     PayloadSupport::write(bf, self.get_metadata(), self.get_data());
   }
 
-  fn len(&self) -> u32 {
+  fn len(&self) -> usize {
     PayloadSupport::len(self.get_metadata(), self.get_data())
   }
 }

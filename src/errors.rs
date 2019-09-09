@@ -42,7 +42,7 @@ impl fmt::Display for RSocketError {
 
 impl From<ErrorKind> for RSocketError {
   fn from(kind: ErrorKind) -> RSocketError {
-    RSocketError { kind: kind }
+    RSocketError { kind }
   }
 }
 

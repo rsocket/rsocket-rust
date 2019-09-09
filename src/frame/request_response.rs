@@ -4,7 +4,7 @@ use super::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA, U24};
 use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, Bytes, BytesMut};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RequestResponse {
   metadata: Option<Bytes>,
   data: Option<Bytes>,
@@ -40,14 +40,9 @@ impl RequestResponseBuilder {
   }
 
   pub fn build(self) -> Frame {
-    Frame::new(
-      self.stream_id,
-      Body::RequestResponse(self.value),
-      self.flag,
-    )
+    Frame::new(self.stream_id, Body::RequestResponse(self.value), self.flag)
   }
 }
-
 
 impl RequestResponse {
   pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestResponse> {
@@ -70,10 +65,9 @@ impl RequestResponse {
     &self.data
   }
 
-  pub fn split(self) -> (Option<Bytes>, Option<Bytes>){
-    (self.data,self.metadata)
+  pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
+    (self.data, self.metadata)
   }
-
 }
 
 impl Writeable for RequestResponse {
@@ -81,7 +75,7 @@ impl Writeable for RequestResponse {
     PayloadSupport::write(bf, self.get_metadata(), self.get_data())
   }
 
-  fn len(&self) -> u32 {
+  fn len(&self) -> usize {
     PayloadSupport::len(self.get_metadata(), self.get_data())
   }
 }

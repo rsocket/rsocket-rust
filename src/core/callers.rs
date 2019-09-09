@@ -22,7 +22,7 @@ impl Future for RequestCaller {
   type Error = RSocketError;
 
   fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-    self.rx.poll().map_err(|e| RSocketError::from(e))
+    self.rx.poll().map_err(RSocketError::from)
   }
 }
 

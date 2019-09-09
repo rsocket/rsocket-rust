@@ -4,7 +4,7 @@ use super::{Body, Frame, Writeable};
 use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Keepalive {
   last_received_position: u64,
   data: Option<Bytes>,
@@ -69,10 +69,9 @@ impl Keepalive {
     &self.data
   }
 
-  pub fn split(self) -> (Option<Bytes>,Option<Bytes>){
-    (self.data,None)
+  pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
+    (self.data, None)
   }
-
 }
 
 impl Writeable for Keepalive {
@@ -84,9 +83,9 @@ impl Writeable for Keepalive {
     }
   }
 
-  fn len(&self) -> u32 {
+  fn len(&self) -> usize {
     8 + match &self.data {
-      Some(v) => v.len() as u32,
+      Some(v) => v.len(),
       None => 0,
     }
   }

@@ -4,7 +4,7 @@ use super::{Body, Frame, Writeable};
 use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Error {
   code: u32,
   data: Option<Bytes>,
@@ -77,9 +77,9 @@ impl Writeable for Error {
     }
   }
 
-  fn len(&self) -> u32 {
+  fn len(&self) -> usize {
     4 + match &self.data {
-      Some(v) => v.len() as u32,
+      Some(v) => v.len(),
       None => 0,
     }
   }

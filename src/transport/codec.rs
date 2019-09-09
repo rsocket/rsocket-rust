@@ -7,6 +7,7 @@ use bytes::{BufMut, BytesMut};
 use std::io;
 use tokio::codec::{Decoder, Encoder};
 
+#[derive(Default)]
 pub struct FrameCodec;
 
 impl Decoder for FrameCodec {
@@ -24,7 +25,7 @@ impl Decoder for FrameCodec {
     }
     buf.advance(3);
     let mut bb = buf.split_to(l);
-    Frame::decode(&mut bb).map(|it| Some(it))
+    Frame::decode(&mut bb).map(Some)
   }
 }
 
@@ -34,15 +35,9 @@ impl Encoder for FrameCodec {
   fn encode(&mut self, item: Frame, buf: &mut BytesMut) -> Result<(), Self::Error> {
     let sid = item.get_stream_id();
     let l = item.len();
-    buf.reserve(3 + (l as usize));
-    U24::write(l, buf);
+    buf.reserve(3 + l);
+    U24::write(l as u32, buf);
     item.write_to(buf);
     Ok(())
-  }
-}
-
-impl FrameCodec {
-  pub fn new() -> FrameCodec {
-    FrameCodec {}
   }
 }

@@ -4,7 +4,7 @@ use super::{Body, Frame, Writeable, FLAG_METADATA};
 use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq)]
 pub struct Lease {
   ttl: u32,
   number_of_requests: u32,
@@ -47,7 +47,7 @@ impl LeaseBuilder {
   }
 
   pub fn build(self) -> Frame {
-    Frame::new(self.stream_id, Body::Lease(self.value.clone()), self.flag)
+    Frame::new(self.stream_id, Body::Lease(self.value), self.flag)
   }
 }
 
@@ -96,9 +96,9 @@ impl Writeable for Lease {
     }
   }
 
-  fn len(&self) -> u32 {
+  fn len(&self) -> usize {
     8 + match &self.metadata {
-      Some(v) => v.len() as u32,
+      Some(v) => v.len(),
       None => 0,
     }
   }

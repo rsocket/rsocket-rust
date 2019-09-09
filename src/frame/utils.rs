@@ -14,18 +14,18 @@ impl U24 {
 
   pub fn read(bf: &mut BytesMut) -> u32 {
     let mut n: u32 = 0;
-    n += (bf[0] as u32) << 16;
-    n += (bf[1] as u32) << 8;
-    n += bf[2] as u32;
+    n += u32::from(bf[0]) << 16;
+    n += u32::from(bf[1]) << 8;
+    n += u32::from(bf[2]);
     n
   }
 
   pub fn read_advance(bf: &mut BytesMut) -> u32 {
     let mut n: u32 = 0;
-    let bar = bf.split_to(3);
-    n += (bar[0] as u32) << 16;
-    n += (bar[1] as u32) << 8;
-    n += bar[2] as u32;
+    let raw = bf.split_to(3);
+    n += u32::from(raw[0]) << 16;
+    n += u32::from(raw[1]) << 8;
+    n += u32::from(raw[2]);
     n
   }
 }
@@ -33,13 +33,13 @@ impl U24 {
 pub struct PayloadSupport {}
 
 impl PayloadSupport {
-  pub fn len(metadata: &Option<Bytes>, data: &Option<Bytes>) -> u32 {
-    let a: u32 = match metadata {
-      Some(v) => 3 + (v.len() as u32),
+  pub fn len(metadata: &Option<Bytes>, data: &Option<Bytes>) -> usize {
+    let a = match metadata {
+      Some(v) => 3 + v.len(),
       None => 0,
     };
-    let b: u32 = match data {
-      Some(v) => v.len() as u32,
+    let b = match data {
+      Some(v) => v.len(),
       None => 0,
     };
     a + b

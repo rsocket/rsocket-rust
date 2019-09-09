@@ -25,8 +25,8 @@ pub struct ClientBuilder {
 impl Client {
   fn new(socket: DuplexSocket, rt: Runtime) -> Client {
     Client {
-      socket: socket,
-      rt: rt,
+      socket,
+      rt,
     }
   }
 

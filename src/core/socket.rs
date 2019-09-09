@@ -20,9 +20,11 @@ use std::sync::{Arc, Mutex, RwLock};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 
+type AcceptorGenerator = Arc<fn(SetupPayload, Box<dyn RSocket>) -> Box<dyn RSocket>>;
+
 pub enum Acceptor {
   Direct(Box<dyn RSocket>),
-  Generate(Arc<fn(SetupPayload, Box<dyn RSocket>) -> Box<dyn RSocket>>),
+  Generate(AcceptorGenerator),
   Empty(),
 }
 
@@ -67,11 +69,11 @@ impl Runner {
       Acceptor::Generate(x) => (Responder::new(), Acceptor::Generate(x)),
     };
     Runner {
-      tx: tx,
-      handlers: handlers,
-      acceptor: acceptor,
-      responder: responder,
-      socket: socket,
+      tx,
+      handlers,
+      acceptor,
+      responder,
+      socket,
     }
   }
 
@@ -172,8 +174,8 @@ impl Runner {
   }
 
   #[inline]
-  fn to_future(self, rx: mpsc::Receiver<Frame>) -> impl Future<Item = (), Error = ()> + Send {
-    let task = rx.for_each(move |f| {
+  fn gen_task(self, rx: mpsc::Receiver<Frame>) -> impl Future<Item = (), Error = ()> + Send {
+    rx.for_each(move |f| {
       let sid = f.get_stream_id();
       let flag = f.get_flag();
       debug!("incoming frame#{}", sid);
@@ -203,7 +205,6 @@ impl Runner {
           match handler {
             Handler::Request(sender) => {
               tx1 = Some(sender);
-              ()
             }
             Handler::Stream(sender) => {
               if flag & frame::FLAG_NEXT != 0 {
@@ -212,7 +213,6 @@ impl Runner {
               if flag & frame::FLAG_COMPLETE == 0 {
                 senders.insert(sid, Handler::Stream(sender));
               }
-              ()
             }
           };
 
@@ -247,9 +247,7 @@ impl Runner {
         _ => unimplemented!(),
       };
       Ok(())
-    });
-
-    task
+    })
   }
 }
 
@@ -280,11 +278,11 @@ impl DuplexSocket {
 
     let sk = DuplexSocket {
       tx: tx.clone(),
-      handlers: handlers,
+      handlers,
       seq: StreamID::from(first_stream_id),
     };
 
-    let task = Runner::new(tx, handlers2, responder, sk.clone()).to_future(rx);
+    let task = Runner::new(tx, handlers2, responder, sk.clone()).gen_task(rx);
     let fu = lazy(move || {
       tokio::spawn(task0);
       task
@@ -339,10 +337,7 @@ impl RSocket for DuplexSocket {
     }
     let sending = bu.build();
     let tx = self.tx.clone();
-    let fu = tx
-      .send(sending)
-      .map(|_| ())
-      .map_err(|e| RSocketError::from(e));
+    let fu = tx.send(sending).map(|_| ()).map_err(RSocketError::from);
     Box::new(fu)
   }
 
@@ -358,10 +353,7 @@ impl RSocket for DuplexSocket {
     }
     let sending = bu.build();
     let tx = self.tx.clone();
-    let fu = tx
-      .send(sending)
-      .map(|_| ())
-      .map_err(|e| RSocketError::from(e));
+    let fu = tx.send(sending).map(|_| ()).map_err(RSocketError::from);
     Box::new(fu)
   }
 
@@ -428,7 +420,7 @@ impl DuplexSocketBuilder {
     self
   }
 
-  pub fn from_socket(
+  pub fn with_socket(
     self,
     socket: TcpStream,
   ) -> (DuplexSocket, impl Future<Item = (), Error = ()>) {

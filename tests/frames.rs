@@ -14,7 +14,7 @@ fn test_setup() {
     .set_data(Bytes::from(String::from("Hello World!")))
     .set_metadata(Bytes::from(String::from("foobar")))
     .build();
-  try_codec(&f);
+  try_codec(f);
 }
 
 #[test]
@@ -23,7 +23,7 @@ fn test_keepalive() {
     .set_last_received_position(123)
     .set_data(Bytes::from("foobar"))
     .build();
-  try_codec(&f);
+  try_codec(f);
 }
 
 #[test]
@@ -32,7 +32,7 @@ fn test_request_response() {
     .set_data(Bytes::from("Hello World"))
     .set_metadata(Bytes::from("Foobar"))
     .build();
-  try_codec(&f);
+  try_codec(f);
 }
 
 #[test]
@@ -41,7 +41,7 @@ fn test_payload() {
     .set_data(Bytes::from("Hello World!"))
     .set_metadata(Bytes::from("foobar"))
     .build();
-  try_codec(&f);
+  try_codec(f);
 }
 
 #[test]
@@ -51,13 +51,13 @@ fn test_request_channel() {
     .set_data(Bytes::from("Hello World!"))
     .set_metadata(Bytes::from("foobar"))
     .build();
-  try_codec(&f);
+  try_codec(f);
 }
 
 #[test]
 fn test_cancel() {
-  let f = Cancel::new(1234, 0);
-  try_codec(&f);
+  let f = Cancel::builder(1234, 0).build();
+  try_codec(f);
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn test_request_fnf() {
     .set_data(Bytes::from("Hello"))
     .set_metadata(Bytes::from("World"))
     .build();
-  try_codec(&f);
+  try_codec(f);
 }
 
 #[test]
@@ -74,13 +74,13 @@ fn test_metadata_push() {
   let f = MetadataPush::builder(1234, 0)
     .set_metadata(Bytes::from("Hello Rust!"))
     .build();
-  try_codec(&f);
+  try_codec(f);
 }
 
 #[test]
 fn test_request_n() {
   let f = RequestN::builder(1234, 0).set_n(77778888).build();
-  try_codec(&f);
+  try_codec(f);
 }
 
 #[test]
@@ -90,7 +90,7 @@ fn test_lease() {
     .set_number_of_requests(333)
     .set_ttl(1000)
     .build();
-  try_codec(&f);
+  try_codec(f);
 }
 
 #[test]
@@ -99,13 +99,13 @@ fn test_error() {
     .set_data(Bytes::from("Hello World!"))
     .set_code(4444)
     .build();
-  try_codec(&f);
+  try_codec(f);
 }
 
 #[test]
 fn resume_ok() {
   let f = ResumeOK::builder(1234, 0).set_position(2333).build();
-  try_codec(&f);
+  try_codec(f);
 }
 
 #[test]
@@ -115,10 +115,10 @@ fn test_resume() {
     .set_first_available_client_position(22)
     .set_token(Bytes::from("this is a token"))
     .build();
-  try_codec(&f);
+  try_codec(f);
 }
 
-fn try_codec(f: &Frame) {
+fn try_codec(f: Frame) {
   println!("******* codec: {:?}", f);
   let mut bf = BytesMut::with_capacity(f.len() as usize);
   f.write_to(&mut bf);
@@ -126,4 +126,9 @@ fn try_codec(f: &Frame) {
   println!("####### encode: {}", hex::encode(bb.to_vec()));
   let f2 = Frame::decode(&mut bb).unwrap();
   println!("####### decode: {:?}", f2);
+  assert_eq!(
+    f, f2,
+    "frames doesn't match: expect={:?}, actual={:?}",
+    f, f2
+  );
 }

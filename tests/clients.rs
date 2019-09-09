@@ -5,6 +5,13 @@ use futures::prelude::*;
 use rsocket_rust::prelude::*;
 
 #[test]
+fn name() {
+  let a: i32 = 0x7fffffff;
+  println!("max: {}", a);
+}
+
+#[test]
+#[ignore]
 fn test_client() {
   let cli = RSocketFactory::connect()
     .acceptor(|| Box::new(MockResponder))

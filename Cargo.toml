@@ -12,7 +12,7 @@ description = "rsocket-rust is an implementation of the RSocket protocol in Rust
 [dependencies]
 log = "0.4.8"
 bytes = "0.4.12"
-futures = "0.1.28"
+futures = "0.1.29"
 tokio = "0.1.22"
 
 [dev-dependencies]

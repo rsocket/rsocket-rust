@@ -5,7 +5,7 @@ use crate::result::RSocketResult;
 
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Resume {
   version: Version,
   token: Option<Bytes>,
@@ -118,10 +118,10 @@ impl Writeable for Resume {
     bf.put_u64_be(self.get_first_available_client_position());
   }
 
-  fn len(&self) -> u32 {
-    let mut size: u32 = 22;
+  fn len(&self) -> usize {
+    let mut size: usize = 22;
     if let Some(b) = self.get_token() {
-      size += b.len() as u32;
+      size += b.len();
     }
     size
   }

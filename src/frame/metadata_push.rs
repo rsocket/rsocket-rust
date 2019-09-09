@@ -4,7 +4,7 @@ use super::{Body, Frame, Writeable};
 use crate::result::RSocketResult;
 use bytes::{BufMut, Bytes, BytesMut};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq)]
 pub struct MetadataPush {
   metadata: Option<Bytes>,
 }
@@ -48,10 +48,9 @@ impl MetadataPush {
     &self.metadata
   }
 
-  pub fn split(self) -> (Option<Bytes>,Option<Bytes>){
-    (None,self.metadata)
+  pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
+    (None, self.metadata)
   }
-
 }
 
 impl Writeable for MetadataPush {
@@ -62,9 +61,9 @@ impl Writeable for MetadataPush {
     }
   }
 
-  fn len(&self) -> u32 {
+  fn len(&self) -> usize {
     match &self.metadata {
-      Some(v) => v.len() as u32,
+      Some(v) => v.len(),
       None => 0,
     }
   }

@@ -97,11 +97,11 @@ impl SetupPayload {
   }
 
   pub fn keepalive_interval(&self) -> Duration {
-    self.keepalive.0.clone()
+    self.keepalive.0
   }
 
   pub fn keepalive_lifetime(&self) -> Duration {
-    self.keepalive.1.clone()
+    self.keepalive.1
   }
 
   pub fn metadata_mime_type(&self) -> &Option<String> {

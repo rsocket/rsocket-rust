@@ -1,10 +1,10 @@
 extern crate bytes;
 
-use crate::result::RSocketResult;
 use super::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA};
+use crate::result::RSocketResult;
 use bytes::{BufMut, ByteOrder, Bytes, BytesMut};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct RequestFNF {
   metadata: Option<Bytes>,
   data: Option<Bytes>,
@@ -29,11 +29,7 @@ impl RequestFNFBuilder {
   }
 
   pub fn build(self) -> Frame {
-    Frame::new(
-      self.stream_id,
-      Body::RequestFNF(self.value),
-      self.flag,
-    )
+    Frame::new(self.stream_id, Body::RequestFNF(self.value), self.flag)
   }
 
   pub fn set_metadata(mut self, metadata: Bytes) -> Self {
@@ -69,11 +65,9 @@ impl RequestFNF {
     &self.data
   }
 
-  pub fn split(self) -> (Option<Bytes>,Option<Bytes>){
-    (self.data,self.metadata)
+  pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
+    (self.data, self.metadata)
   }
-
-
 }
 
 impl Writeable for RequestFNF {
@@ -81,7 +75,7 @@ impl Writeable for RequestFNF {
     PayloadSupport::write(bf, self.get_metadata(), self.get_data());
   }
 
-  fn len(&self) -> u32 {
+  fn len(&self) -> usize {
     PayloadSupport::len(self.get_metadata(), self.get_data())
   }
 }

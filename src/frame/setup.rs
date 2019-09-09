@@ -6,7 +6,7 @@ use crate::result::RSocketResult;
 use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
 use std::time::Duration;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Setup {
   version: Version,
   keepalive: u32,
@@ -19,16 +19,13 @@ pub struct Setup {
 }
 
 impl Writeable for Setup {
-  fn len(&self) -> u32 {
-    let mut n: u32 = 12;
+  fn len(&self) -> usize {
+    let mut n: usize = 12;
     n += match &self.token {
-      Some(v) => 2 + (v.len() as u32),
+      Some(v) => 2 + v.len(),
       None => 0,
     };
-    n += 1;
-    n += self.mime_metadata.len() as u32;
-    n += 1;
-    n += self.mime_data.len() as u32;
+    n += 2+self.mime_metadata.len()+self.mime_data.len();
     n += PayloadSupport::len(&self.metadata, &self.data);
     n
   }
@@ -94,11 +91,11 @@ impl Setup {
   }
 
   pub fn get_keepalive(&self) -> Duration {
-    Duration::from_millis(self.keepalive as u64)
+    Duration::from_millis(u64::from(self.keepalive))
   }
 
   pub fn get_lifetime(&self) -> Duration {
-    Duration::from_millis(self.lifetime as u64)
+    Duration::from_millis(u64::from(self.lifetime))
   }
 
   pub fn get_token(&self) -> Option<Bytes> {
@@ -121,10 +118,9 @@ impl Setup {
     &self.data
   }
 
-  pub fn split(self) -> (Option<Bytes>,Option<Bytes>){
-    (self.data,self.metadata)
+  pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
+    (self.data, self.metadata)
   }
-
 }
 
 pub struct SetupBuilder {
