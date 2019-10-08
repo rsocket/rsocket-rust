@@ -1,18 +1,16 @@
 # rsocket-rust
 
-![logo](./logo.jpg)
-
 [![Crates.io](https://img.shields.io/crates/v/rsocket_rust)](https://crates.io/crates/rsocket_rust)
 [![Crates.io](https://img.shields.io/crates/d/rsocket_rust)](https://crates.io/crates/rsocket_rust)
-[![License](https://img.shields.io/github/license/jjeffcaii/rsocket-rust.svg)](https://github.com/jjeffcaii/rsocket-rust/blob/master/LICENSE)
-[![GitHub Release](https://img.shields.io/github/release-pre/jjeffcaii/rsocket-rust.svg)](https://github.com/jjeffcaii/rsocket-rust/releases)
+[![License](https://img.shields.io/github/license/rsocket/rsocket-rust.svg)](https://github.com/rsocket/rsocket-rust/blob/master/LICENSE)
+[![GitHub Release](https://img.shields.io/github/release-pre/rsocket/rsocket-rust.svg)](https://github.com/rsocket/rsocket-rust/releases)
 
-> rsocket-rust is an implementation of the RSocket protocol in Rust.  
-It is under active development. **Do not use it in a production environment!**
+> rsocket-rust is an implementation of the RSocket protocol in Rust.
+It's an **alpha** version and still under active development. **Do not use it in a production environment!**
 
 ## Example
 
-> Here are some example codes which show how RSocket works in Rust. :sunglasses:
+> Here are some example codes which show how RSocket works in Rust.
 
 ### Server
 
@@ -81,26 +79,11 @@ fn test_client() {
 
 ## Dependencies
 
-- [Tokio](https://tokio.rs/)
+- [tokio](https://tokio.rs/)
 - [futures-rs](http://rust-lang-nursery.github.io/futures-rs/)
 
 ## TODO
 
-- Codec
-  - [x] Setup
-  - [x] Keepalive
-  - [x] Payload
-  - [x] RequestResponse
-  - [x] RequestStream
-  - [x] RequestChannel
-  - [x] RequestFireAndForget
-  - [x] MetadataPush
-  - [x] RequestN
-  - [x] Resume
-  - [x] ResumeOK
-  - [x] Cancel
-  - [x] Error
-  - [x] Lease
 - Operations
   - [x] METADATA_PUSH
   - [x] REQUEST_FNF
@@ -110,8 +93,8 @@ fn test_client() {
 - Transport
   - [x] TCP
   - [ ] Websocket
-- Rx
+- Reactor
   - [ ] ...
 - High Level APIs
-  - [x] Client
-  - [x] Server
+  - [ ] Client
+  - [ ] Server
