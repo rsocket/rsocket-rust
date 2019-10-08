@@ -1,8 +1,6 @@
-extern crate bytes;
-
 use super::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA};
 use crate::result::RSocketResult;
-use bytes::{BufMut, ByteOrder, Bytes, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
 pub struct RequestFNF {

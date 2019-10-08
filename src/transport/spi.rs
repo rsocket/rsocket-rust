@@ -1,23 +1,21 @@
-extern crate futures;
-
 use crate::frame::Frame;
-use futures::sync::mpsc::{Receiver, Sender};
-use futures::Future;
+use std::future::Future;
+use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
+
+pub type Tx = UnboundedSender<Frame>;
+pub type Rx = UnboundedReceiver<Frame>;
 
 pub struct Transport {
-  _tx: Sender<Frame>,
-  _rx: Receiver<Frame>,
+  tx: UnboundedSender<Frame>,
+  rx: UnboundedReceiver<Frame>,
 }
 
-pub type Context = (Transport, Box<dyn Future<Item = (), Error = ()> + Send>);
-
 impl Transport {
-  pub fn new(tx: Sender<Frame>, rx: Receiver<Frame>) -> Transport {
-    Transport { _tx: tx, _rx: rx }
+  pub fn new(tx: Tx, rx: Rx) -> Transport {
+    Transport { tx, rx }
   }
 
-  pub fn split(self) -> (Sender<Frame>,Receiver<Frame>){
-    (self._tx,self._rx)
+  pub fn split(self) -> (Tx, Rx) {
+    (self.tx, self.rx)
   }
-
 }

@@ -1,9 +1,7 @@
-extern crate bytes;
-
 use super::{Body, Frame, PayloadSupport, Version, Writeable, FLAG_METADATA, FLAG_RESUME};
 use crate::mime::MIME_BINARY;
 use crate::result::RSocketResult;
-use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::time::Duration;
 
 #[derive(Debug, PartialEq)]
@@ -25,41 +23,37 @@ impl Writeable for Setup {
       Some(v) => 2 + v.len(),
       None => 0,
     };
-    n += 2+self.mime_metadata.len()+self.mime_data.len();
+    n += 2 + self.mime_metadata.len() + self.mime_data.len();
     n += PayloadSupport::len(&self.metadata, &self.data);
     n
   }
 
   fn write_to(&self, bf: &mut BytesMut) {
     self.version.write_to(bf);
-    bf.put_u32_be(self.keepalive);
-    bf.put_u32_be(self.lifetime);
+    bf.put_u32(self.keepalive);
+    bf.put_u32(self.lifetime);
     if let Some(b) = &self.token {
-      bf.put_u16_be(b.len() as u16);
-      bf.put(b);
+      bf.put_u16(b.len() as u16);
+      bf.put(b.bytes());
     }
+    // TODO: remove string clone
     bf.put_u8(self.mime_metadata.len() as u8);
-    bf.put(&self.mime_metadata);
+    bf.put(Bytes::from(self.mime_metadata.clone()));
     bf.put_u8(self.mime_data.len() as u8);
-    bf.put(&self.mime_data);
+    bf.put(Bytes::from(self.mime_data.clone()));
     PayloadSupport::write(bf, self.get_metadata(), self.get_data());
   }
 }
 
 impl Setup {
   pub fn decode(flag: u16, b: &mut BytesMut) -> RSocketResult<Setup> {
-    let major = BigEndian::read_u16(b);
-    b.advance(2);
-    let minor = BigEndian::read_u16(b);
-    b.advance(2);
-    let keepalive = BigEndian::read_u32(b);
-    b.advance(4);
-    let lifetime = BigEndian::read_u32(b);
-    b.advance(4);
+    let major = b.get_u16();
+    let minor = b.get_u16();
+    let keepalive = b.get_u32();
+    let lifetime = b.get_u32();
     let token: Option<Bytes> = if flag & FLAG_RESUME != 0 {
-      let l = BigEndian::read_u16(b);
-      b.advance(2);
-      Some(Bytes::from(b.split_to(l as usize)))
+      let l = b.get_u16();
+      Some(b.split_to(l as usize).to_bytes())
     } else {
       None
     };

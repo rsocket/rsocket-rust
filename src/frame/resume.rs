@@ -1,9 +1,6 @@
-extern crate bytes;
-
 use super::{Body, Frame, Version, Writeable};
 use crate::result::RSocketResult;
-
-use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
 pub struct Resume {
@@ -30,21 +27,16 @@ impl Resume {
   }
 
   pub fn decode(flag: u16, b: &mut BytesMut) -> RSocketResult<Resume> {
-    let major = BigEndian::read_u16(b);
-    b.advance(2);
-    let minor = BigEndian::read_u16(b);
-    b.advance(2);
-    let token_size = BigEndian::read_u16(b);
-    b.advance(2);
+    let major = b.get_u16();
+    let minor = b.get_u16();
+    let token_size = b.get_u16();
     let token = if token_size > 0 {
-      Some(Bytes::from(b.split_to(token_size as usize)))
+      Some(b.split_to(token_size as usize).to_bytes())
     } else {
       None
     };
-    let p1 = BigEndian::read_u64(b);
-    b.advance(8);
-    let p2 = BigEndian::read_u64(b);
-    b.advance(8);
+    let p1 = b.get_u64();
+    let p2 = b.get_u64();
     Ok(Resume {
       version: Version::new(major, minor),
       token,
@@ -111,11 +103,11 @@ impl Writeable for Resume {
   fn write_to(&self, bf: &mut BytesMut) {
     self.version.write_to(bf);
     if let Some(b) = self.get_token() {
-      bf.put_u16_be(b.len() as u16);
-      bf.put(b);
+      bf.put_u16(b.len() as u16);
+      bf.put(b.bytes());
     }
-    bf.put_u64_be(self.get_last_received_server_position());
-    bf.put_u64_be(self.get_first_available_client_position());
+    bf.put_u64(self.get_last_received_server_position());
+    bf.put_u64(self.get_first_available_client_position());
   }
 
   fn len(&self) -> usize {

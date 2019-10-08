@@ -1,6 +1,6 @@
 [package]
 name = "rsocket_rust"
-version = "0.1.5"
+version = "0.2.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -10,19 +10,31 @@ homepage = "https://github.com/rsocket/rsocket-rust"
 description = "rsocket-rust is an implementation of the RSocket protocol in Rust."
 
 [dependencies]
+matches = "0.1.8"
 log = "0.4.8"
-bytes = "0.4.12"
-futures = "0.1.29"
-tokio = "0.1.22"
+bytes = "0.5.1"
+futures = "0.3.1"
+# reactor_rs = {git = "https://github.com/jjeffcaii/reactor-rust", branch = "develop"}
+
+[dependencies.tokio]
+version = "0.2.1"
+default-features = false
+features = ["full"]
+
+[dependencies.tokio-util]
+version = "0.2.0"
+default-features = false
+features = ["codec"]
+
 
 [dev-dependencies]
-env_logger = "0.6.2"
-hex = "0.3.2"
+env_logger = "0.7.1"
+hex = "0.4.0"
 
 [[example]]
 name = "echo"
 path = "examples/echo/main.rs"
 
-[[example]]
-name = "proxy"
-path = "examples/proxy/main.rs"
+# [[example]]
+# name = "proxy"
+# path = "examples/proxy/main.rs"

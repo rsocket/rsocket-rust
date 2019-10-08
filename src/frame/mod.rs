@@ -1,8 +1,6 @@
-extern crate bytes;
-
 use crate::errors::RSocketError;
 use crate::result::RSocketResult;
-use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 mod cancel;
 mod error;
@@ -112,8 +110,8 @@ pub struct Frame {
 
 impl Writeable for Frame {
   fn write_to(&self, bf: &mut BytesMut) {
-    bf.put_u32_be(self.stream_id);
-    bf.put_u16_be((to_frame_type(&self.body) << 10) | self.flag);
+    bf.put_u32(self.stream_id);
+    bf.put_u16((to_frame_type(&self.body) << 10) | self.flag);
     match &self.body {
       Body::Setup(v) => v.write_to(bf),
       Body::RequestResponse(v) => v.write_to(bf),
@@ -165,10 +163,8 @@ impl Frame {
 
   pub fn decode(b: &mut BytesMut) -> RSocketResult<Frame> {
     // TODO: check size
-    let sid = BigEndian::read_u32(b);
-    b.advance(4);
-    let n = BigEndian::read_u16(b);
-    b.advance(2);
+    let sid = b.get_u32();
+    let n = b.get_u16();
     let (flag, kind) = (n & 0x03FF, (n & 0xFC00) >> 10);
     let body = match kind {
       TYPE_SETUP => Setup::decode(flag, b).map(Body::Setup),

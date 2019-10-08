@@ -1,7 +1,3 @@
-extern crate futures;
-
-use futures::sync::mpsc;
-use futures::sync::oneshot;
 use std::error::Error;
 use std::fmt;
 use std::io;
@@ -51,23 +47,5 @@ impl From<&'static str> for RSocketError {
     RSocketError {
       kind: ErrorKind::WithDescription(e),
     }
-  }
-}
-
-impl From<oneshot::Canceled> for RSocketError {
-  fn from(e: oneshot::Canceled) -> RSocketError {
-    RSocketError::from(ErrorKind::Cancelled())
-  }
-}
-
-impl<T> From<mpsc::SendError<T>> for RSocketError {
-  fn from(_e: mpsc::SendError<T>) -> RSocketError {
-    RSocketError::from(ErrorKind::Send())
-  }
-}
-
-impl From<io::Error> for RSocketError {
-  fn from(e: io::Error) -> RSocketError {
-    RSocketError::from(ErrorKind::IO(e))
   }
 }

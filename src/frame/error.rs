@@ -1,8 +1,6 @@
-extern crate bytes;
-
 use super::{Body, Frame, Writeable};
 use crate::result::RSocketResult;
-use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
 pub struct Error {
@@ -45,12 +43,11 @@ impl ErrorBuilder {
 
 impl Error {
   pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Error> {
-    let code = BigEndian::read_u32(bf);
-    bf.advance(4);
-    let d: Option<Bytes> = if bf.is_empty() {
-      None
+    let code = bf.get_u32();
+    let d: Option<Bytes> = if !bf.is_empty() {
+      Some(bf.to_bytes())
     } else {
-      Some(Bytes::from(bf.to_vec()))
+      None
     };
     Ok(Error { code, data: d })
   }
@@ -70,9 +67,9 @@ impl Error {
 
 impl Writeable for Error {
   fn write_to(&self, bf: &mut BytesMut) {
-    bf.put_u32_be(self.code);
+    bf.put_u32(self.code);
     match &self.data {
-      Some(v) => bf.put(v),
+      Some(v) => bf.put(v.bytes()),
       None => (),
     }
   }

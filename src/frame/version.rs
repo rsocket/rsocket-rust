@@ -1,6 +1,4 @@
-extern crate bytes;
-
-use bytes::{BufMut, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Version {
@@ -28,7 +26,7 @@ impl Version {
   }
 
   pub fn write_to(self, bf: &mut BytesMut) {
-    bf.put_u16_be(self.major);
-    bf.put_u16_be(self.minor);
+    bf.put_u16(self.major);
+    bf.put_u16(self.minor);
   }
 }

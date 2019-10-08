@@ -1,7 +1,5 @@
-extern crate bytes;
-
 use super::FLAG_METADATA;
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 pub struct U24 {}
 
@@ -49,7 +47,7 @@ impl PayloadSupport {
   pub fn read(flag: u16, bf: &mut BytesMut) -> (Option<Bytes>, Option<Bytes>) {
     let m: Option<Bytes> = if flag & FLAG_METADATA != 0 {
       let n = U24::read_advance(bf);
-      Some(Bytes::from(bf.split_to(n as usize)))
+      Some(bf.split_to(n as usize).to_bytes())
     } else {
       None
     };
@@ -62,17 +60,13 @@ impl PayloadSupport {
   }
 
   pub fn write(bf: &mut BytesMut, metadata: &Option<Bytes>, data: &Option<Bytes>) {
-    match metadata {
-      Some(v) => {
-        let n = v.len() as u32;
-        U24::write(n, bf);
-        bf.put(v);
-      }
-      None => (),
+    if let Some(v) = metadata {
+      let n = v.len() as u32;
+      U24::write(n, bf);
+      bf.put(v.bytes());
     }
-    match data {
-      Some(v) => bf.put(v),
-      None => (),
+    if let Some(v) = data {
+      bf.put(v.bytes())
     }
   }
 }

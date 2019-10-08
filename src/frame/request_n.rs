@@ -1,8 +1,6 @@
-extern crate bytes;
-
 use super::{Body, Frame, Writeable, REQUEST_MAX};
 use crate::result::RSocketResult;
-use bytes::{BigEndian, BufMut, ByteOrder, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
 pub struct RequestN {
@@ -36,8 +34,7 @@ impl RequestNBuilder {
 
 impl RequestN {
   pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestN> {
-    let n = BigEndian::read_u32(bf);
-    bf.advance(4);
+    let n = bf.get_u32();
     Ok(RequestN { n })
   }
 
@@ -52,7 +49,7 @@ impl RequestN {
 
 impl Writeable for RequestN {
   fn write_to(&self, bf: &mut BytesMut) {
-    bf.put_u32_be(self.get_n())
+    bf.put_u32(self.get_n())
   }
 
   fn len(&self) -> usize {

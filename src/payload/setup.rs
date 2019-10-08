@@ -1,5 +1,3 @@
-extern crate bytes;
-
 use crate::frame::Setup;
 use crate::mime::MIME_BINARY;
 use bytes::Bytes;
@@ -43,9 +41,8 @@ impl SetupPayloadBuilder {
     self
   }
 
-  pub fn set_metadata_utf8(mut self, metadata: &str) -> Self {
-    self = self.set_metadata(Bytes::from(metadata));
-    self
+  pub fn set_metadata_utf8(self, metadata: &str) -> Self {
+    self.set_metadata(Bytes::from(String::from(metadata)))
   }
 
   pub fn set_data(mut self, data: Bytes) -> Self {
@@ -53,9 +50,8 @@ impl SetupPayloadBuilder {
     self
   }
 
-  pub fn set_data_utf8(mut self, data: &str) -> Self {
-    self = self.set_data(Bytes::from(data));
-    self
+  pub fn set_data_utf8(self, data: &str) -> Self {
+    self.set_data(Bytes::from(String::from(data)))
   }
 
   pub fn set_keepalive(
@@ -92,8 +88,8 @@ impl SetupPayload {
     &self.d
   }
 
-  pub fn split(self) -> (Option<Bytes>,Option<Bytes>){
-    (self.d,self.m)
+  pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
+    (self.d, self.m)
   }
 
   pub fn keepalive_interval(&self) -> Duration {
@@ -108,7 +104,7 @@ impl SetupPayload {
     &self.mime_m
   }
 
-  pub fn data_mime_type(&self) -> &Option<String>{
+  pub fn data_mime_type(&self) -> &Option<String> {
     &self.mime_d
   }
 }
@@ -121,11 +117,11 @@ impl From<Setup> for SetupPayload {
     bu = bu.set_metadata_mime_type(input.get_mime_metadata());
     // bu.set_data_mime_type(String::input.get_mime_data());
     let ka = (input.get_keepalive(), input.get_lifetime());
-    let (d,m)= input.split();
-    if let Some(b) = d{
+    let (d, m) = input.split();
+    if let Some(b) = d {
       bu = bu.set_data(b);
     }
-    if let Some(b) = m{
+    if let Some(b) = m {
       bu = bu.set_metadata(b);
     }
     let mut pa = bu.build();
