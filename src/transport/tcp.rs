@@ -15,19 +15,22 @@ pub fn connect(addr: &SocketAddr) -> TcpStream {
 }
 
 pub async fn process(socket: TcpStream, mut inputs: Rx, outputs: Tx) {
-  let mut stream = Framed::new(socket, RFrameCodec);
-  loop {
-    match stream.next().await {
-      Some(it) => outputs.send(it.unwrap()).unwrap(),
-      None => {
-        drop(outputs);
-        break;
+  let (mut writer, mut reader) = Framed::new(socket, RFrameCodec).split();
+  tokio::spawn(async move {
+    loop {
+      match reader.next().await {
+        Some(it) => outputs.send(it.unwrap()).unwrap(),
+        None => {
+          drop(outputs);
+          break;
+        }
       }
     }
-    // TODO: How to split R/W ???
-    // match inputs.recv().await {
-    //   Some(v) => stream.send(v).await.unwrap(),
-    //   None => (),
-    // }
+  });
+  loop {
+    match inputs.recv().await {
+      Some(it) => writer.send(it).await.unwrap(),
+      None => break,
+    }
   }
 }
