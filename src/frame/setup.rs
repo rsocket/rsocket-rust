@@ -1,5 +1,5 @@
 use super::{Body, Frame, PayloadSupport, Version, Writeable, FLAG_METADATA, FLAG_RESUME};
-use crate::mime::MIME_BINARY;
+use crate::mime::APPLICATION_BINARY;
 use crate::result::RSocketResult;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::time::Duration;
@@ -133,8 +133,8 @@ impl SetupBuilder {
         keepalive: 30_000,
         lifetime: 90_000,
         token: None,
-        mime_metadata: String::from(MIME_BINARY),
-        mime_data: String::from(MIME_BINARY),
+        mime_metadata: String::from(APPLICATION_BINARY),
+        mime_data: String::from(APPLICATION_BINARY),
         metadata: None,
         data: None,
       },

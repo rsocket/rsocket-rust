@@ -1,9 +1,13 @@
 use super::FLAG_METADATA;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
-pub struct U24 {}
+pub struct U24;
 
 impl U24 {
+  pub fn max() -> usize {
+    0x00FFFFFF
+  }
+
   pub fn write(n: u32, bf: &mut BytesMut) {
     bf.put_u8((0xFF & (n >> 16)) as u8);
     bf.put_u8((0xFF & (n >> 8)) as u8);

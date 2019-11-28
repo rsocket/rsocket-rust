@@ -1,5 +1,5 @@
 use crate::frame::Setup;
-use crate::mime::MIME_BINARY;
+use crate::mime::APPLICATION_BINARY;
 use bytes::Bytes;
 use std::time::Duration;
 
@@ -30,8 +30,8 @@ impl SetupPayloadBuilder {
         m: None,
         d: None,
         keepalive: (Duration::from_secs(20), Duration::from_secs(90)),
-        mime_m: Some(String::from(MIME_BINARY)),
-        mime_d: Some(String::from(MIME_BINARY)),
+        mime_m: Some(String::from(APPLICATION_BINARY)),
+        mime_d: Some(String::from(APPLICATION_BINARY)),
       },
     }
   }
