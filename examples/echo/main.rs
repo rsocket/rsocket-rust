@@ -2,23 +2,17 @@ extern crate rsocket_rust;
 extern crate tokio;
 #[macro_use]
 extern crate log;
-use futures::{SinkExt, StreamExt};
-use rsocket_rust::frame::Frame;
 use rsocket_rust::prelude::*;
-use rsocket_rust::transport::DuplexSocket;
-use rsocket_rust::transport::{self, Rx, Tx};
 use std::env;
 use std::error::Error;
-use std::sync::Arc;
-use tokio::net::TcpListener;
-use tokio::prelude::*;
-use tokio::sync::mpsc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::builder().init();
+    let addr = env::args().nth(1).unwrap_or("127.0.0.1:7878".to_string());
+
     RSocketFactory::receive()
-        .transport(URI::Tcp("127.0.0.1:7878"))
+        .transport(URI::Tcp(addr))
         .acceptor(|setup, sending_socket| {
             info!("accept setup: {:?}", setup);
             Box::new(EchoRSocket)

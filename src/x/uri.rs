@@ -1,5 +1,5 @@
-#[derive(Debug,Clone)]
-pub enum URI{
-  Tcp(&'static str),
-  Websocket(&'static str),
+#[derive(Debug, Clone)]
+pub enum URI {
+  Tcp(String),
+  Websocket(String),
 }

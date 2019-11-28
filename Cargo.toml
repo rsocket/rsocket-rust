@@ -35,6 +35,10 @@ hex = "0.4.0"
 name = "echo"
 path = "examples/echo/main.rs"
 
+[[example]]
+name = "echo_client"
+path = "examples/echo_client/main.rs"
+
 # [[example]]
 # name = "proxy"
 # path = "examples/proxy/main.rs"

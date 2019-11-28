@@ -37,22 +37,3 @@ impl From<u32> for StreamID {
         StreamID::new(v)
     }
 }
-
-#[derive(Debug)]
-pub(crate) enum Handler {
-    Request(oneshot::Sender<Payload>),
-    Stream(mpsc::Sender<Payload>),
-}
-
-#[derive(Debug)]
-pub(crate) struct Handlers {
-    map: RwLock<HashMap<u32, Handler>>,
-}
-
-impl Handlers {
-    pub(crate) fn new() -> Handlers {
-        Handlers {
-            map: RwLock::new(HashMap::new()),
-        }
-    }
-}

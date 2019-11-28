@@ -29,6 +29,7 @@ impl RSocket for EchoRSocket {
     }
 
     fn request_response(&self, req: Payload) -> Single<Payload> {
+        info!("echo request_response: {:?}", req);
         Box::pin(future::ok::<Payload, RSocketError>(req))
     }
 }
