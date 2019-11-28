@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/github/license/rsocket/rsocket-rust.svg)](https://github.com/rsocket/rsocket-rust/blob/master/LICENSE)
 [![GitHub Release](https://img.shields.io/github/release-pre/rsocket/rsocket-rust.svg)](https://github.com/rsocket/rsocket-rust/releases)
 
-> rsocket-rust is an implementation of the RSocket protocol in Rust.
+> rsocket-rust is an implementation of the RSocket protocol in Rust(1.39+).
 It's an **alpha** version and still under active development. **Do not use it in a production environment!**
 
 ## Example
@@ -15,66 +15,57 @@ It's an **alpha** version and still under active development. **Do not use it in
 ### Server
 
 ```rust
-extern crate bytes;
-extern crate futures;
 extern crate rsocket_rust;
-
-use bytes::Bytes;
-use futures::prelude::*;
+extern crate tokio;
+#[macro_use]
+extern crate log;
 use rsocket_rust::prelude::*;
+use std::env;
+use std::error::Error;
 
-#[test]
-fn test_serve() {
-  RSocketFactory::receive()
-    .transport(URI::Tcp("127.0.0.1:7878"))
-    .acceptor(|setup, sending_socket| {
-      println!("accept setup: {:?}", setup);
-      // TODO: use tokio runtime?
-      std::thread::spawn(move || {
-        let resp = sending_socket
-          .request_response(
-            Payload::builder()
-              .set_data(Bytes::from("Hello Client!"))
-              .build(),
-          )
-          .wait()
-          .unwrap();
-        println!(">>>>> response success: {:?}", resp);
-      });
-      Box::new(MockResponder)
-    })
-    .serve()
-    .wait()
-    .unwrap();
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    env_logger::builder().init();
+    let addr = env::args().nth(1).unwrap_or("127.0.0.1:7878".to_string());
+
+    RSocketFactory::receive()
+        .transport(URI::Tcp(addr))
+        .acceptor(|setup, _socket| {
+            info!("accept setup: {:?}", setup);
+            Box::new(EchoRSocket)
+        })
+        .serve()
+        .await
 }
-
 ```
 
 ### Client
 
 ```rust
-extern crate futures;
 extern crate rsocket_rust;
 
-use futures::prelude::*;
 use rsocket_rust::prelude::*;
 
+#[tokio::main]
 #[test]
-fn test_client() {
-  let cli = RSocketFactory::connect()
-    .acceptor(||Box::new(MockResponder))
-    .transport(URI::Tcp("127.0.0.1:7878"))
-    .setup(Payload::from("READY!"))
-    .mime_type("text/plain", "text/plain")
-    .start()
-    .unwrap();
-  let pa = Payload::builder()
-    .set_data_utf8("Hello World!")
-    .set_metadata_utf8("Rust!")
-    .build();
-  let resp = cli.request_response(pa).wait().unwrap();
-  println!("******* response: {:?}", resp);
+async fn test() {
+    let cli = RSocketFactory::connect()
+        .acceptor(|| Box::new(EchoRSocket))
+        .transport(URI::Tcp("127.0.0.1:7878".to_string()))
+        .setup(Payload::from("READY!"))
+        .mime_type("text/plain", "text/plain")
+        .start()
+        .await
+        .unwrap();
+    let req = Payload::builder()
+        .set_data_utf8("Hello World!")
+        .set_metadata_utf8("Rust")
+        .build();
+    let res = cli.request_response(req).await.unwrap();
+    println!("got: {:?}", res);
+    cli.close();
 }
+
 ```
 
 ## Dependencies

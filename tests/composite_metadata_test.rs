@@ -1,9 +1,7 @@
 extern crate rsocket_rust;
 
-use bytes::{Buf, BufMut, Bytes, BytesMut};
+use bytes::{Bytes, BytesMut};
 use rsocket_rust::extension::*;
-use rsocket_rust::mime::WellKnownMIME;
-use rsocket_rust::prelude::*;
 
 #[test]
 fn composite_metadata_codec_well() {

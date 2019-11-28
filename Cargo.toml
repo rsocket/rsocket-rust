@@ -12,7 +12,7 @@ description = "rsocket-rust is an implementation of the RSocket protocol in Rust
 [dependencies]
 matches = "0.1.8"
 log = "0.4.8"
-bytes = "0.5.1"
+bytes = "0.5.2"
 futures = "0.3.1"
 lazy_static = "1.4.0"
 # reactor_rs = {git = "https://github.com/jjeffcaii/reactor-rust", branch = "develop"}
@@ -27,7 +27,6 @@ version = "0.2.0"
 default-features = false
 features = ["codec"]
 
-
 [dev-dependencies]
 env_logger = "0.7.1"
 hex = "0.4.0"
@@ -36,10 +35,6 @@ rand = "0.7.2"
 [[example]]
 name = "echo"
 path = "examples/echo/main.rs"
-
-[[example]]
-name = "echo_client"
-path = "examples/echo_client/main.rs"
 
 # [[example]]
 # name = "proxy"

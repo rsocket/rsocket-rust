@@ -1,7 +1,7 @@
 use crate::frame;
 use bytes::Bytes;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Payload {
   m: Option<Bytes>,
   d: Option<Bytes>,

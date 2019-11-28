@@ -3,12 +3,13 @@ use crate::errors::RSocketError;
 use crate::frame::{self, Frame};
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::result::RSocketResult;
-use crate::spi::{Acceptor, RSocket, Single};
+use crate::spi::{Acceptor, Flux, Mono, RSocket};
 use crate::transport::{self, DuplexSocket};
 use futures::{Future, Stream};
 use std::time::Duration;
 use tokio::sync::mpsc;
 
+#[derive(Clone)]
 pub struct Client {
   socket: DuplexSocket,
 }
@@ -26,6 +27,10 @@ impl Client {
 
   pub fn builder() -> ClientBuilder {
     ClientBuilder::new()
+  }
+
+  pub fn close(self) {
+    self.socket.close();
   }
 }
 
@@ -92,8 +97,8 @@ impl ClientBuilder {
       Some(v) => match v {
         URI::Tcp(vv) => {
           let addr = vv.parse().unwrap();
-          let mut socket = transport::tcp::connect(&addr);
-          let (rcv_tx, mut rcv_rx) = mpsc::unbounded_channel::<Frame>();
+          let socket = transport::tcp::connect(&addr);
+          let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
           let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
           tokio::spawn(async move { crate::transport::tcp::process(socket, snd_rx, rcv_tx).await });
           let duplex_socket = DuplexSocket::new(1, snd_tx.clone());
@@ -119,13 +124,16 @@ impl ClientBuilder {
 }
 
 impl RSocket for Client {
-  fn metadata_push(&self, req: Payload) -> Single<()> {
+  fn metadata_push(&self, req: Payload) -> Mono<()> {
     self.socket.metadata_push(req)
   }
-  fn fire_and_forget(&self, req: Payload) -> Single<()> {
+  fn fire_and_forget(&self, req: Payload) -> Mono<()> {
     self.socket.fire_and_forget(req)
   }
-  fn request_response(&self, req: Payload) -> Single<Payload> {
+  fn request_response(&self, req: Payload) -> Mono<Payload> {
     self.socket.request_response(req)
+  }
+  fn request_stream(&self, req: Payload) -> Flux<Payload> {
+    self.socket.request_stream(req)
   }
 }

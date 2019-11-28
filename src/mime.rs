@@ -201,51 +201,57 @@ impl WellKnownMIME {
 
     pub fn raw(&self) -> u8 {
         let (v, _) = MIME_MAP.get(self).unwrap();
-        v.clone()
+        *v
     }
 }
 
 impl From<String> for WellKnownMIME {
     fn from(s: String) -> WellKnownMIME {
+        let mut result = WellKnownMIME::Unknown;
         for (k, v) in MIME_MAP.iter() {
             let (_, vv) = v;
-            if vv.to_string() == s {
-                return k.clone();
+            if *vv == s {
+                result = k.clone();
+                break;
             }
         }
-        return WellKnownMIME::Unknown;
+        result
     }
 }
 
 impl From<&str> for WellKnownMIME {
     fn from(s: &str) -> WellKnownMIME {
+        let mut result = WellKnownMIME::Unknown;
         for (k, v) in MIME_MAP.iter() {
             let (_, vv) = v;
-            if vv.to_string() == s.to_string() {
-                return k.clone();
+            if *vv == s {
+                result = k.clone();
+                break;
             }
         }
-        return WellKnownMIME::Unknown;
+        result
     }
 }
 
 impl From<u8> for WellKnownMIME {
     fn from(n: u8) -> WellKnownMIME {
+        let mut result = WellKnownMIME::Unknown;
         for (k, v) in MIME_MAP.iter() {
             let (a, _) = v;
             if *a == n {
-                return k.clone();
+                result = k.clone();
+                break;
             }
         }
-        return WellKnownMIME::Unknown;
+        result
     }
 }
 
 impl fmt::Display for WellKnownMIME {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        return match MIME_MAP.get(self) {
+        match MIME_MAP.get(self) {
             Some((_, v)) => write!(f, "{}", v),
-            None => write!(f, "{}", "unknown"),
-        };
+            None => write!(f, "unknown"),
+        }
     }
 }

@@ -51,10 +51,10 @@ impl ServerBuilder {
       URI::Tcp(v) => {
         let addr: SocketAddr = v.parse().unwrap();
         let mut listener = TcpListener::bind(&addr).await.unwrap();
-        println!("Listening on: {}", addr);
+        debug!("Listening on: {}", addr);
         loop {
-          let (mut socket, _) = listener.accept().await.unwrap();
-          let (rcv_tx, mut rcv_rx) = mpsc::unbounded_channel::<Frame>();
+          let (socket, _) = listener.accept().await.unwrap();
+          let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
           let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
 
           tokio::spawn(async move { crate::transport::tcp::process(socket, snd_rx, rcv_tx).await });

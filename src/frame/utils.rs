@@ -5,7 +5,7 @@ pub struct U24;
 
 impl U24 {
   pub fn max() -> usize {
-    0x00FFFFFF
+    0x00FF_FFFF
   }
 
   pub fn write(n: u32, bf: &mut BytesMut) {

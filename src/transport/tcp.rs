@@ -17,6 +17,7 @@ pub fn connect(addr: &SocketAddr) -> TcpStream {
 pub async fn process(socket: TcpStream, mut inputs: Rx, outputs: Tx) {
   let (mut writer, mut reader) = Framed::new(socket, RFrameCodec).split();
   tokio::spawn(async move {
+    // loop read
     loop {
       match reader.next().await {
         Some(it) => outputs.send(it.unwrap()).unwrap(),
@@ -27,10 +28,8 @@ pub async fn process(socket: TcpStream, mut inputs: Rx, outputs: Tx) {
       }
     }
   });
-  loop {
-    match inputs.recv().await {
-      Some(it) => writer.send(it).await.unwrap(),
-      None => break,
-    }
+  // loop write
+  while let Some(it) = inputs.recv().await {
+    writer.send(it).await.unwrap()
   }
 }
