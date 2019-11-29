@@ -1,8 +1,6 @@
-extern crate bytes;
-
 use super::{Body, Frame, Writeable};
 use crate::result::RSocketResult;
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
 pub struct MetadataPush {
@@ -56,7 +54,7 @@ impl MetadataPush {
 impl Writeable for MetadataPush {
   fn write_to(&self, bf: &mut BytesMut) {
     match &self.metadata {
-      Some(v) => bf.put(v),
+      Some(v) => bf.put(v.bytes()),
       None => (),
     }
   }

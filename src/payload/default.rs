@@ -1,9 +1,7 @@
-extern crate bytes;
-
 use crate::frame;
 use bytes::Bytes;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Payload {
   m: Option<Bytes>,
   d: Option<Bytes>,
@@ -26,19 +24,17 @@ impl PayloadBuilder {
     self
   }
 
-  pub fn set_metadata_utf8(mut self, metadata: &str) -> Self{
-    self = self.set_metadata(Bytes::from(metadata));
-    self
+  pub fn set_metadata_utf8(self, metadata: &str) -> Self {
+    self.set_metadata(Bytes::from(String::from(metadata)))
   }
 
-  pub fn set_data(mut self, data: Bytes) -> Self{
+  pub fn set_data(mut self, data: Bytes) -> Self {
     self.value.d = Some(data);
     self
   }
 
-  pub fn set_data_utf8(mut self, data: &str) -> Self{
-    self = self.set_data(Bytes::from(data));
-    self
+  pub fn set_data_utf8(self, data: &str) -> Self {
+    self.set_data(Bytes::from(String::from(data)))
   }
 
   pub fn build(self) -> Payload {
@@ -59,10 +55,9 @@ impl Payload {
     &self.d
   }
 
-  pub fn split(self) -> (Option<Bytes>,Option<Bytes>){
-    (self.d,self.m)
+  pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
+    (self.d, self.m)
   }
-
 }
 
 impl From<&'static str> for Payload {
@@ -86,11 +81,11 @@ impl From<(&'static str, &'static str)> for Payload {
 impl From<(Option<Bytes>, Option<Bytes>)> for Payload {
   fn from((data, metadata): (Option<Bytes>, Option<Bytes>)) -> Payload {
     let mut bu = Payload::builder();
-    if let Some(b) = metadata{
-bu = bu.set_metadata(b);
+    if let Some(b) = metadata {
+      bu = bu.set_metadata(b);
     }
-    if let Some(b) =  data {
-        bu = bu.set_data(b);
+    if let Some(b) = data {
+      bu = bu.set_data(b);
     }
     bu.build()
   }
@@ -100,7 +95,7 @@ impl From<frame::Payload> for Payload {
   fn from(input: frame::Payload) -> Payload {
     let d = input.get_data().clone();
     let m = input.get_metadata().clone();
-    Payload::from((d,m))
+    Payload::from((d, m))
   }
 }
 

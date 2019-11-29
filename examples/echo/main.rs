@@ -1,42 +1,22 @@
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-#![allow(dead_code)]
-
-#[macro_use]
-extern crate log;
-extern crate bytes;
-extern crate env_logger;
-extern crate futures;
 extern crate rsocket_rust;
 extern crate tokio;
-
-use bytes::Bytes;
-use futures::prelude::*;
+#[macro_use]
+extern crate log;
 use rsocket_rust::prelude::*;
+use std::env;
+use std::error::Error;
 
-fn main() {
-  env_logger::builder()
-    .default_format_timestamp_nanos(true)
-    .init();
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    env_logger::builder().init();
+    let addr = env::args().nth(1).unwrap_or("127.0.0.1:7878".to_string());
 
-  let server = RSocketFactory::receive()
-    .transport(URI::Tcp("127.0.0.1:7878"))
-    .acceptor(|setup, sending_socket| {
-      info!("accept setup: {:?}", setup);
-      // TODO: use tokio runtime?
-      // std::thread::spawn(move || {
-      //   let resp = sending_socket
-      //     .request_response(
-      //       Payload::builder()
-      //         .set_data(Bytes::from("Hello Client!"))
-      //         .build(),
-      //     )
-      //     .wait()
-      //     .unwrap();
-      //   println!(">>>>> response success: {:?}", resp);
-      // });
-      Box::new(MockResponder)
-    })
-    .serve();
-  tokio::run(server);
+    RSocketFactory::receive()
+        .transport(URI::Tcp(addr))
+        .acceptor(|setup, _socket| {
+            info!("accept setup: {:?}", setup);
+            Box::new(EchoRSocket)
+        })
+        .serve()
+        .await
 }

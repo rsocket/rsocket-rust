@@ -1,7 +1,8 @@
 mod codec;
-mod tcp;
+mod misc;
+mod socket;
 mod spi;
-
-pub use spi::{Transport,Context};
-pub use tcp::*;
-pub use codec::FrameCodec;
+pub(crate) mod tcp;
+pub(crate) use codec::RFrameCodec;
+pub(crate) use socket::DuplexSocket;
+pub use spi::{Rx, Transport, Tx};

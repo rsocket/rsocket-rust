@@ -1,40 +1,35 @@
-extern crate futures;
-extern crate tokio;
-
-use super::{Context, FrameCodec, Transport};
+use super::codec::RFrameCodec;
+use super::spi::{Rx, Tx};
 use crate::frame::Frame;
-use futures::sync::mpsc;
-use futures::{lazy, Future, Sink, Stream};
-use std::io;
+use futures::{Sink, SinkExt, Stream, StreamExt};
 use std::net::SocketAddr;
 use std::net::TcpStream as StdTcpStream;
-use tokio::codec::Framed;
 use tokio::net::TcpStream;
-use tokio::reactor::Handle;
+use tokio::prelude::*;
+use tokio::sync::mpsc;
+use tokio_util::codec::{Decoder, Encoder, Framed, FramedParts, FramedRead, FramedWrite};
 
-pub fn from_addr(addr: &SocketAddr) -> Context {
+pub fn connect(addr: &SocketAddr) -> TcpStream {
   let origin = StdTcpStream::connect(addr).unwrap();
-  let socket = TcpStream::from_std(origin, &Handle::default()).unwrap();
-  // let socket = TcpStream::connect(addr).wait().unwrap();
-  from_socket(socket)
+  TcpStream::from_std(origin).unwrap()
 }
 
-pub fn from_socket(socket: TcpStream) -> Context {
-  let (tx_snd, rx_snd) = mpsc::channel::<Frame>(0);
-  let (tx_rcv, rx_rcv) = mpsc::channel::<Frame>(0);
-  let (sink, stream) = Framed::new(socket, FrameCodec::default()).split();
-  let sender: Box<dyn Stream<Item = Frame, Error = io::Error> + Send> =
-    Box::new(rx_snd.map_err(|_| panic!("errors not possible on rx")));
-  let tx_rcv_gen = move || tx_rcv.clone();
-  let task = stream
-    .for_each(move |it| {
-      tx_rcv_gen().send(it).wait().unwrap();
-      Ok(())
-    })
-    .map_err(|e| println!("error reading: {:?}", e));
-  let fu = lazy(move || {
-    tokio::spawn(sender.forward(sink).then(|_| Ok(())));
-    task
+pub async fn process(socket: TcpStream, mut inputs: Rx, outputs: Tx) {
+  let (mut writer, mut reader) = Framed::new(socket, RFrameCodec).split();
+  tokio::spawn(async move {
+    // loop read
+    loop {
+      match reader.next().await {
+        Some(it) => outputs.send(it.unwrap()).unwrap(),
+        None => {
+          drop(outputs);
+          break;
+        }
+      }
+    }
   });
-  (Transport::new(tx_snd, rx_rcv), Box::new(fu))
+  // loop write
+  while let Some(it) = inputs.recv().await {
+    writer.send(it).await.unwrap()
+  }
 }

@@ -1,8 +1,6 @@
-extern crate bytes;
-
 use super::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA, REQUEST_MAX, U24};
 use crate::result::RSocketResult;
-use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
 pub struct RequestStream {
@@ -41,8 +39,7 @@ impl RequestStreamBuilder {
 
 impl RequestStream {
   pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestStream> {
-    let n = BigEndian::read_u32(bf);
-    bf.advance(4);
+    let n = bf.get_u32();
     let (m, d) = PayloadSupport::read(flag, bf);
     Ok(RequestStream {
       initial_request_n: n,
@@ -82,7 +79,7 @@ impl RequestStream {
 
 impl Writeable for RequestStream {
   fn write_to(&self, bf: &mut BytesMut) {
-    bf.put_u32_be(self.initial_request_n);
+    bf.put_u32(self.initial_request_n);
     PayloadSupport::write(bf, self.get_metadata(), self.get_data())
   }
 

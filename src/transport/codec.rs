@@ -1,18 +1,14 @@
-extern crate bytes;
-extern crate tokio;
-
 use crate::errors::RSocketError;
 use crate::frame::{Frame, Writeable, U24};
-use bytes::{BufMut, BytesMut};
-use std::io;
-use tokio::codec::{Decoder, Encoder};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+use std::io::{Error, ErrorKind};
+use tokio_util::codec::{Decoder, Encoder};
 
-#[derive(Default)]
-pub struct FrameCodec;
+pub struct RFrameCodec;
 
-impl Decoder for FrameCodec {
+impl Decoder for RFrameCodec {
   type Item = Frame;
-  type Error = RSocketError;
+  type Error = Error;
 
   fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
     let actual = buf.len();
@@ -25,13 +21,16 @@ impl Decoder for FrameCodec {
     }
     buf.advance(3);
     let mut bb = buf.split_to(l);
-    Frame::decode(&mut bb).map(Some)
+    match Frame::decode(&mut bb) {
+      Ok(v) => Ok(Some(v)),
+      Err(e) => Err(Error::from(ErrorKind::InvalidInput)),
+    }
   }
 }
 
-impl Encoder for FrameCodec {
+impl Encoder for RFrameCodec {
   type Item = Frame;
-  type Error = io::Error;
+  type Error = Error;
   fn encode(&mut self, item: Frame, buf: &mut BytesMut) -> Result<(), Self::Error> {
     let sid = item.get_stream_id();
     let l = item.len();

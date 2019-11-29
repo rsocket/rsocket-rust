@@ -1,8 +1,6 @@
-extern crate bytes;
-
 use super::{Body, Frame, Writeable};
 use crate::result::RSocketResult;
-use bytes::{BigEndian, BufMut, ByteOrder, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
 pub struct ResumeOK {
@@ -35,9 +33,8 @@ impl ResumeOKBuilder {
 
 impl ResumeOK {
   pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<ResumeOK> {
-    let p = BigEndian::read_u64(bf);
-    bf.advance(4);
-    Ok(ResumeOK { position: p })
+    let position = bf.get_u64();
+    Ok(ResumeOK { position })
   }
 
   pub fn builder(stream_id: u32, flag: u16) -> ResumeOKBuilder {
@@ -51,7 +48,7 @@ impl ResumeOK {
 
 impl Writeable for ResumeOK {
   fn write_to(&self, bf: &mut BytesMut) {
-    bf.put_u64_be(self.get_position())
+    bf.put_u64(self.get_position())
   }
 
   fn len(&self) -> usize {

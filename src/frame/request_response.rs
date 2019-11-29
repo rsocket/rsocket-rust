@@ -1,8 +1,6 @@
-extern crate bytes;
-
 use super::{Body, Frame, PayloadSupport, Writeable, FLAG_METADATA, U24};
 use crate::result::RSocketResult;
-use bytes::{BigEndian, BufMut, Bytes, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
 pub struct RequestResponse {

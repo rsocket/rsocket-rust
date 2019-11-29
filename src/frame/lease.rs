@@ -1,8 +1,6 @@
-extern crate bytes;
-
 use super::{Body, Frame, Writeable, FLAG_METADATA};
 use crate::result::RSocketResult;
-use bytes::{BigEndian, BufMut, ByteOrder, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
 pub struct Lease {
@@ -53,12 +51,10 @@ impl LeaseBuilder {
 
 impl Lease {
   pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Lease> {
-    let ttl = BigEndian::read_u32(bf);
-    bf.advance(4);
-    let n = BigEndian::read_u32(bf);
-    bf.advance(4);
+    let ttl = bf.get_u32();
+    let n = bf.get_u32();
     let m = if flag & FLAG_METADATA != 0 {
-      Some(Bytes::from(bf.to_vec()))
+      Some(bf.to_bytes())
     } else {
       None
     };
@@ -88,10 +84,10 @@ impl Lease {
 
 impl Writeable for Lease {
   fn write_to(&self, bf: &mut BytesMut) {
-    bf.put_u32_be(self.ttl);
-    bf.put_u32_be(self.number_of_requests);
+    bf.put_u32(self.ttl);
+    bf.put_u32(self.number_of_requests);
     match &self.metadata {
-      Some(v) => bf.put(v),
+      Some(v) => bf.put(v.bytes()),
       None => (),
     }
   }
