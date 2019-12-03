@@ -17,7 +17,7 @@ pub trait RSocket: Sync + Send {
     fn fire_and_forget(&self, req: Payload) -> Mono<()>;
     fn request_response(&self, req: Payload) -> Mono<Payload>;
     fn request_stream(&self, req: Payload) -> Flux<Payload>;
-    // fn request_channel(&self, reqs: Flux<Payload>) -> Flux<Payload>;
+    fn request_channel(&self, reqs: Flux<Payload>) -> Flux<Payload>;
 }
 
 pub struct EchoRSocket;
@@ -43,6 +43,10 @@ impl RSocket for EchoRSocket {
             Ok(req),
         ]))
     }
+    fn request_channel(&self, reqs: Flux<Payload>) -> Flux<Payload> {
+        info!("echo request_channel");
+        reqs
+    }
 }
 
 pub struct EmptyRSocket;
@@ -67,7 +71,10 @@ impl RSocket for EmptyRSocket {
     }
 
     fn request_stream(&self, req: Payload) -> Flux<Payload> {
-        Box::pin(futures::stream::empty())
+        Box::pin(futures::stream::iter(vec![Err(self.must_failed())]))
+    }
+    fn request_channel(&self, mut reqs: Flux<Payload>) -> Flux<Payload> {
+        Box::pin(futures::stream::iter(vec![Err(self.must_failed())]))
     }
 }
 

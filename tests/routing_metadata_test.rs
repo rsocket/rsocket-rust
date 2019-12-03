@@ -1,6 +1,6 @@
 extern crate rsocket_rust;
 
-use bytes::{Bytes, BytesMut};
+use bytes::BytesMut;
 use rsocket_rust::extension::RoutingMetadata;
 
 #[test]

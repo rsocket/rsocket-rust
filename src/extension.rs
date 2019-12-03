@@ -66,9 +66,7 @@ impl RoutingMetadata {
         }
         let size = bf.get_u8() as usize;
         if bf.len() < size {
-            return Err(RSocketError::from(ErrorKind::WithDescription(
-                "require more bytes!",
-            )));
+            return Err(RSocketError::from("require more bytes!"));
         }
         let tag = String::from_utf8(bf.split_to(size).to_vec()).unwrap();
         Ok(Some(tag))
@@ -131,24 +129,18 @@ impl CompositeMetadata {
             // Bad
             let mime_len = first as usize;
             if bs.len() < mime_len {
-                return Err(RSocketError::from(ErrorKind::WithDescription(
-                    "bad COMPOSITE_METADATA bytes: missing required bytes!",
-                )));
+                return Err(RSocketError::from("broken COMPOSITE_METADATA bytes!"));
             }
             let front = bs.split_to(mime_len);
             String::from_utf8(front.to_vec()).unwrap()
         };
 
         if bs.len() < 3 {
-            return Err(RSocketError::from(ErrorKind::WithDescription(
-                "bad COMPOSITE_METADATA bytes: missing required bytes!",
-            )));
+            return Err(RSocketError::from("broken COMPOSITE_METADATA bytes!"));
         }
         let payload_size = U24::read_advance(bs) as usize;
         if bs.len() < payload_size {
-            return Err(RSocketError::from(ErrorKind::WithDescription(
-                "bad COMPOSITE_METADATA bytes: missing required bytes!",
-            )));
+            return Err(RSocketError::from("broken COMPOSITE_METADATA bytes!"));
         }
         let p = bs.split_to(payload_size).freeze();
         Ok(Some(CompositeMetadata::new(m, p)))

@@ -31,10 +31,14 @@ struct Responder {
     inner: Arc<RwLock<Box<dyn RSocket>>>,
 }
 
+type Single = oneshot::Sender<RSocketResult<Payload>>;
+type Multi = mpsc::UnboundedSender<RSocketResult<Payload>>;
+
 #[derive(Debug)]
 enum Handler {
-    Request(oneshot::Sender<RSocketResult<Payload>>),
-    Stream(mpsc::UnboundedSender<RSocketResult<Payload>>),
+    Request(Single),
+    Stream(Multi),
+    Channel(Multi),
 }
 
 #[derive(Debug)]
@@ -164,6 +168,18 @@ impl DuplexSocket {
                     senders.insert(sid, Handler::Stream(sender));
                 }
             }
+            Handler::Channel(sender) => {
+                // TODO: support channel
+                if flag & frame::FLAG_NEXT != 0 {
+                    sender.clone().send(Ok(input)).unwrap();
+                }
+                if flag & frame::FLAG_COMPLETE != 0 {
+                    // steam end
+                    drop(sender);
+                } else {
+                    senders.insert(sid, Handler::Stream(sender));
+                }
+            }
         };
     }
 
@@ -257,6 +273,16 @@ impl DuplexSocket {
         }
         tx.send(sending.build()).unwrap();
     }
+
+    fn request_channel22(&self, mut reqs: Flux<Payload>) -> Flux<Payload> {
+        let sid = self.seq.next();
+        let tx = self.tx.clone();
+        // register handler
+        let (sender, receiver) = mpsc::unbounded_channel::<RSocketResult<Payload>>();
+        self.register_handler(sid, Handler::Stream(sender));
+        tokio::spawn(async move { while let Some(req) = reqs.next().await {} });
+        Box::pin(receiver)
+    }
 }
 
 impl RSocket for DuplexSocket {
@@ -272,9 +298,7 @@ impl RSocket for DuplexSocket {
             let sending = bu.build();
             match tx.send(sending) {
                 Ok(()) => Ok(()),
-                Err(_e) => Err(RSocketError::from(ErrorKind::WithDescription(
-                    "send metadata_push failed",
-                ))),
+                Err(_e) => Err(RSocketError::from("send metadata_push failed")),
             }
         })
     }
@@ -294,9 +318,7 @@ impl RSocket for DuplexSocket {
             let sending = bu.build();
             match tx.send(sending) {
                 Ok(()) => Ok(()),
-                Err(_e) => Err(RSocketError::from(ErrorKind::WithDescription(
-                    "send fire_and_forget failed",
-                ))),
+                Err(_e) => Err(RSocketError::from("send fire_and_forget failed")),
             }
         })
     }
@@ -324,9 +346,7 @@ impl RSocket for DuplexSocket {
         Box::pin(async move {
             match rx.await {
                 Ok(v) => v,
-                Err(_e) => Err(RSocketError::from(ErrorKind::WithDescription(
-                    "request_response failed",
-                ))),
+                Err(_e) => Err(RSocketError::from("request_response failed")),
             }
         })
     }
@@ -348,6 +368,45 @@ impl RSocket for DuplexSocket {
                 bu = bu.set_metadata(b);
             }
             let sending = bu.build();
+            tx.send(sending).unwrap();
+        });
+        Box::pin(receiver)
+    }
+
+    fn request_channel(&self, mut reqs: Flux<Payload>) -> Flux<Payload> {
+        let sid = self.seq.next();
+        let tx = self.tx.clone();
+        // register handler
+        let (sender, receiver) = mpsc::unbounded_channel::<RSocketResult<Payload>>();
+        self.register_handler(sid, Handler::Channel(sender));
+        tokio::spawn(async move {
+            let mut sent: u64 = 0;
+            while let Some(it) = reqs.next().await {
+                // TODO: check Err
+                let (d, m) = it.unwrap().split();
+                sent += 1;
+                let sending = if sent == 1 {
+                    let mut bu = frame::RequestChannel::builder(sid, frame::FLAG_NEXT);
+                    if let Some(b) = d {
+                        bu = bu.set_data(b);
+                    }
+                    if let Some(b) = m {
+                        bu = bu.set_metadata(b);
+                    }
+                    bu.build()
+                } else {
+                    let mut bu = frame::Payload::builder(sid, frame::FLAG_NEXT);
+                    if let Some(b) = d {
+                        bu = bu.set_data(b);
+                    }
+                    if let Some(b) = m {
+                        bu = bu.set_metadata(b);
+                    }
+                    bu.build()
+                };
+                tx.send(sending).unwrap();
+            }
+            let sending = frame::Payload::builder(sid, frame::FLAG_COMPLETE).build();
             tx.send(sending).unwrap();
         });
         Box::pin(receiver)
@@ -404,5 +463,9 @@ impl RSocket for Responder {
     fn request_stream(&self, req: Payload) -> Flux<Payload> {
         let inner = self.inner.read().unwrap();
         (*inner).request_stream(req)
+    }
+    fn request_channel(&self, reqs: Flux<Payload>) -> Flux<Payload> {
+        let inner = self.inner.read().unwrap();
+        (*inner).request_channel(reqs)
     }
 }
