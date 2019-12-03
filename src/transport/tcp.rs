@@ -1,4 +1,5 @@
 use super::codec::RFrameCodec;
+use super::misc;
 use super::spi::{Rx, Tx};
 use crate::frame::Frame;
 use futures::{Sink, SinkExt, Stream, StreamExt};
@@ -30,6 +31,7 @@ pub async fn process(socket: TcpStream, mut inputs: Rx, outputs: Tx) {
   });
   // loop write
   while let Some(it) = inputs.recv().await {
+    misc::debug_frame(true, &it);
     writer.send(it).await.unwrap()
   }
 }

@@ -80,12 +80,12 @@ async fn test() {
   - [x] REQUEST_FNF
   - [x] REQUEST_RESPONSE
   - [x] REQUEST_STREAM
-  - [ ] REQUEST_CHANNEL
+  - [x] REQUEST_CHANNEL
 - Transport
   - [x] TCP
   - [ ] Websocket
 - Reactor
   - [ ] ...
 - High Level APIs
-  - [ ] Client
-  - [ ] Server
+  - [x] Client
+  - [x] Server

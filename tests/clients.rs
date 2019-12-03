@@ -17,10 +17,10 @@ async fn test_client() {
         .start()
         .await
         .unwrap();
-    // exec_metadata_push(&cli).await;
-    // exec_fire_and_forget(&cli).await;
-    // exec_request_response(&cli).await;
-    // exec_request_stream(&cli).await;
+    exec_metadata_push(&cli).await;
+    exec_fire_and_forget(&cli).await;
+    exec_request_response(&cli).await;
+    exec_request_stream(&cli).await;
     exec_request_channel(&cli).await;
     cli.close();
 }
