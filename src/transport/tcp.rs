@@ -11,27 +11,27 @@ use tokio::sync::mpsc;
 use tokio_util::codec::{Decoder, Encoder, Framed, FramedParts, FramedRead, FramedWrite};
 
 pub fn connect(addr: &SocketAddr) -> TcpStream {
-  let origin = StdTcpStream::connect(addr).unwrap();
-  TcpStream::from_std(origin).unwrap()
+    let origin = StdTcpStream::connect(addr).unwrap();
+    TcpStream::from_std(origin).unwrap()
 }
 
 pub async fn process(socket: TcpStream, mut inputs: Rx, outputs: Tx) {
-  let (mut writer, mut reader) = Framed::new(socket, RFrameCodec).split();
-  tokio::spawn(async move {
-    // loop read
-    loop {
-      match reader.next().await {
-        Some(it) => outputs.send(it.unwrap()).unwrap(),
-        None => {
-          drop(outputs);
-          break;
+    let (mut writer, mut reader) = Framed::new(socket, RFrameCodec).split();
+    tokio::spawn(async move {
+        // loop read
+        loop {
+            match reader.next().await {
+                Some(it) => outputs.send(it.unwrap()).unwrap(),
+                None => {
+                    drop(outputs);
+                    break;
+                }
+            }
         }
-      }
+    });
+    // loop write
+    while let Some(it) = inputs.recv().await {
+        misc::debug_frame(true, &it);
+        writer.send(it).await.unwrap()
     }
-  });
-  // loop write
-  while let Some(it) = inputs.recv().await {
-    misc::debug_frame(true, &it);
-    writer.send(it).await.unwrap()
-  }
 }
