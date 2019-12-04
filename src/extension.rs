@@ -26,7 +26,6 @@ impl RoutingMetadataBuilder {
     pub fn push_str(self, tag: &str) -> Self {
         self.push(String::from(tag))
     }
-
     pub fn push(mut self, tag: String) -> Self {
         if tag.len() > MAX_ROUTING_TAG_LEN {
             panic!("exceeded maximum routing tag length!");

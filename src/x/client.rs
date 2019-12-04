@@ -1,11 +1,14 @@
-use super::URI;
+use super::uri::URI;
 use crate::errors::RSocketError;
 use crate::frame::{self, Frame};
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
-use crate::result::RSocketResult;
-use crate::spi::{Acceptor, Flux, Mono, RSocket};
-use crate::transport::{self, DuplexSocket};
+use crate::spi::{Flux, Mono, RSocket};
+use crate::transport::{self, Acceptor, DuplexSocket};
 use futures::{Future, Stream};
+use std::error::Error;
+use std::net::SocketAddr;
+use std::result::Result;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 
@@ -15,7 +18,7 @@ pub struct Client {
 }
 
 pub struct ClientBuilder {
-    uri: Option<URI>,
+    uri: Option<String>,
     setup: SetupPayloadBuilder,
     responder: Option<fn() -> Box<dyn RSocket>>,
 }
@@ -43,8 +46,8 @@ impl ClientBuilder {
         }
     }
 
-    pub fn transport(mut self, uri: URI) -> Self {
-        self.uri = Some(uri);
+    pub fn transport(mut self, uri: &str) -> Self {
+        self.uri = Some(uri.to_string());
         self
     }
 
@@ -91,37 +94,42 @@ impl ClientBuilder {
         self.responder = Some(acceptor);
         self
     }
-
-    pub async fn start(self) -> RSocketResult<Client> {
-        match self.uri {
-            Some(v) => match v {
-                URI::Tcp(vv) => {
-                    let addr = vv.parse().unwrap();
-                    let socket = transport::tcp::connect(&addr);
-                    let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
-                    let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
-                    tokio::spawn(async move {
-                        crate::transport::tcp::process(socket, snd_rx, rcv_tx).await
-                    });
-                    let duplex_socket = DuplexSocket::new(1, snd_tx.clone());
-                    let duplex_socket_clone = duplex_socket.clone();
-                    let responder = self.responder;
-                    tokio::spawn(async move {
-                        let acceptor = if let Some(r) = responder {
-                            Acceptor::Direct(r())
-                        } else {
-                            Acceptor::Empty()
-                        };
-                        duplex_socket_clone.event_loop(acceptor, rcv_rx).await;
-                    });
-                    let setup = self.setup.build();
-                    duplex_socket.setup(setup).await;
-                    Ok(Client::new(duplex_socket))
-                }
-                _ => Err(RSocketError::from("unsupported uri")),
+    pub async fn start(self) -> Result<Client, Box<dyn Error>> {
+        // TODO: process error
+        let uri = self.uri.unwrap();
+        match URI::parse(&uri) {
+            Ok(u) => match u {
+                URI::Tcp(vv) => Self::start_tcp(vv, self.responder, self.setup).await,
+                _ => unimplemented!(),
             },
-            None => Err(RSocketError::from("missing rsocket uri")),
+            Err(e) => Err(e),
         }
+    }
+
+    #[inline]
+    async fn start_tcp(
+        addr: SocketAddr,
+        responder: Option<fn() -> Box<dyn RSocket>>,
+        sb: SetupPayloadBuilder,
+    ) -> Result<Client, Box<dyn Error>> {
+        let socket = transport::tcp::connect(&addr);
+        let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
+        let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
+        tokio::spawn(async move { crate::transport::tcp::process(socket, snd_rx, rcv_tx).await });
+        let duplex_socket = DuplexSocket::new(1, snd_tx.clone());
+        let duplex_socket_clone = duplex_socket.clone();
+
+        tokio::spawn(async move {
+            let acceptor = if let Some(r) = responder {
+                Acceptor::Simple(Arc::new(r))
+            } else {
+                Acceptor::Empty()
+            };
+            duplex_socket_clone.event_loop(acceptor, rcv_rx).await;
+        });
+        let setup = sb.build();
+        duplex_socket.setup(setup).await;
+        Ok(Client::new(duplex_socket))
     }
 }
 
@@ -132,7 +140,7 @@ impl RSocket for Client {
     fn fire_and_forget(&self, req: Payload) -> Mono<()> {
         self.socket.fire_and_forget(req)
     }
-    fn request_response(&self, req: Payload) -> Mono<Payload> {
+    fn request_response(&self, req: Payload) -> Mono<Result<Payload, RSocketError>> {
         self.socket.request_response(req)
     }
     fn request_stream(&self, req: Payload) -> Flux<Payload> {

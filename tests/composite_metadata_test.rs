@@ -1,5 +1,3 @@
-extern crate rsocket_rust;
-
 use bytes::{Bytes, BytesMut};
 use rsocket_rust::extension::*;
 

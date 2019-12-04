@@ -1,6 +1,6 @@
 [package]
 name = "rsocket_rust"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -15,6 +15,7 @@ log = "0.4.8"
 bytes = "0.5.2"
 futures = "0.3.1"
 lazy_static = "1.4.0"
+url = "2.1.0"
 # reactor_rs = {git = "https://github.com/jjeffcaii/reactor-rust", branch = "develop"}
 
 [dependencies.tokio]
@@ -36,6 +37,6 @@ rand = "0.7.2"
 name = "echo"
 path = "examples/echo/main.rs"
 
-# [[example]]
-# name = "proxy"
-# path = "examples/proxy/main.rs"
+[[example]]
+name = "proxy"
+path = "examples/proxy/main.rs"

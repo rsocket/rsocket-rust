@@ -1,6 +1,7 @@
 use super::{Body, Frame, Writeable};
 use crate::result::RSocketResult;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub struct Error {
@@ -54,6 +55,13 @@ impl Error {
 
     pub fn builder(stream_id: u32, flag: u16) -> ErrorBuilder {
         ErrorBuilder::new(stream_id, flag)
+    }
+
+    pub fn get_data_utf8(&self) -> String {
+        match self.get_data() {
+            Some(b) => String::from_utf8(b.to_vec()).unwrap(),
+            None => String::from(""),
+        }
     }
 
     pub fn get_data(&self) -> &Option<Bytes> {

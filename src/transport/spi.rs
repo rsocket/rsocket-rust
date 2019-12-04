@@ -1,5 +1,8 @@
 use crate::frame::Frame;
+use crate::payload::SetupPayload;
+use crate::spi::RSocket;
 use std::future::Future;
+use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
 pub type Tx = UnboundedSender<Frame>;
@@ -18,4 +21,12 @@ impl Transport {
     pub fn split(self) -> (Tx, Rx) {
         (self.tx, self.rx)
     }
+}
+
+type FnAcceptorWithSetup = fn(SetupPayload, Box<dyn RSocket>) -> Box<dyn RSocket>;
+
+pub(crate) enum Acceptor {
+    Simple(Arc<fn() -> Box<dyn RSocket>>),
+    Generate(Arc<FnAcceptorWithSetup>),
+    Empty(),
 }

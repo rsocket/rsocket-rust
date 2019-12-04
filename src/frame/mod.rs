@@ -60,17 +60,6 @@ pub const TYPE_METADATA_PUSH: u16 = 0x0C;
 pub const TYPE_RESUME: u16 = 0x0D;
 pub const TYPE_RESUME_OK: u16 = 0x0E;
 
-pub const ERR_INVALID_SETUP: u32 = 0x0000_0001;
-pub const ERR_UNSUPPORTED_SETUP: u32 = 0x0000_0002;
-pub const ERR_REJECT_SETUP: u32 = 0x0000_0003;
-pub const ERR_REJECT_RESUME: u32 = 0x0000_0004;
-pub const ERR_CONN_FAILED: u32 = 0x0000_0101;
-pub const ERR_CONN_CLOSED: u32 = 0x0000_0102;
-pub const ERR_APPLICATION: u32 = 0x0000_0201;
-pub const ERR_REJECTED: u32 = 0x0000_0202;
-pub const ERR_CANCELED: u32 = 0x0000_0203;
-pub const ERR_INVALID: u32 = 0x0000_0204;
-
 pub const REQUEST_MAX: u32 = 0x7FFF_FFFF; // 2147483647
 
 const LEN_HEADER: usize = 6;
@@ -181,7 +170,7 @@ impl Frame {
             TYPE_ERROR => Error::decode(flag, b).map(Body::Error),
             TYPE_RESUME_OK => ResumeOK::decode(flag, b).map(Body::ResumeOK),
             TYPE_RESUME => Resume::decode(flag, b).map(Body::Resume),
-            _ => Err(RSocketError::from("illegal frame type")),
+            _ => Err(RSocketError::from(format!("illegal frame type: {}", kind))),
         };
         body.map(|it| Frame::new(sid, it, flag))
     }
@@ -211,6 +200,7 @@ impl Frame {
     }
 }
 
+#[inline]
 fn to_frame_type(body: &Body) -> u16 {
     match body {
         Body::Setup(_) => TYPE_SETUP,
