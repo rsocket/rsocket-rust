@@ -136,4 +136,7 @@ impl RSocket for Client {
   fn request_stream(&self, req: Payload) -> Flux<Payload> {
     self.socket.request_stream(req)
   }
+  fn request_channel(&self, reqs: Flux<Payload>) -> Flux<Payload> {
+    self.socket.request_channel(reqs)
+  }
 }

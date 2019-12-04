@@ -1,6 +1,6 @@
 [package]
 name = "rsocket_rust"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -18,7 +18,7 @@ lazy_static = "1.4.0"
 # reactor_rs = {git = "https://github.com/jjeffcaii/reactor-rust", branch = "develop"}
 
 [dependencies.tokio]
-version = "0.2.1"
+version = "0.2.2"
 default-features = false
 features = ["full"]
 

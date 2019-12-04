@@ -5,7 +5,7 @@ use std::io;
 #[derive(Debug)]
 pub enum ErrorKind {
   Internal(u32, &'static str),
-  WithDescription(&'static str),
+  WithDescription(String),
   IO(io::Error),
   Cancelled(),
   Send(),
@@ -41,11 +41,18 @@ impl From<ErrorKind> for RSocketError {
     RSocketError { kind }
   }
 }
+impl From<String> for RSocketError {
+  fn from(e: String) -> RSocketError {
+    RSocketError {
+      kind: ErrorKind::WithDescription(e),
+    }
+  }
+}
 
 impl From<&'static str> for RSocketError {
   fn from(e: &'static str) -> RSocketError {
     RSocketError {
-      kind: ErrorKind::WithDescription(e),
+      kind: ErrorKind::WithDescription(String::from(e)),
     }
   }
 }

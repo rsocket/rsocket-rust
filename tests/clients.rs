@@ -1,26 +1,9 @@
 extern crate rsocket_rust;
-
+#[macro_use]
+extern crate log;
+use futures::prelude::*;
+use futures::stream;
 use rsocket_rust::prelude::*;
-
-#[tokio::main]
-#[test]
-async fn test() {
-    let cli = RSocketFactory::connect()
-        .acceptor(|| Box::new(EchoRSocket))
-        .transport(URI::Tcp("127.0.0.1:7878".to_string()))
-        .setup(Payload::from("READY!"))
-        .mime_type("text/plain", "text/plain")
-        .start()
-        .await
-        .unwrap();
-    let req = Payload::builder()
-        .set_data_utf8("Hello World!")
-        .set_metadata_utf8("Rust")
-        .build();
-    let res = cli.request_response(req).await.unwrap();
-    println!("got: {:?}", res);
-    cli.close();
-}
 
 #[tokio::main]
 #[test]
@@ -38,6 +21,7 @@ async fn test_client() {
     exec_fire_and_forget(&cli).await;
     exec_request_response(&cli).await;
     exec_request_stream(&cli).await;
+    exec_request_channel(&cli).await;
     cli.close();
 }
 
@@ -76,5 +60,20 @@ async fn exec_request_stream(socket: &Client) {
             Some(v) => println!("STREAM_RESPONSE: {:?}", v.unwrap()),
             None => break,
         }
+    }
+}
+
+async fn exec_request_channel(socket: &Client) {
+    let mut sends = vec![];
+    for i in 0..10 {
+        let pa = Payload::builder()
+            .set_data_utf8(&format!("Hello#{}", i))
+            .set_metadata_utf8("RUST")
+            .build();
+        sends.push(Ok(pa));
+    }
+    let mut results = socket.request_channel(Box::pin(stream::iter(sends)));
+    while let Some(v) = results.next().await {
+        println!("====> next in channel: {:?}", v);
     }
 }
