@@ -28,6 +28,7 @@ async fn test_client() {
 
 #[tokio::main]
 #[test]
+#[ignore]
 async fn test_request_response_err() {
     env_logger::builder().format_timestamp_millis().init();
     let cli = RSocketFactory::connect()
