@@ -15,7 +15,7 @@ pub fn connect(addr: &SocketAddr) -> TcpStream {
     TcpStream::from_std(origin).unwrap()
 }
 
-pub async fn process(socket: TcpStream, mut inputs: Rx, outputs: Tx) {
+pub async fn process(socket: TcpStream, mut inputs: Rx<Frame>, outputs: Tx<Frame>) {
     let (mut writer, mut reader) = Framed::new(socket, RFrameCodec).split();
     tokio::spawn(async move {
         // loop read

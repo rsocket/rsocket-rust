@@ -3,22 +3,32 @@ use crate::payload::SetupPayload;
 use crate::spi::RSocket;
 use std::future::Future;
 use std::sync::Arc;
-use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
+use tokio::sync::{mpsc, oneshot};
 
-pub type Tx = UnboundedSender<Frame>;
-pub type Rx = UnboundedReceiver<Frame>;
+pub(crate) type Tx<T> = mpsc::UnboundedSender<T>;
+pub(crate) type Rx<T> = mpsc::UnboundedReceiver<T>;
+pub(crate) type TxOnce<T> = oneshot::Sender<T>;
+pub(crate) type RxOnce<T> = oneshot::Receiver<T>;
+
+pub(crate) fn new_tx_rx_once<T>() -> (TxOnce<T>, RxOnce<T>) {
+    oneshot::channel()
+}
+
+pub(crate) fn new_tx_rx<T>() -> (Tx<T>, Rx<T>) {
+    mpsc::unbounded_channel()
+}
 
 pub struct Transport {
-    tx: UnboundedSender<Frame>,
-    rx: UnboundedReceiver<Frame>,
+    tx: Tx<Frame>,
+    rx: Rx<Frame>,
 }
 
 impl Transport {
-    pub fn new(tx: Tx, rx: Rx) -> Transport {
+    pub fn new(tx: Tx<Frame>, rx: Rx<Frame>) -> Transport {
         Transport { tx, rx }
     }
 
-    pub fn split(self) -> (Tx, Rx) {
+    pub fn split(self) -> (Tx<Frame>, Rx<Frame>) {
         (self.tx, self.rx)
     }
 }

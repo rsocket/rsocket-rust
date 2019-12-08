@@ -81,7 +81,7 @@ impl ServerBuilder {
             );
             let setuper = Arc::new(on_setup);
             let next_acceptor = move || Acceptor::Generate(setuper.clone());
-            let ds = DuplexSocket::new(0, snd_tx.clone());
+            let ds = DuplexSocket::new(0, snd_tx.clone()).await;
             tokio::spawn(async move {
                 let acceptor = next_acceptor();
                 ds.event_loop(acceptor, rcv_rx).await;

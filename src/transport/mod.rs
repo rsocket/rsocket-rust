@@ -5,4 +5,4 @@ mod spi;
 pub(crate) mod tcp;
 pub(crate) use codec::RFrameCodec;
 pub(crate) use socket::DuplexSocket;
-pub(crate) use spi::{Acceptor, Rx, Transport, Tx};
+pub(crate) use spi::*;

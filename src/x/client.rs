@@ -116,7 +116,7 @@ impl ClientBuilder {
         let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
         let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
         tokio::spawn(async move { crate::transport::tcp::process(socket, snd_rx, rcv_tx).await });
-        let duplex_socket = DuplexSocket::new(1, snd_tx.clone());
+        let duplex_socket = DuplexSocket::new(1, snd_tx.clone()).await;
         let duplex_socket_clone = duplex_socket.clone();
 
         tokio::spawn(async move {
