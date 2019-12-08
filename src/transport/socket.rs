@@ -14,16 +14,17 @@ use std::future::Future;
 use std::pin::Pin;
 use std::ptr;
 use std::result::Result;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use tokio::net::TcpListener;
 use tokio::prelude::*;
+use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub(crate) struct DuplexSocket {
     seq: StreamID,
     responder: Responder,
     tx: Tx<Frame>,
-    handlers: Arc<Handlers>,
+    handlers: Arc<Mutex<HashMap<u32, Handler>>>,
     canceller: Tx<u32>,
 }
 
@@ -37,12 +38,7 @@ enum Handler {
     ReqRR(TxOnce<Result<Payload, RSocketError>>),
     ResRR(Counter),
     RequestStream(Tx<Payload>),
-    RequestChannel(Tx<Payload>, Counter),
-}
-
-#[derive(Debug)]
-struct Handlers {
-    map: RwLock<HashMap<u32, Handler>>,
+    RequestChannel(Tx<Payload>),
 }
 
 impl DuplexSocket {
@@ -53,7 +49,7 @@ impl DuplexSocket {
             tx,
             canceller: canceller_tx,
             responder: Responder::new(),
-            handlers: Arc::new(Handlers::new()),
+            handlers: Arc::new(Mutex::new(HashMap::new())),
         };
 
         let ds2 = ds.clone();
@@ -88,18 +84,16 @@ impl DuplexSocket {
     }
 
     #[inline]
-    fn register_handler(&self, sid: u32, handler: Handler) {
-        let handlers: Arc<Handlers> = self.handlers.clone();
-        let mut senders = handlers.map.write().unwrap();
-        senders.insert(sid, handler);
+    async fn register_handler(&self, sid: u32, handler: Handler) {
+        let mut handlers = self.handlers.lock().await;
+        (*handlers).insert(sid, handler);
     }
 
+    #[inline]
     pub(crate) async fn loop_canceller(&self, mut rx: Rx<u32>) {
-        // TODO: loop cancel
         while let Some(sid) = rx.recv().await {
-            let handlers: Arc<Handlers> = self.handlers.clone();
-            let mut senders = handlers.map.write().unwrap();
-            senders.remove(&sid);
+            let mut handlers = self.handlers.lock().await;
+            (*handlers).remove(&sid);
         }
     }
 
@@ -166,10 +160,8 @@ impl DuplexSocket {
     #[inline]
     async fn on_error(&self, sid: u32, flag: u16, input: frame::Error) {
         // pick handler
-        let handlers = self.handlers.clone();
-        let mut senders = handlers.map.write().unwrap();
-
-        if let Some(handler) = senders.remove(&sid) {
+        let mut handlers = self.handlers.lock().await;
+        if let Some(handler) = (*handlers).remove(&sid) {
             let kind = ErrorKind::Internal(input.get_code(), input.get_data_utf8());
             let e = Err(RSocketError::from(kind));
             match handler {
@@ -183,11 +175,8 @@ impl DuplexSocket {
 
     #[inline]
     async fn on_cancel(&self, sid: u32, _flag: u16) {
-        // TODO: support cancel
-        // pick handler
-        let handlers = self.handlers.clone();
-        let mut senders = handlers.map.write().unwrap();
-        if let Some(handler) = senders.remove(&sid) {
+        let mut handlers = self.handlers.lock().await;
+        if let Some(handler) = (*handlers).remove(&sid) {
             let e = Err(RSocketError::from(ErrorKind::Cancelled()));
             match handler {
                 Handler::ReqRR(sender) => {
@@ -201,7 +190,7 @@ impl DuplexSocket {
                 Handler::RequestStream(sender) => {
                     info!("REQUEST_STREAM {} cancelled!", sid);
                 }
-                Handler::RequestChannel(sender, c) => {
+                Handler::RequestChannel(sender) => {
                     info!("REQUEST_CHANNEL {} cancelled!", sid);
                 }
             };
@@ -210,11 +199,9 @@ impl DuplexSocket {
 
     #[inline]
     async fn on_payload(&self, sid: u32, flag: u16, input: Payload) {
-        // pick handler
-        let handlers = self.handlers.clone();
-        let mut senders = handlers.map.write().unwrap();
+        let mut handlers = self.handlers.lock().await;
         // fire event!
-        match senders.remove(&sid).unwrap() {
+        match (*handlers).remove(&sid).unwrap() {
             Handler::ReqRR(sender) => sender.send(Ok(input)).unwrap(),
             Handler::ResRR(c) => unreachable!(),
             Handler::RequestStream(sender) => {
@@ -222,16 +209,16 @@ impl DuplexSocket {
                     sender.send(input).unwrap();
                 }
                 if flag & frame::FLAG_COMPLETE == 0 {
-                    senders.insert(sid, Handler::RequestStream(sender));
+                    (*handlers).insert(sid, Handler::RequestStream(sender));
                 }
             }
-            Handler::RequestChannel(sender, cdl) => {
+            Handler::RequestChannel(sender) => {
                 // TODO: support channel
                 if flag & frame::FLAG_NEXT != 0 {
                     sender.send(input).unwrap();
                 }
                 if flag & frame::FLAG_COMPLETE == 0 {
-                    senders.insert(sid, Handler::RequestChannel(sender, cdl));
+                    (*handlers).insert(sid, Handler::RequestChannel(sender));
                 }
             }
         };
@@ -264,7 +251,8 @@ impl DuplexSocket {
         let tx = self.tx.clone();
 
         let counter = Counter::new(2);
-        self.register_handler(sid, Handler::ResRR(counter.clone()));
+        self.register_handler(sid, Handler::ResRR(counter.clone()))
+            .await;
 
         tokio::spawn(async move {
             let result = responder.request_response(input).await;
@@ -328,8 +316,8 @@ impl DuplexSocket {
         let tx = self.tx.clone();
         let (sender, receiver) = new_tx_rx::<Payload>();
         sender.send(first).unwrap();
-        let cdl = Counter::new(2);
-        self.register_handler(sid, Handler::RequestChannel(sender, cdl.clone()));
+        self.register_handler(sid, Handler::RequestChannel(sender))
+            .await;
         tokio::spawn(async move {
             // respond client channel
             let inputs: Flux<Payload> = Box::pin(receiver);
@@ -415,11 +403,15 @@ impl RSocket for DuplexSocket {
     fn request_response(&self, req: Payload) -> Mono<Result<Payload, RSocketError>> {
         let (tx, rx) = new_tx_rx_once::<Result<Payload, RSocketError>>();
         let sid = self.seq.next();
-        // register handler
-        self.register_handler(sid, Handler::ReqRR(tx));
-
+        let handlers = Arc::clone(&self.handlers);
         let sender = self.tx.clone();
         tokio::spawn(async move {
+            {
+                // register handler
+                let mut map = handlers.lock().await;
+                (*map).insert(sid, Handler::ReqRR(tx));
+            }
+
             let (d, m) = req.split();
             // crate request frame
             let mut bu = frame::RequestResponse::builder(sid, 0);
@@ -447,8 +439,12 @@ impl RSocket for DuplexSocket {
         let tx = self.tx.clone();
         // register handler
         let (sender, receiver) = new_tx_rx::<Payload>();
-        self.register_handler(sid, Handler::RequestStream(sender));
+        let handlers = Arc::clone(&self.handlers);
         tokio::spawn(async move {
+            {
+                let mut map = handlers.lock().await;
+                (*map).insert(sid, Handler::RequestStream(sender));
+            }
             let (d, m) = input.split();
             // crate stream frame
             let mut bu = frame::RequestStream::builder(sid, 0);
@@ -470,9 +466,13 @@ impl RSocket for DuplexSocket {
         let tx = self.tx.clone();
         // register handler
         let (sender, receiver) = new_tx_rx::<Payload>();
-        let cdl = Counter::new(2);
-        self.register_handler(sid, Handler::RequestChannel(sender, cdl.clone()));
+        let handlers = Arc::clone(&self.handlers);
         tokio::spawn(async move {
+            {
+                let mut map = handlers.lock().await;
+                (*map).insert(sid, Handler::RequestChannel(sender));
+            }
+
             let mut first = true;
             while let Some(it) = reqs.next().await {
                 let (d, m) = it.split();
@@ -506,14 +506,6 @@ impl RSocket for DuplexSocket {
             }
         });
         Box::pin(receiver)
-    }
-}
-
-impl Handlers {
-    fn new() -> Handlers {
-        Handlers {
-            map: RwLock::new(HashMap::new()),
-        }
     }
 }
 
