@@ -19,7 +19,7 @@ url = "2.1.0"
 # reactor_rs = {git = "https://github.com/jjeffcaii/reactor-rust", branch = "develop"}
 
 [dependencies.tokio]
-version = "0.2.2"
+version = "0.2.4"
 default-features = false
 features = ["full"]
 
