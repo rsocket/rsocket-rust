@@ -3,19 +3,19 @@ use crate::errors::RSocketError;
 use crate::frame::{self, Frame};
 use crate::payload::SetupPayload;
 use crate::spi::{EmptyRSocket, RSocket};
-use crate::transport::{Acceptor, DuplexSocket};
+use crate::transport::{Acceptor, DuplexSocket, FnAcceptorWithSetup};
 use std::error::Error;
 use std::net::SocketAddr;
+use std::result::Result;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
-type FnSetup = fn(SetupPayload, Box<dyn RSocket>) -> Box<dyn RSocket>;
 type FnStart = fn();
 
 pub struct ServerBuilder {
     uri: Option<String>,
-    on_setup: FnSetup,
+    on_setup: FnAcceptorWithSetup,
     start_handler: Option<FnStart>,
 }
 
@@ -34,7 +34,7 @@ impl ServerBuilder {
         }
     }
 
-    pub fn acceptor(mut self, handler: FnSetup) -> Self {
+    pub fn acceptor(mut self, handler: FnAcceptorWithSetup) -> Self {
         self.on_setup = handler;
         self
     }
@@ -64,7 +64,7 @@ impl ServerBuilder {
     #[inline]
     async fn serve_tcp(
         addr: SocketAddr,
-        on_setup: FnSetup,
+        on_setup: FnAcceptorWithSetup,
         on_start: Option<FnStart>,
     ) -> Result<(), Box<dyn Error>> {
         let mut listener = TcpListener::bind(&addr).await.unwrap();
@@ -91,6 +91,9 @@ impl ServerBuilder {
 }
 
 #[inline]
-fn on_setup_noop(_setup: SetupPayload, _socket: Box<dyn RSocket>) -> Box<dyn RSocket> {
-    Box::new(EmptyRSocket)
+fn on_setup_noop(
+    _setup: SetupPayload,
+    _socket: Box<dyn RSocket>,
+) -> Result<Box<dyn RSocket>, Box<dyn Error>> {
+    Ok(Box::new(EmptyRSocket))
 }

@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     RSocketFactory::receive()
         .acceptor(|setup, _sending_socket| {
             info!("incoming socket: setup={:?}", setup);
-            Box::new(block_on(async move {
+            Ok(Box::new(block_on(async move {
                 RSocketFactory::connect()
                     .acceptor(|| Box::new(EchoRSocket))
                     .setup(Payload::from("I'm Rust!"))
@@ -24,7 +24,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     .start()
                     .await
                     .unwrap()
-            }))
+            })))
         })
         .transport("tcp://127.0.0.1:7979")
         .serve()

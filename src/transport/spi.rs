@@ -1,7 +1,9 @@
 use crate::frame::Frame;
 use crate::payload::SetupPayload;
 use crate::spi::RSocket;
+use std::error::Error;
 use std::future::Future;
+use std::result::Result;
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 
@@ -33,7 +35,8 @@ impl Transport {
     }
 }
 
-type FnAcceptorWithSetup = fn(SetupPayload, Box<dyn RSocket>) -> Box<dyn RSocket>;
+pub type FnAcceptorWithSetup =
+    fn(SetupPayload, Box<dyn RSocket>) -> Result<Box<dyn RSocket>, Box<dyn Error>>;
 
 pub(crate) enum Acceptor {
     Simple(Arc<fn() -> Box<dyn RSocket>>),

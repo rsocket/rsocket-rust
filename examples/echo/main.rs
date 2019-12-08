@@ -16,7 +16,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .transport(&addr)
         .acceptor(|setup, _socket| {
             info!("accept setup: {:?}", setup);
-            Box::new(EchoRSocket)
+            Ok(Box::new(EchoRSocket))
+            // Or you can reject setup
+            // Err(From::from("SETUP_NOT_ALLOW"))
         })
         .on_start(|| info!("+++++++ echo server started! +++++++"))
         .serve()

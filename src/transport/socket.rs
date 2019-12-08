@@ -1,6 +1,6 @@
 use super::misc::{self, Counter, StreamID};
 use super::spi::*;
-use crate::errors::{ErrorKind, RSocketError, ERR_APPLICATION};
+use crate::errors::{self, ErrorKind, RSocketError};
 use crate::frame::{self, Body, Frame};
 use crate::payload::{Payload, SetupPayload};
 use crate::result::RSocketResult;
@@ -103,7 +103,17 @@ impl DuplexSocket {
             let flag = msg.get_flag();
             misc::debug_frame(false, &msg);
             match msg.get_body() {
-                Body::Setup(v) => self.on_setup(&acceptor, sid, flag, SetupPayload::from(v)),
+                Body::Setup(v) => {
+                    if let Err(e) = self.on_setup(&acceptor, sid, flag, SetupPayload::from(v)) {
+                        let errmsg = format!("{}", e);
+                        let sending = frame::Error::builder(0, 0)
+                            .set_code(errors::ERR_REJECT_SETUP)
+                            .set_data(Bytes::from(errmsg))
+                            .build();
+                        self.tx.send(sending).unwrap();
+                        return;
+                    }
+                }
                 Body::Resume(v) => {
                     // TODO: support resume
                 }
@@ -225,16 +235,28 @@ impl DuplexSocket {
     }
 
     #[inline]
-    fn on_setup(&self, acceptor: &Acceptor, sid: u32, flag: u16, setup: SetupPayload) {
+    fn on_setup(
+        &self,
+        acceptor: &Acceptor,
+        sid: u32,
+        flag: u16,
+        setup: SetupPayload,
+    ) -> Result<(), Box<dyn Error>> {
         match acceptor {
             Acceptor::Simple(gen) => {
                 self.responder.set(gen());
+                Ok(())
             }
-            Acceptor::Generate(gen) => {
-                self.responder.set(gen(setup, Box::new(self.clone())));
-            }
+            Acceptor::Generate(gen) => match gen(setup, Box::new(self.clone())) {
+                Ok(it) => {
+                    self.responder.set(it);
+                    Ok(())
+                }
+                Err(e) => Err(e),
+            },
             Acceptor::Empty() => {
                 self.responder.set(Box::new(EmptyRSocket));
+                Ok(())
             }
         }
     }
@@ -277,7 +299,7 @@ impl DuplexSocket {
                     bu.build()
                 }
                 Err(e) => frame::Error::builder(sid, 0)
-                    .set_code(ERR_APPLICATION)
+                    .set_code(errors::ERR_APPLICATION)
                     .set_data(Bytes::from("TODO: should be error details"))
                     .build(),
             };

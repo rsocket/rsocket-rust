@@ -57,7 +57,7 @@ impl RSocket for EchoRSocket {
     }
 }
 
-pub struct EmptyRSocket;
+pub(crate) struct EmptyRSocket;
 
 impl EmptyRSocket {
     fn must_failed(&self) -> RSocketError {
