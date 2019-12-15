@@ -3,27 +3,57 @@ extern crate log;
 
 use futures::stream;
 use rsocket_rust::prelude::*;
+use std::thread::sleep;
+use std::time::Duration;
+use tokio::runtime::Runtime;
 
-#[tokio::main]
+fn init() {
+    let _ = env_logger::builder()
+        .format_timestamp_millis()
+        .is_test(true)
+        .try_init();
+}
+
 #[test]
-#[ignore]
-async fn test_client() {
-    env_logger::builder().init();
-    let cli = RSocketFactory::connect()
-        .acceptor(|| Box::new(EchoRSocket))
-        .transport("tcp://127.0.0.1:7878")
-        .setup(Payload::from("READY!"))
-        .mime_type("text/plain", "text/plain")
-        .start()
-        .await
-        .unwrap();
+fn test_client() {
+    init();
 
-    exec_metadata_push(&cli).await;
-    exec_fire_and_forget(&cli).await;
-    exec_request_response(&cli).await;
-    exec_request_stream(&cli).await;
-    exec_request_channel(&cli).await;
-    cli.close();
+    let server_runtime = Runtime::new().unwrap();
+
+    // spawn a server
+    server_runtime.spawn(async move {
+        RSocketFactory::receive()
+            .transport("tcp://127.0.0.1:7878")
+            .acceptor(|setup, _socket| {
+                info!("accept setup: {:?}", setup);
+                Ok(Box::new(EchoRSocket))
+            })
+            .on_start(|| info!("+++++++ echo server started! +++++++"))
+            .serve()
+            .await
+    });
+
+    sleep(Duration::from_millis(500));
+
+    let mut client_runtime = Runtime::new().unwrap();
+
+    client_runtime.block_on(async {
+        let cli = RSocketFactory::connect()
+            .acceptor(|| Box::new(EchoRSocket))
+            .transport("tcp://127.0.0.1:7878")
+            .setup(Payload::from("READY!"))
+            .mime_type("text/plain", "text/plain")
+            .start()
+            .await
+            .unwrap();
+
+        exec_metadata_push(&cli).await;
+        exec_fire_and_forget(&cli).await;
+        exec_request_response(&cli).await;
+        exec_request_stream(&cli).await;
+        exec_request_channel(&cli).await;
+        cli.close();
+    });
 }
 
 #[tokio::main]

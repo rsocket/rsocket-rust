@@ -49,7 +49,7 @@ impl ServerBuilder {
         self
     }
 
-    pub async fn serve(self) -> Result<(), Box<dyn Error>> {
+    pub async fn serve(self) -> Result<(), Box<dyn Error + Send + Sync>> {
         // TODO: process error
         let s = self.uri.unwrap();
         match URI::parse(&s) {
@@ -66,7 +66,7 @@ impl ServerBuilder {
         addr: SocketAddr,
         on_setup: FnAcceptorWithSetup,
         on_start: Option<FnStart>,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut listener = TcpListener::bind(&addr).await.unwrap();
         debug!("listening on: {}", addr);
         if let Some(it) = on_start {

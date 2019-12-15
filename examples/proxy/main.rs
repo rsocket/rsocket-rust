@@ -10,7 +10,7 @@ use rsocket_rust::prelude::*;
 use std::error::Error;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     env_logger::builder().format_timestamp_millis().init();
 
     RSocketFactory::receive()

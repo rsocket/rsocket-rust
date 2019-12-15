@@ -94,7 +94,8 @@ impl ClientBuilder {
         self.responder = Some(acceptor);
         self
     }
-    pub async fn start(self) -> Result<Client, Box<dyn Error>> {
+
+    pub async fn start(self) -> Result<Client, Box<dyn Error + Send + Sync>> {
         // TODO: process error
         let uri = self.uri.unwrap();
         match URI::parse(&uri) {
@@ -111,7 +112,7 @@ impl ClientBuilder {
         addr: SocketAddr,
         responder: Option<fn() -> Box<dyn RSocket>>,
         sb: SetupPayloadBuilder,
-    ) -> Result<Client, Box<dyn Error>> {
+    ) -> Result<Client, Box<dyn Error + Send + Sync>> {
         let socket = transport::tcp::connect(&addr);
         let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
         let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();

@@ -15,7 +15,7 @@ pub(crate) enum URI {
 }
 
 impl URI {
-    pub(crate) fn parse(s: &str) -> Result<URI, Box<dyn Error>> {
+    pub(crate) fn parse(s: &str) -> Result<URI, Box<dyn Error + Send + Sync>> {
         match Url::parse(s) {
             Ok(u) => Self::from_url(u),
             Err(e) => Err(Box::new(e)),
@@ -23,7 +23,7 @@ impl URI {
     }
 
     #[inline]
-    fn from_url(u: Url) -> Result<URI, Box<dyn Error>> {
+    fn from_url(u: Url) -> Result<URI, Box<dyn Error + Send + Sync>> {
         let domain = u.domain().unwrap_or("0.0.0.0");
         let schema = u.scheme();
         match schema.to_lowercase().as_ref() {
