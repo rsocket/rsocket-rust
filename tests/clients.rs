@@ -77,7 +77,6 @@ async fn test_request_response_err() {
         Ok(_) => panic!("should catch an error!"),
         Err(e) => info!("error catched: {}", e),
     };
-    ()
 }
 
 async fn exec_request_response(socket: &Client) {
@@ -112,23 +111,29 @@ async fn exec_request_stream(socket: &Client) {
     let mut results = socket.request_stream(sending);
     loop {
         match results.next().await {
-            Some(v) => info!("STREAM_RESPONSE: {:?}", v),
+            Some(Ok(v)) => info!("STREAM_RESPONSE OK: {:?}", v),
+            Some(Err(e)) => error!("STREAM_RESPONSE FAILED: {:?}", e),
             None => break,
         }
     }
 }
 
 async fn exec_request_channel(socket: &Client) {
-    let mut sends = vec![];
-    for i in 0..10 {
-        let pa = Payload::builder()
-            .set_data_utf8(&format!("Hello#{}", i))
-            .set_metadata_utf8("RUST")
-            .build();
-        sends.push(pa);
-    }
+    let sends: Vec<_> = (0..10)
+        .map(|n| {
+            let p = Payload::builder()
+                .set_data_utf8(&format!("Hello#{}", n))
+                .set_metadata_utf8("RUST")
+                .build();
+            Ok(p)
+        })
+        .collect();
     let mut results = socket.request_channel(Box::pin(stream::iter(sends)));
-    while let Some(v) = results.next().await {
-        info!("====> next in channel: {:?}", v);
+    loop {
+        match results.next().await {
+            Some(Ok(v)) => info!("CHANNEL_RESPONSE OK: {:?}", v),
+            Some(Err(e)) => error!("CHANNEL_RESPONSE FAILED: {:?}", e),
+            None => break,
+        }
     }
 }

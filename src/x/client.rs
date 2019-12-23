@@ -144,10 +144,13 @@ impl RSocket for Client {
     fn request_response(&self, req: Payload) -> Mono<Result<Payload, RSocketError>> {
         self.socket.request_response(req)
     }
-    fn request_stream(&self, req: Payload) -> Flux<Payload> {
+    fn request_stream(&self, req: Payload) -> Flux<Result<Payload, RSocketError>> {
         self.socket.request_stream(req)
     }
-    fn request_channel(&self, reqs: Flux<Payload>) -> Flux<Payload> {
+    fn request_channel(
+        &self,
+        reqs: Flux<Result<Payload, RSocketError>>,
+    ) -> Flux<Result<Payload, RSocketError>> {
         self.socket.request_channel(reqs)
     }
 }

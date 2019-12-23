@@ -19,8 +19,11 @@ pub trait RSocket: Sync + Send {
     fn metadata_push(&self, req: Payload) -> Mono<()>;
     fn fire_and_forget(&self, req: Payload) -> Mono<()>;
     fn request_response(&self, req: Payload) -> Mono<Result<Payload, RSocketError>>;
-    fn request_stream(&self, req: Payload) -> Flux<Payload>;
-    fn request_channel(&self, reqs: Flux<Payload>) -> Flux<Payload>;
+    fn request_stream(&self, req: Payload) -> Flux<Result<Payload, RSocketError>>;
+    fn request_channel(
+        &self,
+        reqs: Flux<Result<Payload, RSocketError>>,
+    ) -> Flux<Result<Payload, RSocketError>>;
 }
 
 pub struct EchoRSocket;
@@ -30,21 +33,32 @@ impl RSocket for EchoRSocket {
         info!("{:?}", req);
         Box::pin(async {})
     }
+
     fn fire_and_forget(&self, req: Payload) -> Mono<()> {
         info!("{:?}", req);
         Box::pin(async {})
     }
+
     fn request_response(&self, req: Payload) -> Mono<Result<Payload, RSocketError>> {
         info!("{:?}", req);
         Box::pin(async move { Ok(req) })
     }
-    fn request_stream(&self, req: Payload) -> Flux<Payload> {
+
+    fn request_stream(&self, req: Payload) -> Flux<Result<Payload, RSocketError>> {
         info!("{:?}", req);
         // repeat 3 times.
-        Box::pin(futures::stream::iter(vec![req.clone(), req.clone(), req]))
+        Box::pin(futures::stream::iter(vec![
+            Ok(req.clone()),
+            Ok(req.clone()),
+            Ok(req),
+        ]))
     }
-    fn request_channel(&self, mut reqs: Flux<Payload>) -> Flux<Payload> {
-        let (sender, receiver) = mpsc::unbounded_channel::<Payload>();
+
+    fn request_channel(
+        &self,
+        mut reqs: Flux<Result<Payload, RSocketError>>,
+    ) -> Flux<Result<Payload, RSocketError>> {
+        let (sender, receiver) = mpsc::unbounded_channel();
         tokio::spawn(async move {
             while let Some(it) = reqs.next().await {
                 info!("{:?}", it);
@@ -79,10 +93,14 @@ impl RSocket for EmptyRSocket {
         Box::pin(future::err(self.must_failed()))
     }
 
-    fn request_stream(&self, _req: Payload) -> Flux<Payload> {
+    fn request_stream(&self, _req: Payload) -> Flux<Result<Payload, RSocketError>> {
         Box::pin(futures::stream::empty())
     }
-    fn request_channel(&self, _reqs: Flux<Payload>) -> Flux<Payload> {
+
+    fn request_channel(
+        &self,
+        _reqs: Flux<Result<Payload, RSocketError>>,
+    ) -> Flux<Result<Payload, RSocketError>> {
         Box::pin(futures::stream::empty())
     }
 }
