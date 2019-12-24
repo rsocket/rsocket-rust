@@ -277,6 +277,7 @@ impl DuplexSocket {
             .await;
 
         tokio::spawn(async move {
+            // TODO: use future select
             let result = responder.request_response(input).await;
             if counter.count_down() == 0 {
                 // cancelled
