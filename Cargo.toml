@@ -12,14 +12,14 @@ description = "rsocket-rust is an implementation of the RSocket protocol in Rust
 [dependencies]
 matches = "0.1.8"
 log = "0.4.8"
-bytes = "0.5.2"
+bytes = "0.5.3"
 futures = "0.3.1"
 lazy_static = "1.4.0"
 url = "2.1.0"
 # reactor_rs = {git = "https://github.com/jjeffcaii/reactor-rust", branch = "develop"}
 
 [dependencies.tokio]
-version = "0.2.4"
+version = "0.2.6"
 default-features = false
 features = ["full"]
 
