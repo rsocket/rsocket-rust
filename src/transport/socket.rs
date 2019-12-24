@@ -289,7 +289,8 @@ impl DuplexSocket {
             let sending = match result {
                 Ok(it) => {
                     let (d, m) = it.split();
-                    let mut bu = frame::Payload::builder(sid, frame::FLAG_COMPLETE);
+                    let mut bu =
+                        frame::Payload::builder(sid, frame::FLAG_NEXT | frame::FLAG_COMPLETE);
                     if let Some(b) = d {
                         bu = bu.set_data(b);
                     }
