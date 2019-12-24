@@ -4,6 +4,7 @@ use crate::payload::{Payload, SetupPayload};
 use crate::result::RSocketResult;
 use crate::spi::RSocket;
 use futures::future;
+use tokio::sync::oneshot::{self, Receiver, Sender};
 
 use std::{
     collections::HashMap,
@@ -13,7 +14,6 @@ use std::{
         Arc, Mutex, RwLock,
     },
 };
-use tokio::sync::{mpsc, oneshot};
 
 #[derive(Debug, Clone)]
 pub(crate) struct StreamID {
@@ -51,8 +51,7 @@ impl Counter {
     }
 
     pub(crate) fn count_down(&self) -> i64 {
-        let c = self.inner.clone();
-        c.fetch_add(-1, Ordering::SeqCst)
+        self.inner.fetch_add(-1, Ordering::SeqCst) - 1
     }
 }
 

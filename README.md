@@ -6,7 +6,8 @@
 [![GitHub Release](https://img.shields.io/github/release-pre/rsocket/rsocket-rust.svg)](https://github.com/rsocket/rsocket-rust/releases)
 
 > rsocket-rust is an implementation of the RSocket protocol in Rust(1.39+).
-It's an **alpha** version and still under active development. **Do not use it in a production environment!**
+It's an **alpha** version and still under active development.  
+**Do not use it in a production environment!**  
 
 ## Example
 
@@ -26,13 +27,15 @@ use std::error::Error;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::builder().init();
-    let addr = env::args().nth(1).unwrap_or("127.0.0.1:7878".to_string());
+    let addr = env::args().nth(1).unwrap_or("tcp://127.0.0.1:7878".to_string());
 
     RSocketFactory::receive()
-        .transport(URI::Tcp(addr))
+        .transport(&addr)
         .acceptor(|setup, _socket| {
             info!("accept setup: {:?}", setup);
-            Box::new(EchoRSocket)
+            Ok(Box::new(EchoRSocket))
+            // Or you can reject setup
+            // Err(From::from("SETUP_NOT_ALLOW"))
         })
         .serve()
         .await
@@ -51,7 +54,7 @@ use rsocket_rust::prelude::*;
 async fn test() {
     let cli = RSocketFactory::connect()
         .acceptor(|| Box::new(EchoRSocket))
-        .transport(URI::Tcp("127.0.0.1:7878".to_string()))
+        .transport("tcp://127.0.0.1:7878")
         .setup(Payload::from("READY!"))
         .mime_type("text/plain", "text/plain")
         .start()
@@ -81,6 +84,14 @@ async fn test() {
   - [x] REQUEST_RESPONSE
   - [x] REQUEST_STREAM
   - [x] REQUEST_CHANNEL
+- More Operations
+  - [ ] Error
+  - [ ] Cancel
+  - [ ] Fragmentation
+  - [ ] Resume
+- QoS
+  - [ ] RequestN
+  - [ ] Lease
 - Transport
   - [x] TCP
   - [ ] Websocket

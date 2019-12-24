@@ -7,16 +7,20 @@ use std::env;
 use std::error::Error;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::builder().init();
-    let addr = env::args().nth(1).unwrap_or("127.0.0.1:7878".to_string());
-
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+    env_logger::builder().format_timestamp_millis().init();
+    let addr = env::args()
+        .nth(1)
+        .unwrap_or("tcp://127.0.0.1:7878".to_string());
     RSocketFactory::receive()
-        .transport(URI::Tcp(addr))
+        .transport(&addr)
         .acceptor(|setup, _socket| {
             info!("accept setup: {:?}", setup);
-            Box::new(EchoRSocket)
+            Ok(Box::new(EchoRSocket))
+            // Or you can reject setup
+            // Err(From::from("SETUP_NOT_ALLOW"))
         })
+        .on_start(|| info!("+++++++ echo server started! +++++++"))
         .serve()
         .await
 }

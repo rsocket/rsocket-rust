@@ -60,172 +60,162 @@ pub const TYPE_METADATA_PUSH: u16 = 0x0C;
 pub const TYPE_RESUME: u16 = 0x0D;
 pub const TYPE_RESUME_OK: u16 = 0x0E;
 
-pub const ERR_INVALID_SETUP: u32 = 0x0000_0001;
-pub const ERR_UNSUPPORTED_SETUP: u32 = 0x0000_0002;
-pub const ERR_REJECT_SETUP: u32 = 0x0000_0003;
-pub const ERR_REJECT_RESUME: u32 = 0x0000_0004;
-pub const ERR_CONN_FAILED: u32 = 0x0000_0101;
-pub const ERR_CONN_CLOSED: u32 = 0x0000_0102;
-pub const ERR_APPLICATION: u32 = 0x0000_0201;
-pub const ERR_REJECTED: u32 = 0x0000_0202;
-pub const ERR_CANCELED: u32 = 0x0000_0203;
-pub const ERR_INVALID: u32 = 0x0000_0204;
-
 pub const REQUEST_MAX: u32 = 0x7FFF_FFFF; // 2147483647
 
 const LEN_HEADER: usize = 6;
 
 pub trait Writeable {
-  fn write_to(&self, bf: &mut BytesMut);
-  fn len(&self) -> usize;
-  fn is_empty(&self) -> bool {
-    self.len() == 0
-  }
+    fn write_to(&self, bf: &mut BytesMut);
+    fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Body {
-  Setup(Setup),
-  Lease(Lease),
-  Keepalive(Keepalive),
-  RequestFNF(RequestFNF),
-  RequestResponse(RequestResponse),
-  RequestStream(RequestStream),
-  RequestChannel(RequestChannel),
-  RequestN(RequestN),
-  Cancel(),
-  Payload(Payload),
-  Error(Error),
-  MetadataPush(MetadataPush),
-  Resume(Resume),
-  ResumeOK(ResumeOK),
+    Setup(Setup),
+    Lease(Lease),
+    Keepalive(Keepalive),
+    RequestFNF(RequestFNF),
+    RequestResponse(RequestResponse),
+    RequestStream(RequestStream),
+    RequestChannel(RequestChannel),
+    RequestN(RequestN),
+    Cancel(),
+    Payload(Payload),
+    Error(Error),
+    MetadataPush(MetadataPush),
+    Resume(Resume),
+    ResumeOK(ResumeOK),
 }
 
 #[derive(Debug, PartialEq)]
 pub struct Frame {
-  stream_id: u32,
-  body: Body,
-  flag: u16,
+    stream_id: u32,
+    body: Body,
+    flag: u16,
 }
 
 impl Writeable for Frame {
-  fn write_to(&self, bf: &mut BytesMut) {
-    bf.put_u32(self.stream_id);
-    bf.put_u16((to_frame_type(&self.body) << 10) | self.flag);
-    match &self.body {
-      Body::Setup(v) => v.write_to(bf),
-      Body::RequestResponse(v) => v.write_to(bf),
-      Body::RequestStream(v) => v.write_to(bf),
-      Body::RequestChannel(v) => v.write_to(bf),
-      Body::RequestFNF(v) => v.write_to(bf),
-      Body::RequestN(v) => v.write_to(bf),
-      Body::MetadataPush(v) => v.write_to(bf),
-      Body::Keepalive(v) => v.write_to(bf),
-      Body::Payload(v) => v.write_to(bf),
-      Body::Lease(v) => v.write_to(bf),
-      Body::Error(v) => v.write_to(bf),
-      Body::Cancel() => (),
-      Body::ResumeOK(v) => v.write_to(bf),
-      Body::Resume(v) => v.write_to(bf),
+    fn write_to(&self, bf: &mut BytesMut) {
+        bf.put_u32(self.stream_id);
+        bf.put_u16((to_frame_type(&self.body) << 10) | self.flag);
+        match &self.body {
+            Body::Setup(v) => v.write_to(bf),
+            Body::RequestResponse(v) => v.write_to(bf),
+            Body::RequestStream(v) => v.write_to(bf),
+            Body::RequestChannel(v) => v.write_to(bf),
+            Body::RequestFNF(v) => v.write_to(bf),
+            Body::RequestN(v) => v.write_to(bf),
+            Body::MetadataPush(v) => v.write_to(bf),
+            Body::Keepalive(v) => v.write_to(bf),
+            Body::Payload(v) => v.write_to(bf),
+            Body::Lease(v) => v.write_to(bf),
+            Body::Error(v) => v.write_to(bf),
+            Body::Cancel() => (),
+            Body::ResumeOK(v) => v.write_to(bf),
+            Body::Resume(v) => v.write_to(bf),
+        }
     }
-  }
 
-  fn len(&self) -> usize {
-    // header len
-    LEN_HEADER
-      + match &self.body {
-        Body::Setup(v) => v.len(),
-        Body::RequestResponse(v) => v.len(),
-        Body::RequestStream(v) => v.len(),
-        Body::RequestChannel(v) => v.len(),
-        Body::RequestFNF(v) => v.len(),
-        Body::RequestN(v) => v.len(),
-        Body::MetadataPush(v) => v.len(),
-        Body::Keepalive(v) => v.len(),
-        Body::Payload(v) => v.len(),
-        Body::Lease(v) => v.len(),
-        Body::Cancel() => 0,
-        Body::Error(v) => v.len(),
-        Body::ResumeOK(v) => v.len(),
-        Body::Resume(v) => v.len(),
-      }
-  }
+    fn len(&self) -> usize {
+        // header len
+        LEN_HEADER
+            + match &self.body {
+                Body::Setup(v) => v.len(),
+                Body::RequestResponse(v) => v.len(),
+                Body::RequestStream(v) => v.len(),
+                Body::RequestChannel(v) => v.len(),
+                Body::RequestFNF(v) => v.len(),
+                Body::RequestN(v) => v.len(),
+                Body::MetadataPush(v) => v.len(),
+                Body::Keepalive(v) => v.len(),
+                Body::Payload(v) => v.len(),
+                Body::Lease(v) => v.len(),
+                Body::Cancel() => 0,
+                Body::Error(v) => v.len(),
+                Body::ResumeOK(v) => v.len(),
+                Body::Resume(v) => v.len(),
+            }
+    }
 }
 
 impl Frame {
-  pub fn new(stream_id: u32, body: Body, flag: u16) -> Frame {
-    Frame {
-      stream_id,
-      body,
-      flag,
+    pub fn new(stream_id: u32, body: Body, flag: u16) -> Frame {
+        Frame {
+            stream_id,
+            body,
+            flag,
+        }
     }
-  }
 
-  pub fn decode(b: &mut BytesMut) -> RSocketResult<Frame> {
-    // TODO: check size
-    let sid = b.get_u32();
-    let n = b.get_u16();
-    let (flag, kind) = (n & 0x03FF, (n & 0xFC00) >> 10);
-    let body = match kind {
-      TYPE_SETUP => Setup::decode(flag, b).map(Body::Setup),
-      TYPE_REQUEST_RESPONSE => RequestResponse::decode(flag, b).map(Body::RequestResponse),
-      TYPE_REQUEST_STREAM => RequestStream::decode(flag, b).map(Body::RequestStream),
-      TYPE_REQUEST_CHANNEL => RequestChannel::decode(flag, b).map(Body::RequestChannel),
-      TYPE_REQUEST_FNF => RequestFNF::decode(flag, b).map(Body::RequestFNF),
-      TYPE_REQUEST_N => RequestN::decode(flag, b).map(Body::RequestN),
-      TYPE_METADATA_PUSH => MetadataPush::decode(flag, b).map(Body::MetadataPush),
-      TYPE_KEEPALIVE => Keepalive::decode(flag, b).map(Body::Keepalive),
-      TYPE_PAYLOAD => Payload::decode(flag, b).map(Body::Payload),
-      TYPE_LEASE => Lease::decode(flag, b).map(Body::Lease),
-      TYPE_CANCEL => Ok(Body::Cancel()),
-      TYPE_ERROR => Error::decode(flag, b).map(Body::Error),
-      TYPE_RESUME_OK => ResumeOK::decode(flag, b).map(Body::ResumeOK),
-      TYPE_RESUME => Resume::decode(flag, b).map(Body::Resume),
-      _ => Err(RSocketError::from("illegal frame type")),
-    };
-    body.map(|it| Frame::new(sid, it, flag))
-  }
+    pub fn decode(b: &mut BytesMut) -> RSocketResult<Frame> {
+        // TODO: check size
+        let sid = b.get_u32();
+        let n = b.get_u16();
+        let (flag, kind) = (n & 0x03FF, (n & 0xFC00) >> 10);
+        let body = match kind {
+            TYPE_SETUP => Setup::decode(flag, b).map(Body::Setup),
+            TYPE_REQUEST_RESPONSE => RequestResponse::decode(flag, b).map(Body::RequestResponse),
+            TYPE_REQUEST_STREAM => RequestStream::decode(flag, b).map(Body::RequestStream),
+            TYPE_REQUEST_CHANNEL => RequestChannel::decode(flag, b).map(Body::RequestChannel),
+            TYPE_REQUEST_FNF => RequestFNF::decode(flag, b).map(Body::RequestFNF),
+            TYPE_REQUEST_N => RequestN::decode(flag, b).map(Body::RequestN),
+            TYPE_METADATA_PUSH => MetadataPush::decode(flag, b).map(Body::MetadataPush),
+            TYPE_KEEPALIVE => Keepalive::decode(flag, b).map(Body::Keepalive),
+            TYPE_PAYLOAD => Payload::decode(flag, b).map(Body::Payload),
+            TYPE_LEASE => Lease::decode(flag, b).map(Body::Lease),
+            TYPE_CANCEL => Ok(Body::Cancel()),
+            TYPE_ERROR => Error::decode(flag, b).map(Body::Error),
+            TYPE_RESUME_OK => ResumeOK::decode(flag, b).map(Body::ResumeOK),
+            TYPE_RESUME => Resume::decode(flag, b).map(Body::Resume),
+            _ => Err(RSocketError::from(format!("illegal frame type: {}", kind))),
+        };
+        body.map(|it| Frame::new(sid, it, flag))
+    }
 
-  pub fn get_body(self) -> Body {
-    self.body
-  }
+    pub fn get_body(self) -> Body {
+        self.body
+    }
 
-  pub fn get_frame_type(&self) -> u16 {
-    to_frame_type(&self.body)
-  }
+    pub fn get_frame_type(&self) -> u16 {
+        to_frame_type(&self.body)
+    }
 
-  pub fn get_flag(&self) -> u16 {
-    self.flag
-  }
+    pub fn get_flag(&self) -> u16 {
+        self.flag
+    }
 
-  pub fn get_stream_id(&self) -> u32 {
-    self.stream_id
-  }
+    pub fn get_stream_id(&self) -> u32 {
+        self.stream_id
+    }
 
-  pub fn has_next(&self) -> bool {
-    self.flag & FLAG_NEXT != 0
-  }
+    pub fn has_next(&self) -> bool {
+        self.flag & FLAG_NEXT != 0
+    }
 
-  pub fn has_complete(&self) -> bool {
-    self.flag & FLAG_COMPLETE != 0
-  }
+    pub fn has_complete(&self) -> bool {
+        self.flag & FLAG_COMPLETE != 0
+    }
 }
 
+#[inline]
 fn to_frame_type(body: &Body) -> u16 {
-  match body {
-    Body::Setup(_) => TYPE_SETUP,
-    Body::Lease(_) => TYPE_LEASE,
-    Body::Keepalive(_) => TYPE_KEEPALIVE,
-    Body::RequestResponse(_) => TYPE_REQUEST_RESPONSE,
-    Body::RequestFNF(_) => TYPE_REQUEST_FNF,
-    Body::RequestStream(_) => TYPE_REQUEST_STREAM,
-    Body::RequestChannel(_) => TYPE_REQUEST_CHANNEL,
-    Body::RequestN(_) => TYPE_REQUEST_N,
-    Body::Cancel() => TYPE_CANCEL,
-    Body::Payload(_) => TYPE_PAYLOAD,
-    Body::Error(_) => TYPE_ERROR,
-    Body::MetadataPush(_) => TYPE_METADATA_PUSH,
-    Body::Resume(_) => TYPE_RESUME,
-    Body::ResumeOK(_) => TYPE_RESUME_OK,
-  }
+    match body {
+        Body::Setup(_) => TYPE_SETUP,
+        Body::Lease(_) => TYPE_LEASE,
+        Body::Keepalive(_) => TYPE_KEEPALIVE,
+        Body::RequestResponse(_) => TYPE_REQUEST_RESPONSE,
+        Body::RequestFNF(_) => TYPE_REQUEST_FNF,
+        Body::RequestStream(_) => TYPE_REQUEST_STREAM,
+        Body::RequestChannel(_) => TYPE_REQUEST_CHANNEL,
+        Body::RequestN(_) => TYPE_REQUEST_N,
+        Body::Cancel() => TYPE_CANCEL,
+        Body::Payload(_) => TYPE_PAYLOAD,
+        Body::Error(_) => TYPE_ERROR,
+        Body::MetadataPush(_) => TYPE_METADATA_PUSH,
+        Body::Resume(_) => TYPE_RESUME,
+        Body::ResumeOK(_) => TYPE_RESUME_OK,
+    }
 }

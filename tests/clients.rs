@@ -1,28 +1,83 @@
-extern crate rsocket_rust;
 #[macro_use]
 extern crate log;
-use futures::prelude::*;
+
 use futures::stream;
 use rsocket_rust::prelude::*;
+use std::thread::sleep;
+use std::time::Duration;
+use tokio::runtime::Runtime;
+
+fn init() {
+    let _ = env_logger::builder()
+        .format_timestamp_millis()
+        .is_test(true)
+        .try_init();
+}
+
+#[test]
+fn test_client() {
+    init();
+
+    let server_runtime = Runtime::new().unwrap();
+
+    // spawn a server
+    server_runtime.spawn(async move {
+        RSocketFactory::receive()
+            .transport("tcp://127.0.0.1:7878")
+            .acceptor(|setup, _socket| {
+                info!("accept setup: {:?}", setup);
+                Ok(Box::new(EchoRSocket))
+            })
+            .on_start(|| info!("+++++++ echo server started! +++++++"))
+            .serve()
+            .await
+    });
+
+    sleep(Duration::from_millis(500));
+
+    let mut client_runtime = Runtime::new().unwrap();
+
+    client_runtime.block_on(async {
+        let cli = RSocketFactory::connect()
+            .acceptor(|| Box::new(EchoRSocket))
+            .transport("tcp://127.0.0.1:7878")
+            .setup(Payload::from("READY!"))
+            .mime_type("text/plain", "text/plain")
+            .start()
+            .await
+            .unwrap();
+
+        exec_metadata_push(&cli).await;
+        exec_fire_and_forget(&cli).await;
+        exec_request_response(&cli).await;
+        exec_request_stream(&cli).await;
+        exec_request_channel(&cli).await;
+        cli.close();
+    });
+}
 
 #[tokio::main]
 #[test]
-async fn test_client() {
-    env_logger::builder().init();
+#[ignore]
+async fn test_request_response_err() {
+    env_logger::builder().format_timestamp_millis().init();
     let cli = RSocketFactory::connect()
-        .acceptor(|| Box::new(EchoRSocket))
-        .transport(URI::Tcp("127.0.0.1:7878".to_string()))
+        .transport("tcp://127.0.0.1:7878")
         .setup(Payload::from("READY!"))
         .mime_type("text/plain", "text/plain")
         .start()
         .await
         .unwrap();
-    exec_metadata_push(&cli).await;
-    exec_fire_and_forget(&cli).await;
-    exec_request_response(&cli).await;
-    exec_request_stream(&cli).await;
-    exec_request_channel(&cli).await;
-    cli.close();
+
+    let res = cli
+        .request_response(Payload::from("must return error"))
+        .await;
+
+    match res {
+        Ok(_) => panic!("should catch an error!"),
+        Err(e) => info!("error catched: {}", e),
+    };
+    ()
 }
 
 async fn exec_request_response(socket: &Client) {
@@ -32,19 +87,19 @@ async fn exec_request_response(socket: &Client) {
         .set_metadata_utf8("I Rust!")
         .build();
     let result = socket.request_response(sending).await.unwrap();
-    println!("REQUEST_RESPONSE: {:?}", result);
+    info!("REQUEST_RESPONSE: {:?}", result);
 }
 
 async fn exec_metadata_push(socket: &Client) {
     let pa = Payload::builder().set_metadata_utf8("Hello World!").build();
     // metadata push
-    socket.metadata_push(pa).await.unwrap();
+    socket.metadata_push(pa).await;
 }
 
 async fn exec_fire_and_forget(socket: &Client) {
     // request fnf
     let fnf = Payload::from("Hello World!");
-    socket.fire_and_forget(fnf).await.unwrap();
+    socket.fire_and_forget(fnf).await;
 }
 
 async fn exec_request_stream(socket: &Client) {
@@ -57,7 +112,7 @@ async fn exec_request_stream(socket: &Client) {
     let mut results = socket.request_stream(sending);
     loop {
         match results.next().await {
-            Some(v) => println!("STREAM_RESPONSE: {:?}", v.unwrap()),
+            Some(v) => info!("STREAM_RESPONSE: {:?}", v),
             None => break,
         }
     }
@@ -70,10 +125,10 @@ async fn exec_request_channel(socket: &Client) {
             .set_data_utf8(&format!("Hello#{}", i))
             .set_metadata_utf8("RUST")
             .build();
-        sends.push(Ok(pa));
+        sends.push(pa);
     }
     let mut results = socket.request_channel(Box::pin(stream::iter(sends)));
     while let Some(v) = results.next().await {
-        println!("====> next in channel: {:?}", v);
+        info!("====> next in channel: {:?}", v);
     }
 }

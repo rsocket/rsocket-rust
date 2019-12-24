@@ -4,18 +4,18 @@ use super::{Body, Frame};
 pub struct Cancel {}
 
 pub struct CancelBuilder {
-  stream_id: u32,
-  flag: u16,
+    stream_id: u32,
+    flag: u16,
 }
 
 impl CancelBuilder {
-  pub fn build(self) -> Frame {
-    Frame::new(self.stream_id, Body::Cancel(), self.flag)
-  }
+    pub fn build(self) -> Frame {
+        Frame::new(self.stream_id, Body::Cancel(), self.flag)
+    }
 }
 
 impl Cancel {
-  pub fn builder(stream_id: u32, flag: u16) -> CancelBuilder {
-    CancelBuilder { stream_id, flag }
-  }
+    pub fn builder(stream_id: u32, flag: u16) -> CancelBuilder {
+        CancelBuilder { stream_id, flag }
+    }
 }
