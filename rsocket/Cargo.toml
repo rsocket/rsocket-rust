@@ -1,0 +1,33 @@
+[package]
+name = "rsocket_rust"
+version = "0.5.0"
+authors = ["Jeffsky <jjeffcaii@outlook.com>"]
+edition = "2018"
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/rsocket/rsocket-rust"
+homepage = "https://github.com/rsocket/rsocket-rust"
+description = "rsocket-rust is an implementation of the RSocket protocol in Rust."
+
+[dependencies]
+matches = "0.1.8"
+log = "0.4.8"
+bytes = "0.5.4"
+futures = "0.3.1"
+lazy_static = "1.4.0"
+url = "2.1.1"
+
+[dependencies.tokio]
+version = "0.2"
+default-features = false
+features = [ "rt-core", "rt-threaded", "tcp", "sync", "macros", "stream" ]
+
+[dependencies.tokio-util]
+version = "0.2"
+default-features = false
+features = ["codec"]
+
+[dev-dependencies]
+env_logger = "0.7.1"
+hex = "0.4.0"
+rand = "0.7.3"

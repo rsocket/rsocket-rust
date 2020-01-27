@@ -1,0 +1,21 @@
+[package]
+name = "examples"
+version = "0.0.0"
+authors = ["Jeffsky <jjeffcaii@outlook.com>"]
+edition = "2018"
+
+[dev-dependencies]
+rsocket_rust = { version = "0.5.0", path = "../rsocket" }
+rsocket_rust_transport_tcp = { version = "0.5.0", path = "../rsocket-transport-tcp" }
+tokio = "0.2"
+log = "0.4"
+env_logger = "0.7"
+futures = "0.3.1"
+
+[[example]]
+name = "echo"
+path = "echo.rs"
+
+[[example]]
+name = "proxy"
+path = "proxy.rs"

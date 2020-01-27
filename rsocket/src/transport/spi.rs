@@ -3,6 +3,7 @@ use crate::payload::SetupPayload;
 use crate::spi::RSocket;
 use std::error::Error;
 use std::future::Future;
+use std::pin::Pin;
 use std::result::Result;
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
@@ -20,19 +21,23 @@ pub(crate) fn new_tx_rx<T>() -> (Tx<T>, Rx<T>) {
     mpsc::unbounded_channel()
 }
 
-pub struct Transport {
-    tx: Tx<Frame>,
-    rx: Rx<Frame>,
+pub trait ClientTransport {
+    fn attach(
+        self,
+        incoming: Tx<Frame>,
+        sending: Rx<Frame>,
+    ) -> Pin<Box<dyn Sync + Send + Future<Output = Result<(), Box<dyn Error + Send + Sync>>>>>;
 }
 
-impl Transport {
-    pub fn new(tx: Tx<Frame>, rx: Rx<Frame>) -> Transport {
-        Transport { tx, rx }
-    }
-
-    pub fn split(self) -> (Tx<Frame>, Rx<Frame>) {
-        (self.tx, self.rx)
-    }
+pub trait ServerTransport {
+    type Item;
+    fn start(
+        self,
+        starter: Option<fn()>,
+        acceptor: impl Fn(Self::Item) + Send + Sync + 'static,
+    ) -> Pin<Box<dyn Sync + Send + Future<Output = Result<(), Box<dyn Error + Send + Sync>>>>>
+    where
+        Self::Item: ClientTransport + Sized;
 }
 
 pub type FnAcceptorWithSetup =

@@ -3,10 +3,11 @@ use crate::errors::RSocketError;
 use crate::frame::{self, Frame};
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::spi::{Flux, Mono, RSocket};
-use crate::transport::{self, Acceptor, DuplexSocket};
+use crate::transport::{self, Acceptor, ClientTransport, DuplexSocket, Rx, TcpClientTransport, Tx};
 use futures::{Future, Stream};
 use std::error::Error;
 use std::net::SocketAddr;
+use std::pin::Pin;
 use std::result::Result;
 use std::sync::Arc;
 use std::time::Duration;
@@ -17,8 +18,8 @@ pub struct Client {
     socket: DuplexSocket,
 }
 
-pub struct ClientBuilder {
-    uri: Option<String>,
+pub struct ClientBuilder<'a> {
+    uri: Option<&'a str>,
     setup: SetupPayloadBuilder,
     responder: Option<fn() -> Box<dyn RSocket>>,
 }
@@ -28,7 +29,7 @@ impl Client {
         Client { socket }
     }
 
-    pub fn builder() -> ClientBuilder {
+    pub fn builder<'a>() -> ClientBuilder<'a> {
         ClientBuilder::new()
     }
 
@@ -37,8 +38,8 @@ impl Client {
     }
 }
 
-impl ClientBuilder {
-    fn new() -> ClientBuilder {
+impl<'a> ClientBuilder<'a> {
+    fn new() -> ClientBuilder<'a> {
         ClientBuilder {
             uri: None,
             responder: None,
@@ -46,8 +47,8 @@ impl ClientBuilder {
         }
     }
 
-    pub fn transport(mut self, uri: &str) -> Self {
-        self.uri = Some(uri.to_string());
+    pub fn transport(mut self, uri: &'a str) -> Self {
+        self.uri = Some(uri);
         self
     }
 
@@ -98,7 +99,7 @@ impl ClientBuilder {
     pub async fn start(self) -> Result<Client, Box<dyn Error + Send + Sync>> {
         // TODO: process error
         let uri = self.uri.unwrap();
-        match URI::parse(&uri) {
+        match URI::parse(uri) {
             Ok(u) => match u {
                 URI::Tcp(vv) => Self::start_tcp(vv, self.responder, self.setup).await,
                 _ => unimplemented!(),
@@ -113,10 +114,12 @@ impl ClientBuilder {
         responder: Option<fn() -> Box<dyn RSocket>>,
         sb: SetupPayloadBuilder,
     ) -> Result<Client, Box<dyn Error + Send + Sync>> {
-        let socket = transport::tcp::connect(&addr);
         let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
         let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
-        tokio::spawn(async move { crate::transport::tcp::process(socket, snd_rx, rcv_tx).await });
+        let tp = TcpClientTransport::from(&addr);
+        tokio::spawn(async move {
+            tp.attach(rcv_tx, snd_rx).await.unwrap();
+        });
         let duplex_socket = DuplexSocket::new(1, snd_tx.clone()).await;
         let duplex_socket_clone = duplex_socket.clone();
 

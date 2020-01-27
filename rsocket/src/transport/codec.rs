@@ -4,9 +4,9 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::io::{Error, ErrorKind};
 use tokio_util::codec::{Decoder, Encoder};
 
-pub struct RFrameCodec;
+pub(crate) struct LengthBasedFrameCodec;
 
-impl Decoder for RFrameCodec {
+impl Decoder for LengthBasedFrameCodec {
     type Item = Frame;
     type Error = Error;
 
@@ -28,7 +28,7 @@ impl Decoder for RFrameCodec {
     }
 }
 
-impl Encoder for RFrameCodec {
+impl Encoder for LengthBasedFrameCodec {
     type Item = Frame;
     type Error = Error;
     fn encode(&mut self, item: Frame, buf: &mut BytesMut) -> Result<(), Self::Error> {
