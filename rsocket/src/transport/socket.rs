@@ -15,7 +15,6 @@ use std::pin::Pin;
 use std::ptr;
 use std::result::Result;
 use std::sync::{Arc, RwLock};
-use tokio::net::TcpListener;
 use tokio::prelude::*;
 use tokio::sync::Mutex;
 
