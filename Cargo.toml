@@ -3,6 +3,8 @@
 members = [
 "rsocket",
 "rsocket-transport-tcp",
+"rsocket-transport-websocket",
+"rsocket-transport-wasm",
 
 # Internal
 "examples",

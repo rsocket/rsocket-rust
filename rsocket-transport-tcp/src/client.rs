@@ -23,15 +23,8 @@ impl TcpClientTransport {
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let (mut writer, mut reader) = Framed::new(socket, LengthBasedFrameCodec).split();
         tokio::spawn(async move {
-            // loop read
-            loop {
-                match reader.next().await {
-                    Some(it) => outputs.send(it.unwrap()).unwrap(),
-                    None => {
-                        drop(outputs);
-                        break;
-                    }
-                }
+            while let Some(it) = reader.next().await {
+                outputs.send(it.unwrap()).unwrap();
             }
         });
         // loop write
