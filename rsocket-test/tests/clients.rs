@@ -3,6 +3,7 @@ extern crate log;
 
 use futures::stream;
 use rsocket_rust::prelude::*;
+use rsocket_rust_transport_tcp::{TcpClientTransport, TcpServerTransport};
 use std::thread::sleep;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -23,7 +24,7 @@ fn test_client() {
     // spawn a server
     server_runtime.spawn(async move {
         RSocketFactory::receive()
-            .transport("tcp://127.0.0.1:7878")
+            .transport(TcpServerTransport::from("127.0.0.1:7878"))
             .acceptor(|setup, _socket| {
                 info!("accept setup: {:?}", setup);
                 Ok(Box::new(EchoRSocket))
@@ -40,7 +41,7 @@ fn test_client() {
     client_runtime.block_on(async {
         let cli = RSocketFactory::connect()
             .acceptor(|| Box::new(EchoRSocket))
-            .transport("tcp://127.0.0.1:7878")
+            .transport(TcpClientTransport::from("127.0.0.1:7878"))
             .setup(Payload::from("READY!"))
             .mime_type("text/plain", "text/plain")
             .start()
@@ -61,8 +62,9 @@ fn test_client() {
 #[ignore]
 async fn test_request_response_err() {
     env_logger::builder().format_timestamp_millis().init();
+
     let cli = RSocketFactory::connect()
-        .transport("tcp://127.0.0.1:7878")
+        .transport(TcpClientTransport::from("127.0.0.1:7878"))
         .setup(Payload::from("READY!"))
         .mime_type("text/plain", "text/plain")
         .start()

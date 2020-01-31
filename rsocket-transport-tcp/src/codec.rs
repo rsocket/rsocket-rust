@@ -1,10 +1,9 @@
-use crate::errors::RSocketError;
-use crate::frame::{Frame, Writeable, U24};
-use bytes::{Buf, BufMut, Bytes, BytesMut};
+use bytes::{Buf, BytesMut};
+use rsocket_rust::frame::{Frame, Writeable, U24};
 use std::io::{Error, ErrorKind};
 use tokio_util::codec::{Decoder, Encoder};
 
-pub(crate) struct LengthBasedFrameCodec;
+pub struct LengthBasedFrameCodec;
 
 impl Decoder for LengthBasedFrameCodec {
     type Item = Frame;
@@ -23,7 +22,7 @@ impl Decoder for LengthBasedFrameCodec {
         let mut bb = buf.split_to(l);
         match Frame::decode(&mut bb) {
             Ok(v) => Ok(Some(v)),
-            Err(e) => Err(Error::from(ErrorKind::InvalidInput)),
+            Err(_e) => Err(Error::from(ErrorKind::InvalidInput)),
         }
     }
 }
@@ -32,7 +31,6 @@ impl Encoder for LengthBasedFrameCodec {
     type Item = Frame;
     type Error = Error;
     fn encode(&mut self, item: Frame, buf: &mut BytesMut) -> Result<(), Self::Error> {
-        let sid = item.get_stream_id();
         let l = item.len();
         buf.reserve(3 + l);
         U24::write(l as u32, buf);

@@ -5,4 +5,18 @@ authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
 
 [dependencies]
-rsocket_rust = { version = "0.5.0", path = "../rsocket" }
+log = "0.4.8"
+rsocket_rust = { version = "0.5.0", path = "../rsocket"}
+futures = "0.3"
+bytes = "0.5"
+
+[dependencies.tokio]
+version = "0.2"
+default-features = false
+features = [ "rt-core", "rt-threaded", "tcp", "sync", "macros", "stream" ]
+
+[dependencies.tokio-util]
+version = "0.2"
+default-features = false
+features = ["codec"]
+

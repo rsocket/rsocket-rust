@@ -8,8 +8,8 @@ use std::result::Result;
 use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 
-pub(crate) type Tx<T> = mpsc::UnboundedSender<T>;
-pub(crate) type Rx<T> = mpsc::UnboundedReceiver<T>;
+pub type Tx<T> = mpsc::UnboundedSender<T>;
+pub type Rx<T> = mpsc::UnboundedReceiver<T>;
 pub(crate) type TxOnce<T> = oneshot::Sender<T>;
 pub(crate) type RxOnce<T> = oneshot::Receiver<T>;
 

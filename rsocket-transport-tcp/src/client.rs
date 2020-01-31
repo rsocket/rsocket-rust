@@ -1,19 +1,16 @@
 use super::codec::LengthBasedFrameCodec;
-use super::misc;
-use super::spi::{ClientTransport, Rx, Tx};
-use crate::frame::Frame;
-use futures::{Sink, SinkExt, Stream, StreamExt};
+use futures::{SinkExt, StreamExt};
+use rsocket_rust::frame::Frame;
+use rsocket_rust::transport::{ClientTransport, Rx, Tx};
 use std::error::Error;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::net::TcpStream as StdTcpStream;
 use std::pin::Pin;
 use tokio::net::TcpStream;
-use tokio::prelude::*;
-use tokio::sync::mpsc;
-use tokio_util::codec::{Decoder, Encoder, Framed, FramedParts, FramedRead, FramedWrite};
+use tokio_util::codec::Framed;
 
-pub(crate) struct TcpClientTransport {
+pub struct TcpClientTransport {
     socket: TcpStream,
 }
 
@@ -39,7 +36,7 @@ impl TcpClientTransport {
         });
         // loop write
         while let Some(it) = inputs.recv().await {
-            misc::debug_frame(true, &it);
+            debug!("===> SND: {:?}", &it);
             writer.send(it).await.unwrap()
         }
         Ok(())
@@ -59,6 +56,21 @@ impl ClientTransport for TcpClientTransport {
 impl From<&SocketAddr> for TcpClientTransport {
     fn from(addr: &SocketAddr) -> TcpClientTransport {
         let socket = connect(addr);
+        TcpClientTransport { socket }
+    }
+}
+
+impl From<SocketAddr> for TcpClientTransport {
+    fn from(addr: SocketAddr) -> TcpClientTransport {
+        let socket = connect(&addr);
+        TcpClientTransport { socket }
+    }
+}
+
+impl From<&str> for TcpClientTransport {
+    fn from(addr: &str) -> TcpClientTransport {
+        let socket_addr: SocketAddr = addr.parse().unwrap();
+        let socket = connect(&socket_addr);
         TcpClientTransport { socket }
     }
 }

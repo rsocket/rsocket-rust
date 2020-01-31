@@ -4,16 +4,11 @@ use crate::payload::{Payload, SetupPayload};
 use crate::result::RSocketResult;
 use crate::spi::RSocket;
 use futures::future;
+use std::collections::HashMap;
+use std::future::Future;
+use std::sync::atomic::{AtomicI64, AtomicU32, Ordering};
+use std::sync::{Arc, Mutex, RwLock};
 use tokio::sync::oneshot::{self, Receiver, Sender};
-
-use std::{
-    collections::HashMap,
-    future::Future,
-    sync::{
-        atomic::{AtomicI64, AtomicU32, Ordering},
-        Arc, Mutex, RwLock,
-    },
-};
 
 #[derive(Debug, Clone)]
 pub(crate) struct StreamID {

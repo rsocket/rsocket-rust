@@ -3,7 +3,7 @@ use crate::errors::RSocketError;
 use crate::frame::{self, Frame};
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::spi::{Flux, Mono, RSocket};
-use crate::transport::{self, Acceptor, ClientTransport, DuplexSocket, Rx, TcpClientTransport, Tx};
+use crate::transport::{self, Acceptor, ClientTransport, DuplexSocket, Rx, Tx};
 use futures::{Future, Stream};
 use std::error::Error;
 use std::net::SocketAddr;
@@ -18,8 +18,11 @@ pub struct Client {
     socket: DuplexSocket,
 }
 
-pub struct ClientBuilder<'a> {
-    uri: Option<&'a str>,
+pub struct ClientBuilder<T>
+where
+    T: Send + Sync + ClientTransport + 'static,
+{
+    transport: Option<T>,
     setup: SetupPayloadBuilder,
     responder: Option<fn() -> Box<dyn RSocket>>,
 }
@@ -28,27 +31,25 @@ impl Client {
     fn new(socket: DuplexSocket) -> Client {
         Client { socket }
     }
-
-    pub fn builder<'a>() -> ClientBuilder<'a> {
-        ClientBuilder::new()
-    }
-
     pub fn close(self) {
         self.socket.close();
     }
 }
 
-impl<'a> ClientBuilder<'a> {
-    fn new() -> ClientBuilder<'a> {
+impl<T> ClientBuilder<T>
+where
+    T: Send + Sync + ClientTransport + 'static,
+{
+    pub(crate) fn new() -> ClientBuilder<T> {
         ClientBuilder {
-            uri: None,
+            transport: None,
             responder: None,
             setup: SetupPayload::builder(),
         }
     }
 
-    pub fn transport(mut self, uri: &'a str) -> Self {
-        self.uri = Some(uri);
+    pub fn transport(mut self, transport: T) -> Self {
+        self.transport = Some(transport);
         self
     }
 
@@ -96,44 +97,29 @@ impl<'a> ClientBuilder<'a> {
         self
     }
 
-    pub async fn start(self) -> Result<Client, Box<dyn Error + Send + Sync>> {
-        // TODO: process error
-        let uri = self.uri.unwrap();
-        match URI::parse(uri) {
-            Ok(u) => match u {
-                URI::Tcp(vv) => Self::start_tcp(vv, self.responder, self.setup).await,
-                _ => unimplemented!(),
-            },
-            Err(e) => Err(e),
+    pub async fn start(mut self) -> Result<Client, Box<dyn Error + Send + Sync>> {
+        match self.transport.take() {
+            Some(tp) => {
+                let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
+                let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
+                tokio::spawn(async move {
+                    tp.attach(rcv_tx, snd_rx).await.unwrap();
+                });
+                let duplex_socket = DuplexSocket::new(1, snd_tx.clone()).await;
+                let duplex_socket_clone = duplex_socket.clone();
+                let acceptor = match self.responder {
+                    Some(r) => Acceptor::Simple(Arc::new(r)),
+                    None => Acceptor::Empty(),
+                };
+                tokio::spawn(async move {
+                    duplex_socket_clone.event_loop(acceptor, rcv_rx).await;
+                });
+                let setup = self.setup.build();
+                duplex_socket.setup(setup).await;
+                Ok(Client::new(duplex_socket))
+            }
+            None => panic!("missing transport"),
         }
-    }
-
-    #[inline]
-    async fn start_tcp(
-        addr: SocketAddr,
-        responder: Option<fn() -> Box<dyn RSocket>>,
-        sb: SetupPayloadBuilder,
-    ) -> Result<Client, Box<dyn Error + Send + Sync>> {
-        let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
-        let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
-        let tp = TcpClientTransport::from(&addr);
-        tokio::spawn(async move {
-            tp.attach(rcv_tx, snd_rx).await.unwrap();
-        });
-        let duplex_socket = DuplexSocket::new(1, snd_tx.clone()).await;
-        let duplex_socket_clone = duplex_socket.clone();
-
-        tokio::spawn(async move {
-            let acceptor = if let Some(r) = responder {
-                Acceptor::Simple(Arc::new(r))
-            } else {
-                Acceptor::Empty()
-            };
-            duplex_socket_clone.event_loop(acceptor, rcv_rx).await;
-        });
-        let setup = sb.build();
-        duplex_socket.setup(setup).await;
-        Ok(Client::new(duplex_socket))
     }
 }
 

@@ -10,6 +10,7 @@ extern crate lazy_static;
 extern crate matches;
 
 pub mod extension;
+
 pub mod frame;
 pub mod mime;
 
@@ -18,7 +19,9 @@ mod errors;
 mod payload;
 mod result;
 mod spi;
-mod transport;
+
+pub mod transport;
+
 mod x;
 
 pub mod prelude {
@@ -26,6 +29,7 @@ pub mod prelude {
     pub use crate::payload::*;
     pub use crate::result::*;
     pub use crate::spi::*;
+    pub use crate::transport::{ClientTransport, Rx, ServerTransport, Tx};
     pub use crate::x::{Client, RSocketFactory};
     pub use futures::{Sink, SinkExt, Stream, StreamExt};
 }
