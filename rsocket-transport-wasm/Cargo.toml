@@ -1,5 +1,5 @@
 [package]
-name = "rsocket-transport-wasm"
+name = "rsocket_rust_transport_wasm"
 version = "0.1.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"

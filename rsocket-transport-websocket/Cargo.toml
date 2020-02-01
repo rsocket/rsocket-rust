@@ -1,6 +1,6 @@
 [package]
-name = "rsocket-transport-websocket"
-version = "0.1.0"
+name = "rsocket_rust_transport_websocket"
+version = "0.5.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
 

@@ -4,26 +4,34 @@ use rsocket_rust::frame::{Frame, Writeable};
 use rsocket_rust::transport::{ClientTransport, Rx, Tx};
 use std::error::Error;
 use std::future::Future;
+use std::net::{SocketAddr, TcpStream as StdTcpStream};
 use std::pin::Pin;
-use tokio_tungstenite::connect_async;
+use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::Message;
 use url::Url;
 
 pub struct WebsocketClientTransport {
-    addr: Url,
+    socket: TcpStream,
+}
+
+impl From<TcpStream> for WebsocketClientTransport {
+    fn from(socket: TcpStream) -> WebsocketClientTransport {
+        WebsocketClientTransport { socket }
+    }
 }
 
 impl From<&str> for WebsocketClientTransport {
     fn from(addr: &str) -> WebsocketClientTransport {
+        let socket_addr = addr.parse().unwrap();
         WebsocketClientTransport {
-            addr: Url::parse(addr).unwrap(),
+            socket: connect(&socket_addr),
         }
     }
 }
 
 impl From<Url> for WebsocketClientTransport {
     fn from(addr: Url) -> WebsocketClientTransport {
-        WebsocketClientTransport { addr }
+        unimplemented!()
     }
 }
 
@@ -34,11 +42,13 @@ impl ClientTransport for WebsocketClientTransport {
         mut sending: Rx<Frame>,
     ) -> Pin<Box<dyn Sync + Send + Future<Output = Result<(), Box<dyn Error + Send + Sync>>>>> {
         Box::pin(async move {
-            let (ws_stream, _) = connect_async(self.addr).await.expect("Failed to connect");
+            let ws_stream = tokio_tungstenite::accept_async(self.socket)
+                .await
+                .expect("Error during the websocket handshake occurred");
             let (mut write, mut read) = ws_stream.split();
             tokio::spawn(async move {
-                while let Some(msg) = read.next().await {
-                    let raw = msg.unwrap().into_data();
+                while let Some(Ok(msg)) = read.next().await {
+                    let raw = msg.into_data();
                     let mut bf = BytesMut::new();
                     bf.put_slice(&raw[..]);
                     let f = Frame::decode(&mut bf).unwrap();
@@ -46,6 +56,7 @@ impl ClientTransport for WebsocketClientTransport {
                 }
             });
             while let Some(it) = sending.recv().await {
+                debug!("===> SND: {:?}", &it);
                 let mut bf = BytesMut::new();
                 it.write_to(&mut bf);
                 let msg = Message::binary(bf.to_vec());
@@ -54,4 +65,10 @@ impl ClientTransport for WebsocketClientTransport {
             Ok(())
         })
     }
+}
+
+#[inline]
+fn connect(addr: &SocketAddr) -> TcpStream {
+    let origin = StdTcpStream::connect(addr).unwrap();
+    TcpStream::from_std(origin).unwrap()
 }
