@@ -38,18 +38,20 @@ impl ServerTransport for WebsocketServerTransport {
         starter: Option<fn()>,
         acceptor: impl Fn(WebsocketClientTransport) + Send + Sync + 'static,
     ) -> Pin<Box<dyn Sync + Send + Future<Output = Result<(), Box<dyn Error + Send + Sync>>>>> {
-        // TODO: see https://github.com/snapview/tokio-tungstenite/blob/master/examples/server.rs
         Box::pin(async move {
-            let mut listener = TcpListener::bind(self.addr).await.unwrap();
-            if let Some(bingo) = starter {
-                bingo();
+            match TcpListener::bind(self.addr).await {
+                Ok(mut listener) => {
+                    if let Some(bingo) = starter {
+                        bingo();
+                    }
+                    while let Ok((socket, _)) = listener.accept().await {
+                        let tp = WebsocketClientTransport::from(socket);
+                        acceptor(tp);
+                    }
+                    Ok(())
+                }
+                Err(e) => Err(e.into_inner().unwrap()),
             }
-            while let Ok((socket, _)) = listener.accept().await {
-                let tp = WebsocketClientTransport::from(socket);
-                acceptor(tp);
-            }
-
-            Ok(())
         })
     }
 }

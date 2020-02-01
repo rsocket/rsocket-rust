@@ -7,7 +7,6 @@ extern crate tokio;
 
 use rsocket_rust::prelude::*;
 use rsocket_rust_transport_tcp::TcpServerTransport;
-use rsocket_rust_transport_websocket::WebsocketServerTransport;
 use std::env;
 use std::error::Error;
 
@@ -17,7 +16,7 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let addr = env::args().nth(1).unwrap_or("127.0.0.1:7878".to_string());
 
     RSocketFactory::receive()
-        .transport(WebsocketServerTransport::from(addr))
+        .transport(TcpServerTransport::from(addr))
         .acceptor(|setup, _socket| {
             info!("accept setup: {:?}", setup);
             Ok(Box::new(EchoRSocket))

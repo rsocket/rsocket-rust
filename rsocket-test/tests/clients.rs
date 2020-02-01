@@ -4,6 +4,7 @@ extern crate log;
 use futures::stream;
 use rsocket_rust::prelude::*;
 use rsocket_rust_transport_tcp::{TcpClientTransport, TcpServerTransport};
+use rsocket_rust_transport_websocket::{WebsocketClientTransport, WebsocketServerTransport};
 use std::thread::sleep;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -16,15 +17,63 @@ fn init() {
 }
 
 #[test]
-fn test_client() {
+fn test_websocket() {
     init();
+
+    let addr = "127.0.0.1:8080";
 
     let server_runtime = Runtime::new().unwrap();
 
     // spawn a server
     server_runtime.spawn(async move {
         RSocketFactory::receive()
-            .transport(TcpServerTransport::from("127.0.0.1:7878"))
+            .transport(WebsocketServerTransport::from(""))
+            .acceptor(|setup, _socket| {
+                info!("accept setup: {:?}", setup);
+                Ok(Box::new(EchoRSocket))
+            })
+            .on_start(|| info!("+++++++ websocket echo server started! +++++++"))
+            .serve()
+            .await
+    });
+
+    sleep(Duration::from_millis(500));
+
+    let mut client_runtime = Runtime::new().unwrap();
+
+    client_runtime.block_on(async {
+        let cli = RSocketFactory::connect()
+            .acceptor(|| Box::new(EchoRSocket))
+            .transport(WebsocketClientTransport::from(addr))
+            .setup(Payload::from("READY!"))
+            .mime_type("text/plain", "text/plain")
+            .start()
+            .await
+            .unwrap();
+
+        info!("=====> begin");
+
+        exec_metadata_push(&cli).await;
+        exec_fire_and_forget(&cli).await;
+        exec_request_response(&cli).await;
+        exec_request_stream(&cli).await;
+        exec_request_channel(&cli).await;
+        cli.close();
+    });
+}
+
+#[test]
+fn test_tcp() {
+    init();
+
+    let addr = "127.0.0.1:7878";
+
+    let server_runtime = Runtime::new().unwrap();
+
+    // spawn a server
+    server_runtime.spawn(async move {
+        RSocketFactory::receive()
+            .transport(TcpServerTransport::from(addr))
             .acceptor(|setup, _socket| {
                 info!("accept setup: {:?}", setup);
                 Ok(Box::new(EchoRSocket))
@@ -41,7 +90,7 @@ fn test_client() {
     client_runtime.block_on(async {
         let cli = RSocketFactory::connect()
             .acceptor(|| Box::new(EchoRSocket))
-            .transport(TcpClientTransport::from("127.0.0.1:7878"))
+            .transport(TcpClientTransport::from(addr))
             .setup(Payload::from("READY!"))
             .mime_type("text/plain", "text/plain")
             .start()

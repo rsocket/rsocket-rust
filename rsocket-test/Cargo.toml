@@ -11,4 +11,5 @@ env_logger = "0.7"
 tokio = { version = "0.2", default-features = false, features = ["full"] }
 rsocket_rust = { version = "0.5.0", path = "../rsocket" }
 rsocket_rust_transport_tcp = { version = "0.5.0", path = "../rsocket-transport-tcp" }
+rsocket_rust_transport_websocket = { version = "0.5.0", path = "../rsocket-transport-websocket" }
 

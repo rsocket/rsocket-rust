@@ -4,34 +4,37 @@ use rsocket_rust::frame::{Frame, Writeable};
 use rsocket_rust::transport::{ClientTransport, Rx, Tx};
 use std::error::Error;
 use std::future::Future;
-use std::net::{SocketAddr, TcpStream as StdTcpStream};
+use std::net::SocketAddr;
 use std::pin::Pin;
 use tokio::net::TcpStream;
-use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::{accept_async, connect_async, tungstenite::Message, WebSocketStream};
 use url::Url;
 
+enum Connector {
+    Direct(TcpStream),
+    Lazy(Url),
+}
+
 pub struct WebsocketClientTransport {
-    socket: TcpStream,
+    connector: Connector,
 }
 
-impl From<TcpStream> for WebsocketClientTransport {
-    fn from(socket: TcpStream) -> WebsocketClientTransport {
-        WebsocketClientTransport { socket }
+impl WebsocketClientTransport {
+    fn new(connector: Connector) -> WebsocketClientTransport {
+        WebsocketClientTransport { connector }
     }
-}
 
-impl From<&str> for WebsocketClientTransport {
-    fn from(addr: &str) -> WebsocketClientTransport {
-        let socket_addr = addr.parse().unwrap();
-        WebsocketClientTransport {
-            socket: connect(&socket_addr),
+    async fn connect(self) -> Result<WebSocketStream<TcpStream>, Box<dyn Send + Sync + Error>> {
+        match self.connector {
+            Connector::Direct(stream) => match accept_async(stream).await {
+                Ok(ws) => Ok(ws),
+                Err(e) => Err(Box::new(e)),
+            },
+            Connector::Lazy(u) => match connect_async(u).await {
+                Ok((stream, _)) => Ok(stream),
+                Err(e) => Err(Box::new(e)),
+            },
         }
-    }
-}
-
-impl From<Url> for WebsocketClientTransport {
-    fn from(addr: Url) -> WebsocketClientTransport {
-        unimplemented!()
     }
 }
 
@@ -42,17 +45,20 @@ impl ClientTransport for WebsocketClientTransport {
         mut sending: Rx<Frame>,
     ) -> Pin<Box<dyn Sync + Send + Future<Output = Result<(), Box<dyn Error + Send + Sync>>>>> {
         Box::pin(async move {
-            let ws_stream = tokio_tungstenite::accept_async(self.socket)
-                .await
-                .expect("Error during the websocket handshake occurred");
+            let ws_stream = self.connect().await?;
             let (mut write, mut read) = ws_stream.split();
             tokio::spawn(async move {
-                while let Some(Ok(msg)) = read.next().await {
-                    let raw = msg.into_data();
-                    let mut bf = BytesMut::new();
-                    bf.put_slice(&raw[..]);
-                    let f = Frame::decode(&mut bf).unwrap();
-                    incoming.send(f).unwrap();
+                while let Some(next) = read.next().await {
+                    match next {
+                        Ok(msg) => {
+                            let raw = msg.into_data();
+                            let mut bf = BytesMut::new();
+                            bf.put_slice(&raw[..]);
+                            let f = Frame::decode(&mut bf).unwrap();
+                            incoming.send(f).unwrap();
+                        }
+                        Err(e) => error!("got error: {}", e),
+                    }
                 }
             });
             while let Some(it) = sending.recv().await {
@@ -67,8 +73,32 @@ impl ClientTransport for WebsocketClientTransport {
     }
 }
 
-#[inline]
-fn connect(addr: &SocketAddr) -> TcpStream {
-    let origin = StdTcpStream::connect(addr).unwrap();
-    TcpStream::from_std(origin).unwrap()
+impl From<TcpStream> for WebsocketClientTransport {
+    fn from(socket: TcpStream) -> WebsocketClientTransport {
+        WebsocketClientTransport::new(Connector::Direct(socket))
+    }
+}
+
+impl From<&str> for WebsocketClientTransport {
+    fn from(addr: &str) -> WebsocketClientTransport {
+        let u = if addr.starts_with("ws://") {
+            Url::parse(addr).unwrap()
+        } else {
+            Url::parse(&format!("ws://{}", addr)).unwrap()
+        };
+        WebsocketClientTransport::new(Connector::Lazy(u))
+    }
+}
+
+impl From<SocketAddr> for WebsocketClientTransport {
+    fn from(addr: SocketAddr) -> WebsocketClientTransport {
+        let u = Url::parse(&format!("ws://{}", addr)).unwrap();
+        WebsocketClientTransport::new(Connector::Lazy(u))
+    }
+}
+
+impl From<Url> for WebsocketClientTransport {
+    fn from(url: Url) -> WebsocketClientTransport {
+        WebsocketClientTransport::new(Connector::Lazy(url))
+    }
 }
