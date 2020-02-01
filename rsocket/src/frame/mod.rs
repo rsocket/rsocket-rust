@@ -1,5 +1,5 @@
 use crate::errors::RSocketError;
-use crate::result::RSocketResult;
+use crate::misc::RSocketResult;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 mod cancel;

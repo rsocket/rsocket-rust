@@ -10,6 +10,9 @@ use tokio::sync::{mpsc, oneshot};
 
 pub type Tx<T> = mpsc::UnboundedSender<T>;
 pub type Rx<T> = mpsc::UnboundedReceiver<T>;
+pub type BoxResult<T> = Result<T, Box<dyn Send + Sync + Error>>;
+pub type SafeFuture<T> = Pin<Box<dyn Send + Sync + Future<Output = T>>>;
+
 pub(crate) type TxOnce<T> = oneshot::Sender<T>;
 pub(crate) type RxOnce<T> = oneshot::Receiver<T>;
 
@@ -22,11 +25,7 @@ pub(crate) fn new_tx_rx<T>() -> (Tx<T>, Rx<T>) {
 }
 
 pub trait ClientTransport {
-    fn attach(
-        self,
-        incoming: Tx<Frame>,
-        sending: Rx<Frame>,
-    ) -> Pin<Box<dyn Sync + Send + Future<Output = Result<(), Box<dyn Error + Send + Sync>>>>>;
+    fn attach(self, incoming: Tx<Frame>, sending: Rx<Frame>) -> SafeFuture<BoxResult<()>>;
 }
 
 pub trait ServerTransport {
@@ -35,7 +34,7 @@ pub trait ServerTransport {
         self,
         starter: Option<fn()>,
         acceptor: impl Fn(Self::Item) + Send + Sync + 'static,
-    ) -> Pin<Box<dyn Sync + Send + Future<Output = Result<(), Box<dyn Error + Send + Sync>>>>>
+    ) -> SafeFuture<BoxResult<()>>
     where
         Self::Item: ClientTransport + Sized;
 }

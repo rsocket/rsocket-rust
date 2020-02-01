@@ -27,7 +27,7 @@ fn test_websocket() {
     // spawn a server
     server_runtime.spawn(async move {
         RSocketFactory::receive()
-            .transport(WebsocketServerTransport::from(""))
+            .transport(WebsocketServerTransport::from(addr))
             .acceptor(|setup, _socket| {
                 info!("accept setup: {:?}", setup);
                 Ok(Box::new(EchoRSocket))

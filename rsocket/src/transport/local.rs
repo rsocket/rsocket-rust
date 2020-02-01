@@ -1,4 +1,4 @@
-use super::spi::{ClientTransport, Rx, Tx};
+use super::spi::{BoxResult, ClientTransport, Rx, SafeFuture, Tx};
 use crate::frame::Frame;
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use std::error::Error;
@@ -17,11 +17,7 @@ impl LocalClientTransport {
 }
 
 impl ClientTransport for LocalClientTransport {
-    fn attach(
-        mut self,
-        incoming: Tx<Frame>,
-        mut sending: Rx<Frame>,
-    ) -> Pin<Box<dyn Sync + Send + Future<Output = Result<(), Box<dyn Error + Send + Sync>>>>> {
+    fn attach(mut self, incoming: Tx<Frame>, mut sending: Rx<Frame>) -> SafeFuture<BoxResult<()>> {
         let mut rx = self.rx.take().unwrap();
         Box::pin(async move {
             tokio::spawn(async move {

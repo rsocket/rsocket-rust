@@ -1,5 +1,5 @@
-mod default;
+mod normal;
 mod setup;
 
-pub use default::{Payload, PayloadBuilder};
+pub use normal::{Payload, PayloadBuilder};
 pub use setup::{SetupPayload, SetupPayloadBuilder};

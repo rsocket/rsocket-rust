@@ -1,9 +1,5 @@
 #[macro_use]
 extern crate log;
-extern crate rsocket_rust;
-extern crate rsocket_rust_transport_tcp;
-extern crate rsocket_rust_transport_websocket;
-extern crate tokio;
 
 use rsocket_rust::prelude::*;
 use rsocket_rust_transport_tcp::TcpServerTransport;

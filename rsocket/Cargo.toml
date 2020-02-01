@@ -10,13 +10,15 @@ homepage = "https://github.com/rsocket/rsocket-rust"
 description = "rsocket-rust is an implementation of the RSocket protocol in Rust."
 
 [dependencies]
-matches = "0.1.8"
 log = "0.4.8"
 bytes = "0.5.4"
 futures = "0.3.1"
 lazy_static = "1.4.0"
-url = "2.1.1"
-tokio = { version = "0.2", default-features = false, features = ["rt-core","rt-threaded","sync","stream"] }
+
+[dependencies.tokio]
+version = "0.2"
+default-features = false
+features = [ "rt-core", "rt-threaded", "sync", "stream" ]
 
 [dev-dependencies]
 env_logger = "0.7.1"

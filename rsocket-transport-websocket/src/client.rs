@@ -1,11 +1,9 @@
 use bytes::{BufMut, BytesMut};
 use futures::{SinkExt, StreamExt};
 use rsocket_rust::frame::{Frame, Writeable};
-use rsocket_rust::transport::{ClientTransport, Rx, Tx};
+use rsocket_rust::transport::{BoxResult, ClientTransport, Rx, SafeFuture, Tx};
 use std::error::Error;
-use std::future::Future;
 use std::net::SocketAddr;
-use std::pin::Pin;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{accept_async, connect_async, tungstenite::Message, WebSocketStream};
 use url::Url;
@@ -39,11 +37,7 @@ impl WebsocketClientTransport {
 }
 
 impl ClientTransport for WebsocketClientTransport {
-    fn attach(
-        self,
-        incoming: Tx<Frame>,
-        mut sending: Rx<Frame>,
-    ) -> Pin<Box<dyn Sync + Send + Future<Output = Result<(), Box<dyn Error + Send + Sync>>>>> {
+    fn attach(self, incoming: Tx<Frame>, mut sending: Rx<Frame>) -> SafeFuture<BoxResult<()>> {
         Box::pin(async move {
             let ws_stream = self.connect().await?;
             let (mut write, mut read) = ws_stream.split();

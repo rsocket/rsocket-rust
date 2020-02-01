@@ -1,12 +1,9 @@
 use super::codec::LengthBasedFrameCodec;
 use futures::{SinkExt, StreamExt};
 use rsocket_rust::frame::Frame;
-use rsocket_rust::transport::{ClientTransport, Rx, Tx};
-use std::error::Error;
-use std::future::Future;
+use rsocket_rust::transport::{BoxResult, ClientTransport, Rx, SafeFuture, Tx};
 use std::net::SocketAddr;
 use std::net::TcpStream as StdTcpStream;
-use std::pin::Pin;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
 
@@ -26,7 +23,7 @@ impl TcpClientTransport {
     }
 
     #[inline]
-    async fn connect(self) -> Result<TcpStream, Box<dyn Send + Sync + Error>> {
+    async fn connect(self) -> BoxResult<TcpStream> {
         match self.connector {
             Connector::Direct(stream) => Ok(stream),
             Connector::Lazy(addr) => match StdTcpStream::connect(&addr) {
@@ -41,11 +38,7 @@ impl TcpClientTransport {
 }
 
 impl ClientTransport for TcpClientTransport {
-    fn attach(
-        self,
-        incoming: Tx<Frame>,
-        mut sending: Rx<Frame>,
-    ) -> Pin<Box<dyn Sync + Send + Future<Output = Result<(), Box<dyn Error + Send + Sync>>>>> {
+    fn attach(self, incoming: Tx<Frame>, mut sending: Rx<Frame>) -> SafeFuture<BoxResult<()>> {
         Box::pin(async move {
             let socket = self.connect().await?;
             let (mut writer, mut reader) = Framed::new(socket, LengthBasedFrameCodec).split();

@@ -1,7 +1,7 @@
 use crate::errors::{ErrorKind, RSocketError};
 use crate::frame::{self};
+use crate::misc::RSocketResult;
 use crate::payload::{Payload, SetupPayload};
-use crate::result::RSocketResult;
 use crate::spi::RSocket;
 use futures::future;
 use std::collections::HashMap;

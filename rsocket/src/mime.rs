@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::slice::Iter;
 
 pub const APPLICATION_BINARY: &str = "application/binary";
 pub const APPLICATION_AVRO: &str = "application/avro";

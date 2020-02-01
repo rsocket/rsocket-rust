@@ -32,7 +32,7 @@ impl U24 {
     }
 }
 
-pub struct PayloadSupport {}
+pub(crate) struct PayloadSupport {}
 
 impl PayloadSupport {
     pub fn len(metadata: &Option<Bytes>, data: &Option<Bytes>) -> usize {

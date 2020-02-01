@@ -4,11 +4,9 @@ version = "0.5.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 log = "0.4.8"
-rsocket_rust = { version = "0.5.0", path = "../rsocket"}
+rsocket_rust = { path = "../rsocket" }
 futures = "0.3"
 bytes = "0.5"
 url = "2.1.1"

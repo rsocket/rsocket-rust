@@ -1,7 +1,7 @@
 use crate::errors::{self, ErrorKind, RSocketError};
 use crate::frame;
-use crate::payload::{Payload, SetupPayload};
-use crate::result::RSocketResult;
+use crate::misc::RSocketResult;
+use crate::payload::Payload;
 
 use futures::future;
 use futures::{Sink, SinkExt, Stream, StreamExt};
@@ -11,7 +11,6 @@ use std::result::Result;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
-// TODO: switch to reactor-rust.
 pub type Mono<T> = Pin<Box<dyn Send + Sync + Future<Output = T>>>;
 pub type Flux<T> = Pin<Box<dyn Send + Sync + Stream<Item = T>>>;
 

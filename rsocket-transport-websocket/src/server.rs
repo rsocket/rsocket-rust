@@ -1,9 +1,6 @@
 use super::client::WebsocketClientTransport;
-use rsocket_rust::transport::ServerTransport;
-use std::error::Error;
-use std::future::Future;
+use rsocket_rust::transport::{BoxResult, SafeFuture, ServerTransport};
 use std::net::SocketAddr;
-use std::pin::Pin;
 use tokio::net::TcpListener;
 
 pub struct WebsocketServerTransport {
@@ -37,7 +34,7 @@ impl ServerTransport for WebsocketServerTransport {
         self,
         starter: Option<fn()>,
         acceptor: impl Fn(WebsocketClientTransport) + Send + Sync + 'static,
-    ) -> Pin<Box<dyn Sync + Send + Future<Output = Result<(), Box<dyn Error + Send + Sync>>>>> {
+    ) -> SafeFuture<BoxResult<()>> {
         Box::pin(async move {
             match TcpListener::bind(self.addr).await {
                 Ok(mut listener) => {

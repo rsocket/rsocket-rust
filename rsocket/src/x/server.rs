@@ -1,4 +1,3 @@
-use super::uri::URI;
 use crate::errors::RSocketError;
 use crate::frame::{self, Frame};
 use crate::payload::SetupPayload;

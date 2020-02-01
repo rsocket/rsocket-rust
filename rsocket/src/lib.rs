@@ -6,28 +6,21 @@
 extern crate log;
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
-extern crate matches;
 
+mod errors;
 pub mod extension;
-
 pub mod frame;
 pub mod mime;
-
-// mod core;
-mod errors;
+mod misc;
 mod payload;
-mod result;
 mod spi;
-
 pub mod transport;
-
 mod x;
 
 pub mod prelude {
     pub use crate::errors::*;
+    pub use crate::misc::RSocketResult;
     pub use crate::payload::*;
-    pub use crate::result::*;
     pub use crate::spi::*;
     pub use crate::transport::{ClientTransport, Rx, ServerTransport, Tx};
     pub use crate::x::{Client, RSocketFactory};
