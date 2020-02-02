@@ -117,9 +117,10 @@ where
     {
         match self.transport.take() {
             Some(tp) => {
+                let rt2 = rt.clone();
                 let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
                 let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
-                tokio::spawn(async move {
+                rt2.spawn(async move {
                     tp.attach(rcv_tx, snd_rx).await.unwrap();
                 });
                 let duplex_socket = DuplexSocket::new(rt, 1, snd_tx.clone()).await;
@@ -128,7 +129,7 @@ where
                     Some(r) => Acceptor::Simple(Arc::new(r)),
                     None => Acceptor::Empty(),
                 };
-                tokio::spawn(async move {
+                rt2.spawn(async move {
                     duplex_socket_clone.event_loop(acceptor, rcv_rx).await;
                 });
                 let setup = self.setup.build();
