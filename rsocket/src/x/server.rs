@@ -1,6 +1,7 @@
 use crate::errors::RSocketError;
 use crate::frame::{self, Frame};
 use crate::payload::SetupPayload;
+use crate::runtime::{DefaultSpawner, Spawner};
 use crate::spi::{EmptyRSocket, RSocket};
 use crate::transport::{
     Acceptor, ClientTransport, DuplexSocket, FnAcceptorWithSetup, ServerTransport,
@@ -54,18 +55,26 @@ where
     }
 
     pub async fn serve(mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        self.serve_with_runtime(DefaultSpawner).await
+    }
+
+    pub async fn serve_with_runtime<R>(mut self, rt: R) -> Result<(), Box<dyn Error + Send + Sync>>
+    where
+        R: Send + Sync + Clone + Spawner + 'static,
+    {
         match self.transport.take() {
             None => panic!("missing transport"),
             Some(tp) => {
                 tp.start(self.start_handler, move |tp| {
+                    let rt2 = rt.clone();
                     let setuper = Arc::new(self.on_setup);
                     let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
                     let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
-                    tokio::spawn(async move {
+                    rt.spawn(async move {
                         tp.attach(rcv_tx, snd_rx).await.unwrap();
                     });
-                    tokio::spawn(async move {
-                        let ds = DuplexSocket::new(0, snd_tx).await;
+                    rt.spawn(async move {
+                        let ds = DuplexSocket::new(rt2, 0, snd_tx).await;
                         let acceptor = Acceptor::Generate(setuper.clone());
                         ds.event_loop(acceptor, rcv_rx).await;
                     });

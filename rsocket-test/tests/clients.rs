@@ -130,7 +130,10 @@ async fn test_request_response_err() {
     };
 }
 
-async fn exec_request_response(socket: &Client) {
+async fn exec_request_response<R>(socket: &Client<R>)
+where
+    R: Send + Sync + Clone + Spawner + 'static,
+{
     // request response
     let sending = Payload::builder()
         .set_data_utf8("Hello World!")
@@ -140,19 +143,28 @@ async fn exec_request_response(socket: &Client) {
     info!("REQUEST_RESPONSE: {:?}", result);
 }
 
-async fn exec_metadata_push(socket: &Client) {
+async fn exec_metadata_push<R>(socket: &Client<R>)
+where
+    R: Send + Sync + Clone + Spawner + 'static,
+{
     let pa = Payload::builder().set_metadata_utf8("Hello World!").build();
     // metadata push
     socket.metadata_push(pa).await;
 }
 
-async fn exec_fire_and_forget(socket: &Client) {
+async fn exec_fire_and_forget<R>(socket: &Client<R>)
+where
+    R: Send + Sync + Clone + Spawner + 'static,
+{
     // request fnf
     let fnf = Payload::from("Hello World!");
     socket.fire_and_forget(fnf).await;
 }
 
-async fn exec_request_stream(socket: &Client) {
+async fn exec_request_stream<R>(socket: &Client<R>)
+where
+    R: Send + Sync + Clone + Spawner + 'static,
+{
     // request stream
     let sending = Payload::builder()
         .set_data_utf8("Hello Rust!")
@@ -169,7 +181,10 @@ async fn exec_request_stream(socket: &Client) {
     }
 }
 
-async fn exec_request_channel(socket: &Client) {
+async fn exec_request_channel<R>(socket: &Client<R>)
+where
+    R: Send + Sync + Clone + Spawner + 'static,
+{
     let sends: Vec<_> = (0..10)
         .map(|n| {
             let p = Payload::builder()

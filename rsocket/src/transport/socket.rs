@@ -4,6 +4,7 @@ use crate::errors::{self, ErrorKind, RSocketError};
 use crate::frame::{self, Body, Frame};
 use crate::misc::RSocketResult;
 use crate::payload::{Payload, SetupPayload};
+use crate::runtime::Spawner;
 use crate::spi::{EmptyRSocket, Flux, Mono, RSocket};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use futures::{future, Sink, SinkExt, Stream, StreamExt};
@@ -19,7 +20,11 @@ use tokio::prelude::*;
 use tokio::sync::Mutex;
 
 #[derive(Clone)]
-pub(crate) struct DuplexSocket {
+pub(crate) struct DuplexSocket<R>
+where
+    R: Send + Sync + Clone + Spawner + 'static,
+{
+    rt: R,
     seq: StreamID,
     responder: Responder,
     tx: Tx<Frame>,
@@ -40,10 +45,15 @@ enum Handler {
     ReqRC(Tx<Result<Payload, RSocketError>>),
 }
 
-impl DuplexSocket {
-    pub(crate) async fn new(first_stream_id: u32, tx: Tx<Frame>) -> DuplexSocket {
+impl<R> DuplexSocket<R>
+where
+    R: Send + Sync + Clone + Spawner + 'static,
+{
+    pub(crate) async fn new(rt: R, first_stream_id: u32, tx: Tx<Frame>) -> DuplexSocket<R> {
+        let rt2 = rt.clone();
         let (canceller_tx, canceller_rx) = new_tx_rx::<u32>();
         let ds = DuplexSocket {
+            rt,
             seq: StreamID::from(first_stream_id),
             tx,
             canceller: canceller_tx,
@@ -52,7 +62,7 @@ impl DuplexSocket {
         };
 
         let ds2 = ds.clone();
-        tokio::spawn(async move {
+        rt2.spawn(async move {
             ds2.loop_canceller(canceller_rx).await;
         });
         ds
@@ -275,7 +285,7 @@ impl DuplexSocket {
         self.register_handler(sid, Handler::ResRR(counter.clone()))
             .await;
 
-        tokio::spawn(async move {
+        self.rt.spawn(async move {
             // TODO: use future select
             let result = responder.request_response(input).await;
             if counter.count_down() == 0 {
@@ -314,7 +324,7 @@ impl DuplexSocket {
     async fn on_request_stream(&self, sid: u32, flag: u16, input: Payload) {
         let responder = self.responder.clone();
         let tx = self.tx.clone();
-        tokio::spawn(async move {
+        self.rt.spawn(async move {
             // TODO: support cancel
             let mut payloads = responder.request_stream(input);
             while let Some(next) = payloads.next().await {
@@ -349,7 +359,7 @@ impl DuplexSocket {
         let (sender, receiver) = new_tx_rx::<Result<Payload, RSocketError>>();
         sender.send(Ok(first)).unwrap();
         self.register_handler(sid, Handler::ReqRC(sender)).await;
-        tokio::spawn(async move {
+        self.rt.spawn(async move {
             // respond client channel
             let mut outputs = responder.request_channel(Box::pin(receiver));
             // TODO: support custom RequestN.
@@ -405,7 +415,10 @@ impl DuplexSocket {
     }
 }
 
-impl RSocket for DuplexSocket {
+impl<R> RSocket for DuplexSocket<R>
+where
+    R: Send + Sync + Clone + Spawner + 'static,
+{
     fn metadata_push(&self, req: Payload) -> Mono<()> {
         let sid = self.seq.next();
         let tx = self.tx.clone();
@@ -442,7 +455,7 @@ impl RSocket for DuplexSocket {
         let sid = self.seq.next();
         let handlers = Arc::clone(&self.handlers);
         let sender = self.tx.clone();
-        tokio::spawn(async move {
+        self.rt.spawn(async move {
             {
                 // register handler
                 let mut map = handlers.lock().await;
@@ -477,7 +490,7 @@ impl RSocket for DuplexSocket {
         // register handler
         let (sender, receiver) = new_tx_rx::<Result<Payload, RSocketError>>();
         let handlers = Arc::clone(&self.handlers);
-        tokio::spawn(async move {
+        self.rt.spawn(async move {
             {
                 let mut map = handlers.lock().await;
                 (*map).insert(sid, Handler::ReqRS(sender));
@@ -507,7 +520,7 @@ impl RSocket for DuplexSocket {
         // register handler
         let (sender, receiver) = new_tx_rx::<Result<Payload, RSocketError>>();
         let handlers = Arc::clone(&self.handlers);
-        tokio::spawn(async move {
+        self.rt.spawn(async move {
             {
                 let mut map = handlers.lock().await;
                 (*map).insert(sid, Handler::ReqRC(sender));

@@ -1,6 +1,7 @@
 use crate::errors::RSocketError;
 use crate::frame::{self, Frame};
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
+use crate::runtime::{DefaultSpawner, Spawner};
 use crate::spi::{Flux, Mono, RSocket};
 use crate::transport::{self, Acceptor, ClientTransport, DuplexSocket, Rx, Tx};
 use futures::{Future, Stream};
@@ -13,8 +14,11 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 
 #[derive(Clone)]
-pub struct Client {
-    socket: DuplexSocket,
+pub struct Client<R>
+where
+    R: Send + Sync + Clone + Spawner + 'static,
+{
+    socket: DuplexSocket<R>,
 }
 
 pub struct ClientBuilder<T>
@@ -26,10 +30,14 @@ where
     responder: Option<fn() -> Box<dyn RSocket>>,
 }
 
-impl Client {
-    fn new(socket: DuplexSocket) -> Client {
+impl<R> Client<R>
+where
+    R: Send + Sync + Clone + Spawner + 'static,
+{
+    fn new(socket: DuplexSocket<R>) -> Client<R> {
         Client { socket }
     }
+
     pub fn close(self) {
         self.socket.close();
     }
@@ -96,7 +104,17 @@ where
         self
     }
 
-    pub async fn start(mut self) -> Result<Client, Box<dyn Error + Send + Sync>> {
+    pub async fn start(self) -> Result<Client<DefaultSpawner>, Box<dyn Error + Send + Sync>> {
+        self.start_with_runtime(DefaultSpawner).await
+    }
+
+    pub async fn start_with_runtime<R>(
+        mut self,
+        rt: R,
+    ) -> Result<Client<R>, Box<dyn Error + Send + Sync>>
+    where
+        R: Send + Sync + Clone + Spawner + 'static,
+    {
         match self.transport.take() {
             Some(tp) => {
                 let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
@@ -104,7 +122,7 @@ where
                 tokio::spawn(async move {
                     tp.attach(rcv_tx, snd_rx).await.unwrap();
                 });
-                let duplex_socket = DuplexSocket::new(1, snd_tx.clone()).await;
+                let duplex_socket = DuplexSocket::new(rt, 1, snd_tx.clone()).await;
                 let duplex_socket_clone = duplex_socket.clone();
                 let acceptor = match self.responder {
                     Some(r) => Acceptor::Simple(Arc::new(r)),
@@ -122,19 +140,26 @@ where
     }
 }
 
-impl RSocket for Client {
+impl<R> RSocket for Client<R>
+where
+    R: Send + Sync + Clone + Spawner + 'static,
+{
     fn metadata_push(&self, req: Payload) -> Mono<()> {
         self.socket.metadata_push(req)
     }
+
     fn fire_and_forget(&self, req: Payload) -> Mono<()> {
         self.socket.fire_and_forget(req)
     }
+
     fn request_response(&self, req: Payload) -> Mono<Result<Payload, RSocketError>> {
         self.socket.request_response(req)
     }
+
     fn request_stream(&self, req: Payload) -> Flux<Result<Payload, RSocketError>> {
         self.socket.request_stream(req)
     }
+
     fn request_channel(
         &self,
         reqs: Flux<Result<Payload, RSocketError>>,
