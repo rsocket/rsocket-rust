@@ -54,7 +54,7 @@ where
         self
     }
 
-    pub async fn serve(mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn serve(self) -> Result<(), Box<dyn Error + Send + Sync>> {
         self.serve_with_runtime(DefaultSpawner).await
     }
 
