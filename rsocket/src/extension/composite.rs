@@ -1,5 +1,5 @@
 use crate::errors::{ErrorKind, RSocketError};
-use crate::frame::U24;
+use crate::frame::{Writeable, U24};
 use crate::mime::WellKnownMIME;
 use crate::misc::RSocketResult;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
@@ -10,6 +10,30 @@ const MAX_MIME_LEN: usize = 0x7F;
 pub struct CompositeMetadata {
     mime: String,
     payload: Bytes,
+}
+
+impl Into<Bytes> for CompositeMetadata {
+    fn into(self) -> Bytes {
+        let mut bf = BytesMut::new();
+        self.write_to(&mut bf);
+        bf.freeze()
+    }
+}
+
+impl Into<BytesMut> for CompositeMetadata {
+    fn into(self) -> BytesMut {
+        let mut bf = BytesMut::new();
+        self.write_to(&mut bf);
+        bf
+    }
+}
+
+impl Into<Vec<u8>> for CompositeMetadata {
+    fn into(self) -> Vec<u8> {
+        let mut bf = BytesMut::new();
+        self.write_to(&mut bf);
+        bf.to_vec()
+    }
 }
 
 impl CompositeMetadata {
@@ -37,6 +61,15 @@ impl CompositeMetadata {
         Ok(metadatas)
     }
 
+    pub fn get_mime(&self) -> &String {
+        &self.mime
+    }
+
+    pub fn get_payload(&self) -> &Bytes {
+        &self.payload
+    }
+
+    #[inline]
     fn decode_once(bs: &mut BytesMut) -> RSocketResult<Option<CompositeMetadata>> {
         if bs.is_empty() {
             return Ok(None);
@@ -66,16 +99,10 @@ impl CompositeMetadata {
         let p = bs.split_to(payload_size).freeze();
         Ok(Some(CompositeMetadata::new(m, p)))
     }
+}
 
-    pub fn get_mime(&self) -> &String {
-        &self.mime
-    }
-
-    pub fn get_payload(&self) -> &Bytes {
-        &self.payload
-    }
-
-    pub fn write_to(&self, bf: &mut BytesMut) {
+impl Writeable for CompositeMetadata {
+    fn write_to(&self, bf: &mut BytesMut) {
         let mi = WellKnownMIME::from(self.mime.as_str());
         let first_byte: u8 = if mi == WellKnownMIME::Unknown {
             // Bad
@@ -94,9 +121,13 @@ impl CompositeMetadata {
         bf.put(self.payload.bytes());
     }
 
-    pub fn bytes(&self) -> Bytes {
-        let mut bf = BytesMut::new();
-        self.write_to(&mut bf);
-        bf.freeze()
+    fn len(&self) -> usize {
+        let mut amount = 4;
+        let wellknown = WellKnownMIME::from(self.mime.as_str()) != WellKnownMIME::Unknown;
+        if wellknown {
+            amount += self.mime.len();
+        }
+        amount += self.payload.len();
+        amount
     }
 }
