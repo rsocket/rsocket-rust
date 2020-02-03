@@ -1,11 +1,5 @@
-use wasm_bindgen::prelude::*;
+mod client;
+mod runtime;
 
-#[wasm_bindgen]
-extern "C" {
-    fn alert(s: &str);
-}
-
-#[wasm_bindgen]
-pub fn greet(name: &str) {
-    alert(&format!("Hello, {}!", name));
-}
+pub use client::WebsocketClientTransport;
+pub use runtime::WASMSpawner;
