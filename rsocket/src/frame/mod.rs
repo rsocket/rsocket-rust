@@ -1,5 +1,5 @@
 use crate::errors::RSocketError;
-use crate::misc::RSocketResult;
+use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 mod cancel;
@@ -63,14 +63,6 @@ pub const TYPE_RESUME_OK: u16 = 0x0E;
 pub const REQUEST_MAX: u32 = 0x7FFF_FFFF; // 2147483647
 
 const LEN_HEADER: usize = 6;
-
-pub trait Writeable {
-    fn write_to(&self, bf: &mut BytesMut);
-    fn len(&self) -> usize;
-    fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-}
 
 #[derive(Debug, PartialEq)]
 pub enum Body {

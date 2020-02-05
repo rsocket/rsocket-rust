@@ -1,6 +1,6 @@
 use bytes::{Bytes, BytesMut};
 use rsocket_rust::extension::*;
-use rsocket_rust::frame::Writeable;
+use rsocket_rust::utils::Writeable;
 
 #[test]
 fn composite_metadata_codec_well() {

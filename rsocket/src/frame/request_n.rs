@@ -1,5 +1,5 @@
-use super::{Body, Frame, Writeable, REQUEST_MAX};
-use crate::misc::RSocketResult;
+use super::{Body, Frame, REQUEST_MAX};
+use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]

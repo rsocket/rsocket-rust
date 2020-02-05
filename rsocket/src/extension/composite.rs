@@ -1,7 +1,6 @@
 use crate::errors::{ErrorKind, RSocketError};
-use crate::frame::{Writeable, U24};
 use crate::mime::WellKnownMIME;
-use crate::misc::RSocketResult;
+use crate::utils::{RSocketResult, Writeable, U24};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 const MAX_MIME_LEN: usize = 0x7F;

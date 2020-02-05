@@ -1,5 +1,6 @@
 use bytes::{Buf, BytesMut};
-use rsocket_rust::frame::{Frame, Writeable, U24};
+use rsocket_rust::frame::Frame;
+use rsocket_rust::utils::{Writeable, U24};
 use std::io::{Error, ErrorKind};
 use tokio_util::codec::{Decoder, Encoder};
 

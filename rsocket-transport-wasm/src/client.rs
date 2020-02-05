@@ -1,9 +1,10 @@
 use super::runtime::WASMSpawner;
 use bytes::BytesMut;
 use js_sys::{ArrayBuffer, Uint8Array};
-use rsocket_rust::frame::{Frame, Writeable};
+use rsocket_rust::frame::Frame;
 use rsocket_rust::prelude::*;
 use rsocket_rust::transport::{BoxResult, ClientTransport, Rx, SafeFuture, Tx};
+use rsocket_rust::utils::Writeable;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::mpsc::channel;

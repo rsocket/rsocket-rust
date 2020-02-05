@@ -1,7 +1,6 @@
 use crate::errors::{ErrorKind, RSocketError};
-use crate::frame::U24;
 use crate::mime::WellKnownMIME;
-use crate::misc::RSocketResult;
+use crate::utils::{RSocketResult, U24};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 const MAX_ROUTING_TAG_LEN: usize = 0xFF;

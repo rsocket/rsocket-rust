@@ -1,7 +1,7 @@
 use crate::errors::{self, ErrorKind, RSocketError};
 use crate::frame;
-use crate::misc::RSocketResult;
 use crate::payload::Payload;
+use crate::utils::RSocketResult;
 
 use futures::future;
 use futures::{Sink, SinkExt, Stream, StreamExt};

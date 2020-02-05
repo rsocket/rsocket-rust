@@ -4,6 +4,7 @@ extern crate rsocket_rust;
 
 use bytes::{Bytes, BytesMut};
 use rsocket_rust::frame::*;
+use rsocket_rust::utils::Writeable;
 
 #[test]
 fn test_setup() {

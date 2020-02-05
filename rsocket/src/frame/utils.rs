@@ -1,36 +1,6 @@
 use super::FLAG_METADATA;
+use crate::utils::U24;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
-
-pub struct U24;
-
-impl U24 {
-    pub fn max() -> usize {
-        0x00FF_FFFF
-    }
-
-    pub fn write(n: u32, bf: &mut BytesMut) {
-        bf.put_u8((0xFF & (n >> 16)) as u8);
-        bf.put_u8((0xFF & (n >> 8)) as u8);
-        bf.put_u8((0xFF & n) as u8);
-    }
-
-    pub fn read(bf: &mut BytesMut) -> u32 {
-        let mut n: u32 = 0;
-        n += u32::from(bf[0]) << 16;
-        n += u32::from(bf[1]) << 8;
-        n += u32::from(bf[2]);
-        n
-    }
-
-    pub fn read_advance(bf: &mut BytesMut) -> u32 {
-        let mut n: u32 = 0;
-        let raw = bf.split_to(3);
-        n += u32::from(raw[0]) << 16;
-        n += u32::from(raw[1]) << 8;
-        n += u32::from(raw[2]);
-        n
-    }
-}
 
 pub(crate) struct PayloadSupport {}
 

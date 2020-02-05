@@ -1,5 +1,5 @@
-use super::{Body, Frame, PayloadSupport, Version, Writeable, FLAG_METADATA, FLAG_RESUME};
-use crate::misc::{RSocketResult, DEFAULT_MIME_TYPE};
+use super::{Body, Frame, PayloadSupport, Version, FLAG_METADATA, FLAG_RESUME};
+use crate::utils::{RSocketResult, Writeable, DEFAULT_MIME_TYPE};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::time::Duration;
 

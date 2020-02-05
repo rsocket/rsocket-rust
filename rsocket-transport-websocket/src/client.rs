@@ -1,7 +1,8 @@
 use bytes::{BufMut, BytesMut};
 use futures::{SinkExt, StreamExt};
-use rsocket_rust::frame::{Frame, Writeable};
+use rsocket_rust::frame::Frame;
 use rsocket_rust::transport::{BoxResult, ClientTransport, Rx, SafeFuture, Tx};
+use rsocket_rust::utils::Writeable;
 use std::error::Error;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;

@@ -1,3 +1,4 @@
+use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -12,6 +13,16 @@ impl Default for Version {
     }
 }
 
+impl Writeable for Version {
+    fn write_to(&self, bf: &mut BytesMut) {
+        bf.put_u16(self.major);
+        bf.put_u16(self.minor);
+    }
+    fn len(&self) -> usize {
+        4
+    }
+}
+
 impl Version {
     pub fn new(major: u16, minor: u16) -> Version {
         Version { major, minor }
@@ -23,10 +34,5 @@ impl Version {
 
     pub fn get_minor(self) -> u16 {
         self.minor
-    }
-
-    pub fn write_to(self, bf: &mut BytesMut) {
-        bf.put_u16(self.major);
-        bf.put_u16(self.minor);
     }
 }

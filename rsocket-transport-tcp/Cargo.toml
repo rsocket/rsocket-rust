@@ -6,17 +6,17 @@ edition = "2018"
 
 [dependencies]
 log = "0.4.8"
-futures = "0.3"
-bytes = "0.5"
+futures = "0.3.3"
+bytes = "0.5.4"
 rsocket_rust = { path = "../rsocket"}
 
 [dependencies.tokio]
-version = "0.2"
+version = "0.2.11"
 default-features = false
 features = [ "rt-core", "rt-threaded", "tcp", "sync", "stream" ]
 
 [dependencies.tokio-util]
-version = "0.2"
+version = "0.2.0"
 default-features = false
 features = ["codec"]
 

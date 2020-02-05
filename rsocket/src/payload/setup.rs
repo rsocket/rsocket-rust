@@ -1,5 +1,5 @@
 use crate::frame::Setup;
-use crate::misc::DEFAULT_MIME_TYPE;
+use crate::utils::DEFAULT_MIME_TYPE;
 use bytes::Bytes;
 use std::time::Duration;
 
