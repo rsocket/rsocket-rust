@@ -9,7 +9,7 @@ bytes = "0.5.4"
 wasm-bindgen = "0.2.58"
 wasm-bindgen-futures = "0.4.8"
 js-sys = "0.3.35"
-rsocket_rust = { path = "../rsocket" }
+rsocket_rust = { path = "../rsocket", features = ["frame"] }
 
 [dependencies.web-sys]
 version = "0.3.35"

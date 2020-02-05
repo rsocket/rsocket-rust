@@ -8,7 +8,7 @@ edition = "2018"
 log = "0.4.8"
 futures = "0.3.3"
 bytes = "0.5.4"
-rsocket_rust = { path = "../rsocket"}
+rsocket_rust = { path = "../rsocket", features = ["frame"] }
 
 [dependencies.tokio]
 version = "0.2.11"

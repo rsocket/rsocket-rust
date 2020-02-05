@@ -1,6 +1,6 @@
 use crate::errors::{ErrorKind, RSocketError};
 use crate::mime::WellKnownMIME;
-use crate::utils::{RSocketResult, U24};
+use crate::utils::{RSocketResult, Writeable, U24};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 const MAX_ROUTING_TAG_LEN: usize = 0xFF;
@@ -51,6 +51,10 @@ impl RoutingMetadata {
         Ok(bu.build())
     }
 
+    pub fn get_tags(&self) -> &Vec<String> {
+        &self.tags
+    }
+
     fn decode_once(bf: &mut BytesMut) -> RSocketResult<Option<String>> {
         if bf.is_empty() {
             return Ok(None);
@@ -62,12 +66,10 @@ impl RoutingMetadata {
         let tag = String::from_utf8(bf.split_to(size).to_vec()).unwrap();
         Ok(Some(tag))
     }
+}
 
-    pub fn get_tags(&self) -> &Vec<String> {
-        &self.tags
-    }
-
-    pub fn write_to(&self, bf: &mut BytesMut) {
+impl Writeable for RoutingMetadata {
+    fn write_to(&self, bf: &mut BytesMut) {
         for tag in &self.tags {
             let size = tag.len() as u8;
             bf.put_u8(size);
@@ -75,9 +77,11 @@ impl RoutingMetadata {
         }
     }
 
-    pub fn bytes(&self) -> Bytes {
-        let mut bf = BytesMut::new();
-        self.write_to(&mut bf);
-        bf.freeze()
+    fn len(&self) -> usize {
+        let mut n = 0;
+        for tag in &self.tags {
+            n += 1 + tag.as_bytes().len();
+        }
+        n
     }
 }

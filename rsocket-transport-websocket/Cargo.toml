@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 log = "0.4.8"
-rsocket_rust = { path = "../rsocket" }
+rsocket_rust = { path = "../rsocket", features = ["frame"] }
 futures = "0.3"
 bytes = "0.5"
 url = "2.1.1"

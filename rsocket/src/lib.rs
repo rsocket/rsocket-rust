@@ -9,7 +9,12 @@ extern crate lazy_static;
 
 mod errors;
 pub mod extension;
+
+#[cfg(feature = "frame")]
 pub mod frame;
+#[cfg(not(feature = "frame"))]
+mod frame;
+
 pub mod mime;
 mod payload;
 pub mod runtime;

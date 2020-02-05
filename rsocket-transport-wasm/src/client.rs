@@ -82,7 +82,7 @@ impl ClientTransport for WebsocketClientTransport {
             // forget the callback to keep it alive
             onmessage_callback.forget();
 
-            let onerror_callback = Closure::wrap(Box::new(move |e: ErrorEvent| {
+            let onerror_callback = Closure::wrap(Box::new(move |_e: ErrorEvent| {
                 // TODO: handle error
             }) as Box<dyn FnMut(ErrorEvent)>);
             ws.set_onerror(Some(onerror_callback.as_ref().unchecked_ref()));

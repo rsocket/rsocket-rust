@@ -2,6 +2,7 @@ extern crate rsocket_rust;
 
 use bytes::BytesMut;
 use rsocket_rust::extension::RoutingMetadata;
+use rsocket_rust::utils::Writeable;
 
 #[test]
 fn routing_metadata_codec() {
