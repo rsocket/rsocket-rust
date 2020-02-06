@@ -2,13 +2,55 @@ use crate::errors::{ErrorKind, RSocketError};
 use crate::mime::WellKnownMIME;
 use crate::utils::{RSocketResult, Writeable, U24};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+use std::collections::LinkedList;
+use std::result::Result;
 
 const MAX_MIME_LEN: usize = 0x7F;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct CompositeMetadata {
+    metadatas: LinkedList<Metadata>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Metadata {
     mime: String,
     payload: Bytes,
+}
+
+pub struct CompositeMetadataBuilder {
+    inner: CompositeMetadata,
+}
+
+impl CompositeMetadataBuilder {
+    pub fn push<I, A>(mut self, mime: I, payload: A) -> Self
+    where
+        I: Into<String>,
+        A: AsRef<[u8]>,
+    {
+        let mut bf = BytesMut::new();
+        bf.put_slice(payload.as_ref());
+        let m = Metadata::new(mime.into(), bf.freeze());
+        self.inner.push(m);
+        self
+    }
+
+    pub fn push_metadata(mut self, metadata: Metadata) -> Self {
+        self.inner.push(metadata);
+        self
+    }
+
+    pub fn build(self) -> CompositeMetadata {
+        self.inner
+    }
+}
+
+impl Into<Vec<u8>> for CompositeMetadata {
+    fn into(self) -> Vec<u8> {
+        let mut bf = BytesMut::new();
+        self.write_to(&mut bf);
+        bf.to_vec()
+    }
 }
 
 impl Into<Bytes> for CompositeMetadata {
@@ -27,49 +69,49 @@ impl Into<BytesMut> for CompositeMetadata {
     }
 }
 
-impl Into<Vec<u8>> for CompositeMetadata {
-    fn into(self) -> Vec<u8> {
-        let mut bf = BytesMut::new();
-        self.write_to(&mut bf);
-        bf.to_vec()
+impl Writeable for CompositeMetadata {
+    fn write_to(&self, bf: &mut BytesMut) {
+        for it in self.iter() {
+            it.write_to(bf);
+        }
+    }
+
+    fn len(&self) -> usize {
+        let mut n = 0;
+        for it in self.iter() {
+            n += it.len();
+        }
+        n
     }
 }
 
 impl CompositeMetadata {
-    pub fn new(mime: String, payload: Bytes) -> CompositeMetadata {
-        if mime.len() > MAX_MIME_LEN {
-            panic!("too large MIME type!");
+    pub fn builder() -> CompositeMetadataBuilder {
+        CompositeMetadataBuilder {
+            inner: CompositeMetadata::default(),
         }
-        if payload.len() > U24::max() {
-            panic!("too large Payload!")
-        }
-        CompositeMetadata { mime, payload }
     }
 
-    pub fn decode(b: &mut BytesMut) -> RSocketResult<Vec<CompositeMetadata>> {
-        let mut metadatas: Vec<CompositeMetadata> = vec![];
+    pub fn decode(b: &mut BytesMut) -> RSocketResult<CompositeMetadata> {
+        let mut metadatas = LinkedList::new();
         loop {
             match Self::decode_once(b) {
                 Ok(op) => match op {
-                    Some(v) => metadatas.push(v),
+                    Some(v) => metadatas.push_back(v),
                     None => break,
                 },
                 Err(e) => return Err(e),
             }
         }
-        Ok(metadatas)
+        Ok(CompositeMetadata { metadatas })
     }
 
-    pub fn get_mime(&self) -> &String {
-        &self.mime
-    }
-
-    pub fn get_payload(&self) -> &Bytes {
-        &self.payload
+    pub fn iter(&self) -> impl Iterator<Item = &Metadata> {
+        self.metadatas.iter()
     }
 
     #[inline]
-    fn decode_once(bs: &mut BytesMut) -> RSocketResult<Option<CompositeMetadata>> {
+    fn decode_once(bs: &mut BytesMut) -> RSocketResult<Option<Metadata>> {
         if bs.is_empty() {
             return Ok(None);
         }
@@ -96,11 +138,35 @@ impl CompositeMetadata {
             return Err(RSocketError::from("broken COMPOSITE_METADATA bytes!"));
         }
         let p = bs.split_to(payload_size).freeze();
-        Ok(Some(CompositeMetadata::new(m, p)))
+        Ok(Some(Metadata::new(m, p)))
+    }
+
+    pub fn push(&mut self, metadata: Metadata) {
+        self.metadatas.push_back(metadata)
     }
 }
 
-impl Writeable for CompositeMetadata {
+impl Metadata {
+    pub fn new(mime: String, payload: Bytes) -> Metadata {
+        if mime.len() > MAX_MIME_LEN {
+            panic!("too large MIME type!");
+        }
+        if payload.len() > U24::max() {
+            panic!("too large Payload!")
+        }
+        Metadata { mime, payload }
+    }
+
+    pub fn get_mime(&self) -> &String {
+        &self.mime
+    }
+
+    pub fn get_payload(&self) -> &Bytes {
+        &self.payload
+    }
+}
+
+impl Writeable for Metadata {
     fn write_to(&self, bf: &mut BytesMut) {
         let mi = WellKnownMIME::from(self.mime.as_str());
         let first_byte: u8 = if mi == WellKnownMIME::Unknown {

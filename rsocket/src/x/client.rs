@@ -115,29 +115,25 @@ where
     where
         R: Send + Sync + Clone + Spawner + 'static,
     {
-        match self.transport.take() {
-            Some(tp) => {
-                let rt2 = rt.clone();
-                let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
-                let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
-                rt2.spawn(async move {
-                    tp.attach(rcv_tx, snd_rx).await.unwrap();
-                });
-                let duplex_socket = DuplexSocket::new(rt, 1, snd_tx.clone()).await;
-                let duplex_socket_clone = duplex_socket.clone();
-                let acceptor = match self.responder {
-                    Some(r) => Acceptor::Simple(Arc::new(r)),
-                    None => Acceptor::Empty(),
-                };
-                rt2.spawn(async move {
-                    duplex_socket_clone.event_loop(acceptor, rcv_rx).await;
-                });
-                let setup = self.setup.build();
-                duplex_socket.setup(setup).await;
-                Ok(Client::new(duplex_socket))
-            }
-            None => panic!("missing transport"),
-        }
+        let tp = self.transport.take().expect("missint transport");
+        let cloned_rt = rt.clone();
+        let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
+        let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
+        cloned_rt.spawn(async move {
+            tp.attach(rcv_tx, snd_rx).await.unwrap();
+        });
+        let duplex_socket = DuplexSocket::new(rt, 1, snd_tx.clone()).await;
+        let cloned_duplex_socket = duplex_socket.clone();
+        let acceptor = match self.responder {
+            Some(r) => Acceptor::Simple(Arc::new(r)),
+            None => Acceptor::Empty(),
+        };
+        cloned_rt.spawn(async move {
+            cloned_duplex_socket.event_loop(acceptor, rcv_rx).await;
+        });
+        let setup = self.setup.build();
+        duplex_socket.setup(setup).await;
+        Ok(Client::new(duplex_socket))
     }
 }
 

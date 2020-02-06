@@ -62,26 +62,22 @@ where
     where
         R: Send + Sync + Clone + Spawner + 'static,
     {
-        match self.transport.take() {
-            None => panic!("missing transport"),
-            Some(tp) => {
-                tp.start(self.start_handler, move |tp| {
-                    let rt2 = rt.clone();
-                    let setuper = Arc::new(self.on_setup);
-                    let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
-                    let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
-                    rt.spawn(async move {
-                        tp.attach(rcv_tx, snd_rx).await.unwrap();
-                    });
-                    rt.spawn(async move {
-                        let ds = DuplexSocket::new(rt2, 0, snd_tx).await;
-                        let acceptor = Acceptor::Generate(setuper.clone());
-                        ds.event_loop(acceptor, rcv_rx).await;
-                    });
-                })
-                .await
-            }
-        }
+        let tp = self.transport.take().expect("missing transport");
+        tp.start(self.start_handler, move |tp| {
+            let cloned_rt = rt.clone();
+            let setuper = Arc::new(self.on_setup);
+            let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
+            let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
+            rt.spawn(async move {
+                tp.attach(rcv_tx, snd_rx).await.unwrap();
+            });
+            rt.spawn(async move {
+                let ds = DuplexSocket::new(cloned_rt, 0, snd_tx).await;
+                let acceptor = Acceptor::Generate(setuper.clone());
+                ds.event_loop(acceptor, rcv_rx).await;
+            });
+        })
+        .await
     }
 }
 
