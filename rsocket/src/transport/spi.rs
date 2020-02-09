@@ -1,12 +1,12 @@
 use crate::frame::Frame;
 use crate::payload::SetupPayload;
 use crate::spi::RSocket;
+use futures::channel::{mpsc, oneshot};
 use std::error::Error;
 use std::future::Future;
 use std::pin::Pin;
 use std::result::Result;
 use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot};
 
 pub type Tx<T> = mpsc::UnboundedSender<T>;
 pub type Rx<T> = mpsc::UnboundedReceiver<T>;
@@ -21,7 +21,7 @@ pub(crate) fn new_tx_rx_once<T>() -> (TxOnce<T>, RxOnce<T>) {
 }
 
 pub(crate) fn new_tx_rx<T>() -> (Tx<T>, Rx<T>) {
-    mpsc::unbounded_channel()
+    mpsc::unbounded()
 }
 
 pub trait ClientTransport {

@@ -78,7 +78,7 @@ fn test_tcp() {
                 info!("accept setup: {:?}", setup);
                 Ok(Box::new(EchoRSocket))
             })
-            .on_start(|| info!("+++++++ echo server started! +++++++"))
+            .on_start(|| info!("+++++++ tcp echo server started! +++++++"))
             .serve()
             .await
     });

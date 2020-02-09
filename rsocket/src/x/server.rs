@@ -6,13 +6,13 @@ use crate::spi::{EmptyRSocket, RSocket};
 use crate::transport::{
     Acceptor, ClientTransport, DuplexSocket, FnAcceptorWithSetup, ServerTransport,
 };
+use futures::channel::mpsc;
 use std::error::Error;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::result::Result;
 use std::sync::Arc;
-use tokio::sync::mpsc;
 
 type FnStart = fn();
 
@@ -66,8 +66,8 @@ where
         tp.start(self.start_handler, move |tp| {
             let cloned_rt = rt.clone();
             let setuper = Arc::new(self.on_setup);
-            let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
-            let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
+            let (rcv_tx, rcv_rx) = mpsc::unbounded::<Frame>();
+            let (snd_tx, snd_rx) = mpsc::unbounded::<Frame>();
             rt.spawn(async move {
                 tp.attach(rcv_tx, snd_rx).await.unwrap();
             });

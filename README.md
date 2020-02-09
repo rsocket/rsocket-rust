@@ -104,6 +104,7 @@ async fn test() {
 - Transport
   - [x] TCP
   - [x] Websocket
+  - [x] WASM
 - Reactor
   - [ ] ...
 - High Level APIs

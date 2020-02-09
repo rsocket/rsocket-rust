@@ -50,13 +50,13 @@ impl ClientTransport for WebsocketClientTransport {
                             let mut bf = BytesMut::new();
                             bf.put_slice(&raw[..]);
                             let f = Frame::decode(&mut bf).unwrap();
-                            incoming.send(f).unwrap();
+                            incoming.unbounded_send(f).unwrap();
                         }
                         Err(e) => error!("got error: {}", e),
                     }
                 }
             });
-            while let Some(it) = sending.recv().await {
+            while let Some(it) = sending.next().await {
                 debug!("===> SND: {:?}", &it);
                 let mut bf = BytesMut::new();
                 it.write_to(&mut bf);

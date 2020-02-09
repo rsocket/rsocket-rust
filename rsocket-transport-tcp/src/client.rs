@@ -44,11 +44,11 @@ impl ClientTransport for TcpClientTransport {
             let (mut writer, mut reader) = Framed::new(socket, LengthBasedFrameCodec).split();
             tokio::spawn(async move {
                 while let Some(it) = reader.next().await {
-                    incoming.send(it.unwrap()).unwrap();
+                    incoming.unbounded_send(it.unwrap()).unwrap();
                 }
             });
             // loop write
-            while let Some(it) = sending.recv().await {
+            while let Some(it) = sending.next().await {
                 debug!("===> SND: {:?}", &it);
                 writer.send(it).await.unwrap()
             }

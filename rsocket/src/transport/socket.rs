@@ -89,7 +89,9 @@ where
         if let Some(b) = m {
             bu = bu.set_metadata(b);
         }
-        self.tx.send(bu.build()).unwrap();
+        self.tx
+            .unbounded_send(bu.build())
+            .expect("Send setup failed");
     }
 
     #[inline]
@@ -100,14 +102,14 @@ where
 
     #[inline]
     pub(crate) async fn loop_canceller(&self, mut rx: Rx<u32>) {
-        while let Some(sid) = rx.recv().await {
+        while let Some(sid) = rx.next().await {
             let mut handlers = self.handlers.lock().await;
             (*handlers).remove(&sid);
         }
     }
 
     pub(crate) async fn event_loop(&self, acceptor: Acceptor, mut rx: Rx<Frame>) {
-        while let Some(msg) = rx.recv().await {
+        while let Some(msg) = rx.next().await {
             let sid = msg.get_stream_id();
             let flag = msg.get_flag();
             misc::debug_frame(false, &msg);
@@ -119,7 +121,9 @@ where
                             .set_code(errors::ERR_REJECT_SETUP)
                             .set_data(Bytes::from(errmsg))
                             .build();
-                        self.tx.send(sending).unwrap();
+                        self.tx
+                            .unbounded_send(sending)
+                            .expect("Reject setup failed");
                         return;
                     }
                 }
@@ -184,9 +188,9 @@ where
             let kind = ErrorKind::Internal(input.get_code(), input.get_data_utf8());
             let e = Err(RSocketError::from(kind));
             match handler {
-                Handler::ReqRR(tx) => tx.send(e).unwrap(),
+                Handler::ReqRR(tx) => tx.send(e).expect("Send RR failed"),
                 Handler::ResRR(_) => unreachable!(),
-                Handler::ReqRS(tx) => tx.send(e).unwrap(),
+                Handler::ReqRS(tx) => tx.unbounded_send(e).expect("Send RS failed"),
                 _ => unimplemented!(),
             }
         }
@@ -225,7 +229,9 @@ where
             Handler::ResRR(c) => unreachable!(),
             Handler::ReqRS(sender) => {
                 if flag & frame::FLAG_NEXT != 0 {
-                    sender.send(Ok(input)).unwrap();
+                    sender
+                        .unbounded_send(Ok(input))
+                        .expect("Send payload response failed.");
                 }
                 if flag & frame::FLAG_COMPLETE == 0 {
                     (*handlers).insert(sid, Handler::ReqRS(sender));
@@ -234,7 +240,9 @@ where
             Handler::ReqRC(sender) => {
                 // TODO: support channel
                 if flag & frame::FLAG_NEXT != 0 {
-                    sender.send(Ok(input)).unwrap();
+                    sender
+                        .unbounded_send(Ok(input))
+                        .expect("Send payload response failed");
                 }
                 if flag & frame::FLAG_COMPLETE == 0 {
                     (*handlers).insert(sid, Handler::ReqRC(sender));
@@ -294,7 +302,9 @@ where
             }
 
             // async remove canceller
-            canceller.send(sid).unwrap();
+            canceller
+                .unbounded_send(sid)
+                .expect("Send canceller failed");
 
             let sending = match result {
                 Ok(it) => {
@@ -314,7 +324,7 @@ where
                     .set_data(Bytes::from("TODO: should be error details"))
                     .build(),
             };
-            if let Err(e) = tx.send(sending) {
+            if let Err(e) = tx.unbounded_send(sending) {
                 error!("respond REQUEST_RESPONSE failed: {}", e);
             }
         });
@@ -345,10 +355,12 @@ where
                         .set_data(Bytes::from(format!("{}", e)))
                         .build(),
                 };
-                tx.send(sending).unwrap();
+                tx.unbounded_send(sending)
+                    .expect("Send stream response failed");
             }
             let complete = frame::Payload::builder(sid, frame::FLAG_COMPLETE).build();
-            tx.send(complete).unwrap();
+            tx.unbounded_send(complete)
+                .expect("Send stream complete response failed");
         });
     }
 
@@ -357,7 +369,7 @@ where
         let responder = self.responder.clone();
         let tx = self.tx.clone();
         let (sender, receiver) = new_tx_rx::<Result<Payload, RSocketError>>();
-        sender.send(Ok(first)).unwrap();
+        sender.unbounded_send(Ok(first)).unwrap();
         self.register_handler(sid, Handler::ReqRC(sender)).await;
         self.rt.spawn(async move {
             // respond client channel
@@ -365,7 +377,7 @@ where
             // TODO: support custom RequestN.
             let request_n = frame::RequestN::builder(sid, 0).build();
 
-            if let Err(e) = tx.send(request_n) {
+            if let Err(e) = tx.unbounded_send(request_n) {
                 error!("respond REQUEST_N failed: {}", e);
             }
 
@@ -387,10 +399,10 @@ where
                         .set_data(Bytes::from(format!("{}", e)))
                         .build(),
                 };
-                tx.send(sending).unwrap();
+                tx.unbounded_send(sending).unwrap();
             }
             let complete = frame::Payload::builder(sid, frame::FLAG_COMPLETE).build();
-            if let Err(e) = tx.send(complete) {
+            if let Err(e) = tx.unbounded_send(complete) {
                 error!("complete REQUEST_CHANNEL failed: {}", e);
             }
         });
@@ -409,7 +421,7 @@ where
         if let Some(b) = data {
             sending = sending.set_data(b);
         }
-        if let Err(e) = tx.send(sending.build()) {
+        if let Err(e) = tx.unbounded_send(sending.build()) {
             error!("respond KEEPALIVE failed: {}", e);
         }
     }
@@ -428,7 +440,7 @@ where
             if let Some(b) = m {
                 bu = bu.set_metadata(b);
             }
-            if let Err(e) = tx.send(bu.build()) {
+            if let Err(e) = tx.unbounded_send(bu.build()) {
                 error!("send metadata_push failed: {}", e);
             }
         })
@@ -445,7 +457,7 @@ where
             if let Some(b) = m {
                 bu = bu.set_metadata(b);
             }
-            if let Err(e) = tx.send(bu.build()) {
+            if let Err(e) = tx.unbounded_send(bu.build()) {
                 error!("send fire_and_forget failed: {}", e);
             }
         })
@@ -472,7 +484,7 @@ where
                 bu = bu.set_metadata(b);
             }
             // send frame
-            if let Err(e) = sender.send(bu.build()) {
+            if let Err(e) = sender.unbounded_send(bu.build()) {
                 error!("send request_response failed: {}", e);
             }
         });
@@ -504,7 +516,7 @@ where
             if let Some(b) = m {
                 bu = bu.set_metadata(b);
             }
-            if let Err(e) = tx.send(bu.build()) {
+            if let Err(e) = tx.unbounded_send(bu.build()) {
                 error!("send request_stream failed: {}", e);
             }
         });
@@ -556,12 +568,12 @@ where
                         .set_data(Bytes::from(format!("{}", e)))
                         .build(),
                 };
-                if let Err(e) = tx.send(sending) {
+                if let Err(e) = tx.unbounded_send(sending) {
                     error!("send REQUEST_CHANNEL failed: {}", e);
                 }
             }
             let sending = frame::Payload::builder(sid, frame::FLAG_COMPLETE).build();
-            if let Err(e) = tx.send(sending) {
+            if let Err(e) = tx.unbounded_send(sending) {
                 error!("complete REQUEST_CHANNEL failed: {}", e);
             }
         });

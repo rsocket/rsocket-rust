@@ -12,6 +12,11 @@ pub struct JsPayload {
     m: Option<Uint8Array>,
 }
 
+#[wasm_bindgen]
+pub struct JsClient {
+    inner: Client<WASMSpawner>,
+}
+
 impl From<Payload> for JsPayload {
     fn from(input: Payload) -> JsPayload {
         let d = match input.data() {
@@ -71,11 +76,6 @@ impl JsPayload {
             Some(Uint8Array::from(input))
         }
     }
-}
-
-#[wasm_bindgen]
-pub struct JsClient {
-    inner: Client<WASMSpawner>,
 }
 
 #[wasm_bindgen]

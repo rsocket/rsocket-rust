@@ -4,6 +4,7 @@ use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::runtime::{DefaultSpawner, Spawner};
 use crate::spi::{Flux, Mono, RSocket};
 use crate::transport::{self, Acceptor, ClientTransport, DuplexSocket, Rx, Tx};
+use futures::channel::mpsc;
 use futures::{Future, Stream};
 use std::error::Error;
 use std::net::SocketAddr;
@@ -11,7 +12,6 @@ use std::pin::Pin;
 use std::result::Result;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::mpsc;
 
 #[derive(Clone)]
 pub struct Client<R>
@@ -117,8 +117,8 @@ where
     {
         let tp = self.transport.take().expect("missint transport");
         let cloned_rt = rt.clone();
-        let (rcv_tx, rcv_rx) = mpsc::unbounded_channel::<Frame>();
-        let (snd_tx, snd_rx) = mpsc::unbounded_channel::<Frame>();
+        let (rcv_tx, rcv_rx) = mpsc::unbounded::<Frame>();
+        let (snd_tx, snd_rx) = mpsc::unbounded::<Frame>();
         cloned_rt.spawn(async move {
             tp.attach(rcv_tx, snd_rx).await.unwrap();
         });
