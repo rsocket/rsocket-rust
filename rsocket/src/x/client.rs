@@ -1,10 +1,10 @@
-use crate::errors::RSocketError;
+use crate::error::RSocketError;
 use crate::frame::{self, Frame};
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::runtime::{DefaultSpawner, Spawner};
 use crate::spi::{Flux, Mono, RSocket};
 use crate::transport::{self, Acceptor, ClientTransport, DuplexSocket, Rx, Tx};
-use futures::channel::mpsc;
+use futures::channel::{mpsc, oneshot};
 use futures::{Future, Stream};
 use std::error::Error;
 use std::net::SocketAddr;
@@ -119,9 +119,10 @@ where
         let cloned_rt = rt.clone();
         let (rcv_tx, rcv_rx) = mpsc::unbounded::<Frame>();
         let (snd_tx, snd_rx) = mpsc::unbounded::<Frame>();
-        cloned_rt.spawn(async move {
-            tp.attach(rcv_tx, snd_rx).await.unwrap();
-        });
+        let (connected_tx, connected_rx) = oneshot::channel::<Result<(), RSocketError>>();
+        tp.attach(rcv_tx, snd_rx, Some(connected_tx));
+        connected_rx.await??;
+
         let duplex_socket = DuplexSocket::new(rt, 1, snd_tx.clone()).await;
         let cloned_duplex_socket = duplex_socket.clone();
         let acceptor = match self.responder {

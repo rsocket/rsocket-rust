@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::error::Error as StdError;
 use std::fmt;
 use std::io;
 
@@ -26,7 +26,7 @@ pub struct RSocketError {
     kind: ErrorKind,
 }
 
-impl Error for RSocketError {}
+impl StdError for RSocketError {}
 
 impl fmt::Display for RSocketError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -35,6 +35,14 @@ impl fmt::Display for RSocketError {
             ErrorKind::WithDescription(s) => write!(f, "{}", s),
             ErrorKind::IO(e) => write!(f, "{}", e),
             ErrorKind::Cancelled() => write!(f, "ERROR(CANCELLED)"),
+        }
+    }
+}
+
+impl From<io::Error> for RSocketError {
+    fn from(e: io::Error) -> RSocketError {
+        RSocketError {
+            kind: ErrorKind::IO(e),
         }
     }
 }

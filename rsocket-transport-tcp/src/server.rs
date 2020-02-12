@@ -1,6 +1,9 @@
 use super::client::TcpClientTransport;
-use rsocket_rust::transport::{BoxResult, ClientTransport, SafeFuture, ServerTransport};
+use rsocket_rust::transport::{ClientTransport, ServerTransport};
+use std::error::Error;
+use std::future::Future;
 use std::net::SocketAddr;
+use std::pin::Pin;
 use tokio::net::TcpListener;
 
 pub struct TcpServerTransport {
@@ -20,7 +23,7 @@ impl ServerTransport for TcpServerTransport {
         self,
         starter: Option<fn()>,
         acceptor: impl Fn(Self::Item) + Send + Sync + 'static,
-    ) -> SafeFuture<BoxResult<()>>
+    ) -> Pin<Box<dyn Send + Future<Output = Result<(), Box<dyn Send + Sync + Error>>>>>
     where
         Self::Item: ClientTransport + Sized,
     {

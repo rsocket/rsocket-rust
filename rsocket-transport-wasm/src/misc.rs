@@ -1,15 +1,15 @@
 use super::client::WebsocketClientTransport;
 use super::runtime::WASMSpawner;
-use bytes::Bytes;
+use bytes::{BufMut, BytesMut};
 use js_sys::{Promise, Uint8Array};
 use rsocket_rust::prelude::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 
-#[wasm_bindgen]
+#[derive(Serialize, Deserialize)]
 pub struct JsPayload {
-    d: Option<Uint8Array>,
-    m: Option<Uint8Array>,
+    data: Option<Vec<u8>>,
+    metadata: Option<Vec<u8>>,
 }
 
 #[wasm_bindgen]
@@ -17,86 +17,87 @@ pub struct JsClient {
     inner: Client<WASMSpawner>,
 }
 
-impl From<Payload> for JsPayload {
-    fn from(input: Payload) -> JsPayload {
-        let d = match input.data() {
-            Some(raw) => Some(Uint8Array::from(raw.as_ref())),
-            None => None,
-        };
-        let m = match input.metadata() {
-            Some(raw) => Some(Uint8Array::from(raw.as_ref())),
-            None => None,
-        };
-        JsPayload { d, m }
+impl Into<JsValue> for &JsPayload {
+    fn into(self) -> JsValue {
+        JsValue::from_serde(self).unwrap()
     }
 }
 
 impl Into<Payload> for JsPayload {
     fn into(self) -> Payload {
         let mut bu = Payload::builder();
-        if let Some(raw) = self.d {
-            bu = bu.set_data(Bytes::from(raw.to_vec()));
+        if let Some(v) = self.data {
+            let mut bf = BytesMut::new();
+            bf.put_slice(&v[..]);
+            bu = bu.set_data(bf.freeze());
         }
-        if let Some(raw) = self.m {
-            bu = bu.set_metadata(Bytes::from(raw.to_vec()));
+        if let Some(v) = self.metadata {
+            let mut bf = BytesMut::new();
+            bf.put_slice(&v[..]);
+            bu = bu.set_metadata(bf.freeze());
         }
         bu.build()
     }
 }
 
-#[wasm_bindgen]
-impl JsPayload {
-    #[wasm_bindgen(constructor)]
-    pub fn new(data: JsValue, metadata: JsValue) -> JsPayload {
+impl From<Payload> for JsPayload {
+    fn from(input: Payload) -> JsPayload {
+        let (d, m) = input.split();
         JsPayload {
-            d: Self::to_uint8array(data),
-            m: Self::to_uint8array(metadata),
-        }
-    }
-
-    pub fn data(&self) -> JsValue {
-        match self.d {
-            Some(ref data) => data.clone().into(),
-            None => JsValue::null(),
-        }
-    }
-
-    pub fn metadata(&self) -> JsValue {
-        match self.m {
-            Some(ref raw) => raw.clone().into(),
-            None => JsValue::null(),
-        }
-    }
-
-    #[inline]
-    fn to_uint8array(input: JsValue) -> Option<Uint8Array> {
-        if input.is_null() || input.is_undefined() {
-            None
-        } else {
-            Some(Uint8Array::from(input))
+            data: d.map(|v| v.to_vec()),
+            metadata: m.map(|v| v.to_vec()),
         }
     }
 }
 
 #[wasm_bindgen]
+pub fn new_payload(data: JsValue, metadata: JsValue) -> JsValue {
+    let jp = JsPayload {
+        data: to_vec(data),
+        metadata: to_vec(metadata),
+    };
+    (&jp).into()
+}
+
+#[wasm_bindgen]
+pub async fn connect(url: String) -> Result<JsClient, JsValue> {
+    match RSocketFactory::connect()
+        .transport(WebsocketClientTransport::from(url))
+        .start_with_runtime(WASMSpawner)
+        .await
+    {
+        Ok(inner) => Ok(JsClient { inner }),
+        Err(e) => Err(JsValue::from_str(&format!("{}", e))),
+    }
+}
+
+#[wasm_bindgen]
 impl JsClient {
-    pub async fn connect(url: String) -> Result<JsClient, JsValue> {
-        let inner = RSocketFactory::connect()
-            .transport(WebsocketClientTransport::from(url))
-            .start_with_runtime(WASMSpawner)
-            .await
-            .unwrap();
-        Ok(JsClient { inner })
+    pub fn request_response(&self, request: &JsValue) -> Promise {
+        let inner = self.inner.clone();
+        let request: JsPayload = request.into_serde().unwrap();
+        future_to_promise(async move {
+            match inner.request_response(request.into()).await {
+                Ok(v) => {
+                    let jp = JsPayload::from(v);
+                    Ok((&jp).into())
+                }
+                Err(e) => Err(JsValue::from(&format!("{:?}", e))),
+            }
+        })
     }
+}
 
-    pub fn bingo(&self) -> Promise {
-        future_to_promise(async { Ok(JsValue::from("bingo")) })
-    }
-
-    pub async fn request_response(self, request: JsPayload) -> Result<JsPayload, JsValue> {
-        match self.inner.request_response(request.into()).await {
-            Ok(response) => Ok(JsPayload::from(response)),
-            Err(e) => Err(JsValue::from(&format!("{:?}", e))),
+#[inline]
+fn to_vec(input: JsValue) -> Option<Vec<u8>> {
+    if input.is_null() || input.is_undefined() {
+        None
+    } else if input.is_string() {
+        match input.as_string() {
+            Some(s) => Some(s.into_bytes()),
+            None => None,
         }
+    } else {
+        Some(Uint8Array::from(input).to_vec())
     }
 }

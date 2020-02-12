@@ -1,4 +1,4 @@
-use crate::errors::{self, ErrorKind, RSocketError};
+use crate::error::{self, ErrorKind, RSocketError};
 use crate::frame;
 use crate::payload::Payload;
 use crate::utils::RSocketResult;
@@ -74,7 +74,7 @@ pub(crate) struct EmptyRSocket;
 
 impl EmptyRSocket {
     fn must_failed(&self) -> RSocketError {
-        let kind = ErrorKind::Internal(errors::ERR_APPLICATION, String::from("NOT_IMPLEMENT"));
+        let kind = ErrorKind::Internal(error::ERR_APPLICATION, String::from("NOT_IMPLEMENT"));
         RSocketError::from(kind)
     }
 }

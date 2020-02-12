@@ -1,4 +1,4 @@
-use crate::errors::RSocketError;
+use crate::error::RSocketError;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::error::Error;
 use std::future::Future;

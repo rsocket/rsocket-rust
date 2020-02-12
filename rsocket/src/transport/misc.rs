@@ -1,4 +1,4 @@
-use crate::errors::{ErrorKind, RSocketError};
+use crate::error::{ErrorKind, RSocketError};
 use crate::frame::{self};
 use crate::payload::{Payload, SetupPayload};
 use crate::spi::RSocket;

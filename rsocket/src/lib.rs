@@ -7,7 +7,7 @@ extern crate log;
 #[macro_use]
 extern crate lazy_static;
 
-mod errors;
+pub mod error;
 pub mod extension;
 
 #[cfg(feature = "frame")]
@@ -24,7 +24,6 @@ pub mod utils;
 mod x;
 
 pub mod prelude {
-    pub use crate::errors::*;
     pub use crate::payload::{Payload, PayloadBuilder, SetupPayload, SetupPayloadBuilder};
     pub use crate::runtime::Spawner;
     pub use crate::spi::*;

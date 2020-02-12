@@ -6,13 +6,13 @@ edition = "2018"
 
 [dev-dependencies]
 log = "0.4"
-futures = "0.3.3"
+futures = "0.3.4"
 env_logger = "0.7.1"
 rsocket_rust = { path = "../rsocket", features = ["frame"] }
 rsocket_rust_transport_tcp = { path = "../rsocket-transport-tcp" }
 rsocket_rust_transport_websocket = { path = "../rsocket-transport-websocket" }
 bytes = "0.5.4"
-hex = "0.4.0"
+hex = "0.4.2"
 rand = "0.7.3"
 
 [dev-dependencies.tokio]

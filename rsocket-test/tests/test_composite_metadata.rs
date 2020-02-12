@@ -1,4 +1,4 @@
-use bytes::{Buf, BufMut, Bytes, BytesMut};
+use bytes::BytesMut;
 use rsocket_rust::extension::{CompositeMetadata, Metadata};
 use rsocket_rust::utils::Writeable;
 

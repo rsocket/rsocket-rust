@@ -16,6 +16,16 @@ fn init() {
         .try_init();
 }
 
+#[tokio::main]
+#[test]
+async fn test_connect_must_failed() {
+    let result = RSocketFactory::connect()
+        .transport(TcpClientTransport::from("tcp://127.0.0.1:6789"))
+        .start()
+        .await;
+    assert_eq!(false, result.is_ok());
+}
+
 #[test]
 fn test_websocket() {
     init();

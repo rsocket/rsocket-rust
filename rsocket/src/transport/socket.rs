@@ -1,6 +1,6 @@
 use super::misc::{self, Counter, StreamID};
 use super::spi::*;
-use crate::errors::{self, ErrorKind, RSocketError};
+use crate::error::{self, ErrorKind, RSocketError};
 use crate::frame::{self, Body, Frame};
 use crate::payload::{Payload, SetupPayload};
 use crate::runtime::Spawner;
@@ -118,7 +118,7 @@ where
                     if let Err(e) = self.on_setup(&acceptor, sid, flag, SetupPayload::from(v)) {
                         let errmsg = format!("{}", e);
                         let sending = frame::Error::builder(0, 0)
-                            .set_code(errors::ERR_REJECT_SETUP)
+                            .set_code(error::ERR_REJECT_SETUP)
                             .set_data(Bytes::from(errmsg))
                             .build();
                         self.tx
@@ -320,7 +320,7 @@ where
                     bu.build()
                 }
                 Err(e) => frame::Error::builder(sid, 0)
-                    .set_code(errors::ERR_APPLICATION)
+                    .set_code(error::ERR_APPLICATION)
                     .set_data(Bytes::from("TODO: should be error details"))
                     .build(),
             };
@@ -351,7 +351,7 @@ where
                         bu.build()
                     }
                     Err(e) => frame::Error::builder(sid, 0)
-                        .set_code(errors::ERR_APPLICATION)
+                        .set_code(error::ERR_APPLICATION)
                         .set_data(Bytes::from(format!("{}", e)))
                         .build(),
                 };
@@ -395,7 +395,7 @@ where
                         bu.build()
                     }
                     Err(e) => frame::Error::builder(sid, 0)
-                        .set_code(errors::ERR_APPLICATION)
+                        .set_code(error::ERR_APPLICATION)
                         .set_data(Bytes::from(format!("{}", e)))
                         .build(),
                 };
@@ -564,7 +564,7 @@ where
                         }
                     }
                     Err(e) => frame::Error::builder(sid, 0)
-                        .set_code(errors::ERR_APPLICATION)
+                        .set_code(error::ERR_APPLICATION)
                         .set_data(Bytes::from(format!("{}", e)))
                         .build(),
                 };

@@ -1,4 +1,4 @@
-use crate::errors::RSocketError;
+use crate::error::RSocketError;
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
