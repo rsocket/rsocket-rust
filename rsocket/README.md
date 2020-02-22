@@ -1,13 +1,4 @@
-# rsocket-rust
-
-[![Crates.io](https://img.shields.io/crates/v/rsocket_rust)](https://crates.io/crates/rsocket_rust)
-[![Crates.io](https://img.shields.io/crates/d/rsocket_rust)](https://crates.io/crates/rsocket_rust)
-[![License](https://img.shields.io/github/license/rsocket/rsocket-rust.svg)](https://github.com/rsocket/rsocket-rust/blob/master/LICENSE)
-[![GitHub Release](https://img.shields.io/github/release-pre/rsocket/rsocket-rust.svg)](https://github.com/rsocket/rsocket-rust/releases)
-
-> rsocket-rust is an implementation of the RSocket protocol in Rust(1.39+).
-It's an **alpha** version and still under active development.  
-**Do not use it in a production environment!**  
+# RSocket Core
 
 ## Example
 
@@ -84,29 +75,3 @@ async fn test() {
 }
 
 ```
-
-## TODO
-
-- Operations
-  - [x] METADATA_PUSH
-  - [x] REQUEST_FNF
-  - [x] REQUEST_RESPONSE
-  - [x] REQUEST_STREAM
-  - [x] REQUEST_CHANNEL
-- More Operations
-  - [x] Error
-  - [ ] Cancel
-  - [ ] Fragmentation
-  - [ ] Resume
-- QoS
-  - [ ] RequestN
-  - [ ] Lease
-- Transport
-  - [x] TCP
-  - [x] Websocket
-  - [x] WASM
-- Reactor
-  - [ ] ...
-- High Level APIs
-  - [x] Client
-  - [x] Server
