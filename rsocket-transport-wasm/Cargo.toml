@@ -1,0 +1,31 @@
+[package]
+name = "rsocket_rust_transport_wasm"
+version = "0.5.0"
+authors = ["Jeffsky <jjeffcaii@outlook.com>"]
+edition = "2018"
+
+[dependencies]
+bytes = "0.5.4"
+wasm-bindgen-futures = "0.4.8"
+futures-channel = "0.3.4"
+futures-util = "0.3.4"
+js-sys = "0.3.35"
+serde = "1.0.104"
+serde_derive = "1.0.104"
+rsocket_rust = { path = "../rsocket", features = ["frame"] }
+
+[dependencies.wasm-bindgen]
+version = "0.2.58"
+features = ["serde-serialize"]
+
+[dependencies.web-sys]
+version = "0.3.35"
+features = [
+  "FileReader",
+  "ProgressEvent",
+  "Blob",
+  "ErrorEvent",
+  "MessageEvent",
+  "WebSocket",
+  "Event",
+]
