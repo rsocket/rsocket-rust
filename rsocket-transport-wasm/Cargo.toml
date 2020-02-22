@@ -3,6 +3,11 @@ name = "rsocket_rust_transport_wasm"
 version = "0.5.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/rsocket/rsocket-rust"
+homepage = "https://github.com/rsocket/rsocket-rust"
+description = "WASM Websocket RSocket transport implementation."
 
 [dependencies]
 bytes = "0.5.4"
@@ -12,7 +17,7 @@ futures-util = "0.3.4"
 js-sys = "0.3.35"
 serde = "1.0.104"
 serde_derive = "1.0.104"
-rsocket_rust = { path = "../rsocket", features = ["frame"] }
+rsocket_rust = { version = "0.5.0", features = ["frame"] }
 
 [dependencies.wasm-bindgen]
 version = "0.2.58"
