@@ -104,7 +104,7 @@ async fn test() {
 - Transport
   - [x] TCP
   - [x] Websocket
-  - [x] WASM
+  - [x] WASM: (see example: [https://github.com/jjeffcaii/rsocket-rust-wasm-example](https://github.com/jjeffcaii/rsocket-rust-wasm-example))
 - Reactor
   - [ ] ...
 - High Level APIs
