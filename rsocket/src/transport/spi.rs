@@ -37,7 +37,7 @@ pub trait ServerTransport {
 
     fn start(
         self,
-        starter: Option<fn()>,
+        starter: Option<Box<dyn FnMut() + Send + Sync>>,
         acceptor: impl Fn(Self::Item) + Send + Sync + 'static,
     ) -> Pin<Box<dyn Send + Future<Output = Result<(), Box<dyn Send + Sync + Error>>>>>
     where

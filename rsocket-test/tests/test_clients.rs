@@ -42,7 +42,9 @@ fn test_websocket() {
                 info!("accept setup: {:?}", setup);
                 Ok(Box::new(EchoRSocket))
             })
-            .on_start(|| info!("+++++++ websocket echo server started! +++++++"))
+            .on_start(Box::new(|| {
+                info!("+++++++ websocket echo server started! +++++++")
+            }))
             .serve()
             .await
     });
@@ -88,7 +90,9 @@ fn test_tcp() {
                 info!("accept setup: {:?}", setup);
                 Ok(Box::new(EchoRSocket))
             })
-            .on_start(|| info!("+++++++ tcp echo server started! +++++++"))
+            .on_start(Box::new(|| {
+                info!("+++++++ tcp echo server started! +++++++")
+            }))
             .serve()
             .await
     });

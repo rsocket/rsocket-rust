@@ -14,8 +14,6 @@ use std::pin::Pin;
 use std::result::Result;
 use std::sync::Arc;
 
-type FnStart = fn();
-
 pub struct ServerBuilder<T, C>
 where
     T: Send + Sync + ServerTransport<Item = C>,
@@ -23,7 +21,7 @@ where
 {
     transport: Option<T>,
     on_setup: FnAcceptorWithSetup,
-    start_handler: Option<FnStart>,
+    start_handler: Option<Box<dyn FnMut() + Send + Sync>>,
 }
 
 impl<T, C> ServerBuilder<T, C>
@@ -44,7 +42,7 @@ where
         self
     }
 
-    pub fn on_start(mut self, hanlder: FnStart) -> Self {
+    pub fn on_start(mut self, hanlder: Box<dyn FnMut() + Send + Sync>) -> Self {
         self.start_handler = Some(hanlder);
         self
     }
@@ -63,9 +61,11 @@ where
         R: Send + Sync + Clone + Spawner + 'static,
     {
         let tp = self.transport.take().expect("missing transport");
-        tp.start(self.start_handler, move |tp| {
+        let starter = self.start_handler;
+        let setuper = self.on_setup;
+        tp.start(starter, move |tp| {
             let cloned_rt = rt.clone();
-            let setuper = Arc::new(self.on_setup);
+            let setuper = Arc::new(setuper);
             let (rcv_tx, rcv_rx) = mpsc::unbounded::<Frame>();
             let (snd_tx, snd_rx) = mpsc::unbounded::<Frame>();
             tp.attach(rcv_tx, snd_rx, None);

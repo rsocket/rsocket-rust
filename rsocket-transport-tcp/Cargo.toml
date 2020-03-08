@@ -1,6 +1,6 @@
 [package]
 name = "rsocket_rust_transport_tcp"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -13,10 +13,14 @@ description = "TCP RSocket transport implementation."
 log = "0.4.8"
 futures = "0.3.4"
 bytes = "0.5.4"
-rsocket_rust = { version="0.5.0", features = ["frame"] }
+
+[dependencies.rsocket_rust]
+version = "0.5.1"
+path = "../rsocket"
+features = ["frame"]
 
 [dependencies.tokio]
-version = "0.2.11"
+version = "0.2.13"
 default-features = false
 features = [ "rt-core", "rt-threaded", "tcp", "sync", "stream" ]
 

@@ -3,7 +3,7 @@ use crate::frame::{self, Frame};
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::runtime::{DefaultSpawner, Spawner};
 use crate::spi::{Flux, Mono, RSocket};
-use crate::transport::{self, Acceptor, ClientTransport, DuplexSocket, Rx, Tx};
+use crate::transport::{self, Acceptor, ClientTransport, DuplexSocket, Rx, RxOnce, Tx, TxOnce};
 use futures::channel::{mpsc, oneshot};
 use futures::{Future, Stream};
 use std::error::Error;
@@ -28,19 +28,7 @@ where
     transport: Option<T>,
     setup: SetupPayloadBuilder,
     responder: Option<fn() -> Box<dyn RSocket>>,
-}
-
-impl<R> Client<R>
-where
-    R: Send + Sync + Clone + Spawner + 'static,
-{
-    fn new(socket: DuplexSocket<R>) -> Client<R> {
-        Client { socket }
-    }
-
-    pub fn close(self) {
-        self.socket.close();
-    }
+    closer: Option<Box<dyn FnMut() + Send + Sync>>,
 }
 
 impl<T> ClientBuilder<T>
@@ -52,6 +40,7 @@ where
             transport: None,
             responder: None,
             setup: SetupPayload::builder(),
+            closer: None,
         }
     }
 
@@ -104,6 +93,11 @@ where
         self
     }
 
+    pub fn on_close(mut self, callback: Box<dyn FnMut() + Sync + Send>) -> Self {
+        self.closer = Some(callback);
+        self
+    }
+
     pub async fn start(self) -> Result<Client<DefaultSpawner>, Box<dyn Error + Send + Sync>> {
         self.start_with_runtime(DefaultSpawner).await
     }
@@ -129,12 +123,29 @@ where
             Some(r) => Acceptor::Simple(Arc::new(r)),
             None => Acceptor::Empty(),
         };
+        let closer = self.closer.take();
         cloned_rt.spawn(async move {
             cloned_duplex_socket.event_loop(acceptor, rcv_rx).await;
+            if let Some(mut invoke) = closer {
+                invoke();
+            }
         });
         let setup = self.setup.build();
         duplex_socket.setup(setup).await;
         Ok(Client::new(duplex_socket))
+    }
+}
+
+impl<R> Client<R>
+where
+    R: Send + Sync + Clone + Spawner + 'static,
+{
+    fn new(socket: DuplexSocket<R>) -> Client<R> {
+        Client { socket }
+    }
+
+    pub fn close(self) {
+        self.socket.close();
     }
 }
 
