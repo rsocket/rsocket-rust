@@ -2,6 +2,10 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 #![allow(clippy::type_complexity)]
+#![doc(test(
+    no_crate_inject,
+    attr(deny(warnings, rust_2018_idioms), allow(dead_code, unused_variables))
+))]
 
 //! Official RSocket Rust implementation using Tokio.
 //!
@@ -31,7 +35,7 @@
 //!
 //! A simple TCP echo server:
 //!
-//! ```no_run
+//! ```no_run,ignore
 //! use rsocket_rust::prelude::*;
 //! use rsocket_rust_transport_tcp::TcpServerTransport;
 //! use std::error::Error;
@@ -59,7 +63,7 @@
 //!
 //! Connect to echo server above:
 //!
-//! ```no_run
+//! ```no_run,ignore
 //! use rsocket_rust::prelude::*;
 //! use rsocket_rust_transport_tcp::TcpClientTransport;
 //! use std::error::Error;
