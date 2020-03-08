@@ -95,11 +95,11 @@ impl Setup {
         self.token.clone()
     }
 
-    pub fn get_mime_metadata(&self) -> &String {
+    pub fn get_mime_metadata(&self) -> &str {
         &self.mime_metadata
     }
 
-    pub fn get_mime_data(&self) -> &String {
+    pub fn get_mime_data(&self) -> &str {
         &self.mime_data
     }
 

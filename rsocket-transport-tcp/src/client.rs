@@ -4,10 +4,8 @@ use rsocket_rust::error::RSocketError;
 use rsocket_rust::frame::Frame;
 use rsocket_rust::runtime::{DefaultSpawner, Spawner};
 use rsocket_rust::transport::{ClientTransport, Rx, Tx, TxOnce};
-use std::future::Future;
 use std::net::SocketAddr;
 use std::net::TcpStream as StdTcpStream;
-use std::pin::Pin;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
 

@@ -8,8 +8,8 @@ pub struct SetupPayload {
     m: Option<Bytes>,
     d: Option<Bytes>,
     keepalive: (Duration, Duration),
-    mime_m: Option<String>,
-    mime_d: Option<String>,
+    mime_m: Option<Bytes>,
+    mime_d: Option<Bytes>,
 }
 
 #[derive(Debug)]
@@ -30,28 +30,46 @@ impl SetupPayloadBuilder {
                 m: None,
                 d: None,
                 keepalive: (Duration::from_secs(20), Duration::from_secs(90)),
-                mime_m: Some(String::from(DEFAULT_MIME_TYPE)),
-                mime_d: Some(String::from(DEFAULT_MIME_TYPE)),
+                mime_m: Some(Bytes::from(DEFAULT_MIME_TYPE.to_owned())),
+                mime_d: Some(Bytes::from(DEFAULT_MIME_TYPE.to_owned())),
             },
         }
     }
 
-    pub fn set_metadata(mut self, metadata: Bytes) -> Self {
-        self.inner.m = Some(metadata);
+    pub fn set_metadata<A>(mut self, metadata: A) -> Self
+    where
+        A: Into<Vec<u8>>,
+    {
+        self.inner.m = Some(Bytes::from(metadata.into()));
         self
     }
 
-    pub fn set_metadata_utf8(self, metadata: &str) -> Self {
-        self.set_metadata(Bytes::from(String::from(metadata)))
-    }
-
-    pub fn set_data(mut self, data: Bytes) -> Self {
-        self.inner.d = Some(data);
+    pub fn set_metadata_utf8(mut self, metadata: &str) -> Self {
+        self.inner.m = Some(Bytes::from(String::from(metadata)));
         self
     }
 
-    pub fn set_data_utf8(self, data: &str) -> Self {
-        self.set_data(Bytes::from(String::from(data)))
+    pub(crate) fn set_data_bytes(mut self, data: Option<Bytes>) -> Self {
+        self.inner.d = data;
+        self
+    }
+
+    pub(crate) fn set_metadata_bytes(mut self, data: Option<Bytes>) -> Self {
+        self.inner.m = data;
+        self
+    }
+
+    pub fn set_data<A>(mut self, data: A) -> Self
+    where
+        A: Into<Vec<u8>>,
+    {
+        self.inner.d = Some(Bytes::from(data.into()));
+        self
+    }
+
+    pub fn set_data_utf8(mut self, data: &str) -> Self {
+        self.inner.d = Some(Bytes::from(data.to_owned()));
+        self
     }
 
     pub fn set_keepalive(
@@ -66,11 +84,11 @@ impl SetupPayloadBuilder {
     }
 
     pub fn set_data_mime_type(mut self, mime: &str) -> Self {
-        self.inner.mime_d = Some(String::from(mime));
+        self.inner.mime_d = Some(Bytes::from(mime.to_owned()));
         self
     }
     pub fn set_metadata_mime_type(mut self, mime: &str) -> Self {
-        self.inner.mime_m = Some(String::from(mime));
+        self.inner.mime_m = Some(Bytes::from(mime.to_owned()));
         self
     }
 
@@ -100,12 +118,16 @@ impl SetupPayload {
         self.keepalive.1
     }
 
-    pub fn metadata_mime_type(&self) -> &Option<String> {
-        &self.mime_m
+    pub fn metadata_mime_type(&self) -> Option<String> {
+        self.mime_m
+            .as_ref()
+            .map(|raw| String::from_utf8(raw.to_vec()).expect("read metadata MIME type failed!"))
     }
 
-    pub fn data_mime_type(&self) -> &Option<String> {
-        &self.mime_d
+    pub fn data_mime_type(&self) -> Option<String> {
+        self.mime_d
+            .as_ref()
+            .map(|raw| String::from_utf8(raw.to_vec()).expect("read data MIME type failed!"))
     }
 }
 
@@ -118,12 +140,8 @@ impl From<Setup> for SetupPayload {
         // bu.set_data_mime_type(String::input.get_mime_data());
         let ka = (input.get_keepalive(), input.get_lifetime());
         let (d, m) = input.split();
-        if let Some(b) = d {
-            bu = bu.set_data(b);
-        }
-        if let Some(b) = m {
-            bu = bu.set_metadata(b);
-        }
+        bu.inner.d = d;
+        bu.inner.m = m;
         let mut pa = bu.build();
         pa.keepalive = ka;
         pa

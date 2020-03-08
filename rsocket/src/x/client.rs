@@ -51,12 +51,8 @@ where
 
     pub fn setup(mut self, setup: Payload) -> Self {
         let (d, m) = setup.split();
-        if let Some(b) = d {
-            self.setup = self.setup.set_data(b);
-        }
-        if let Some(b) = m {
-            self.setup = self.setup.set_metadata(b);
-        }
+        self.setup = self.setup.set_data_bytes(d);
+        self.setup = self.setup.set_metadata_bytes(m);
         self
     }
 

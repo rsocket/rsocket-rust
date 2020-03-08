@@ -1,6 +1,5 @@
 use super::client::WebsocketClientTransport;
 use super::runtime::WASMSpawner;
-use bytes::{BufMut, BytesMut};
 use js_sys::{Promise, Uint8Array};
 use rsocket_rust::prelude::*;
 use wasm_bindgen::prelude::*;
@@ -27,14 +26,10 @@ impl Into<Payload> for JsPayload {
     fn into(self) -> Payload {
         let mut bu = Payload::builder();
         if let Some(v) = self.data {
-            let mut bf = BytesMut::new();
-            bf.put_slice(&v[..]);
-            bu = bu.set_data(bf.freeze());
+            bu = bu.set_data(v);
         }
         if let Some(v) = self.metadata {
-            let mut bf = BytesMut::new();
-            bf.put_slice(&v[..]);
-            bu = bu.set_metadata(bf.freeze());
+            bu = bu.set_metadata(v);
         }
         bu.build()
     }
