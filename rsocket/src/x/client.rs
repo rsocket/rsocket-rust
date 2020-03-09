@@ -3,7 +3,9 @@ use crate::frame::{self, Frame};
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::runtime::{DefaultSpawner, Spawner};
 use crate::spi::{Flux, Mono, RSocket};
-use crate::transport::{self, Acceptor, ClientTransport, DuplexSocket, Rx, RxOnce, Tx, TxOnce};
+use crate::transport::{
+    self, Acceptor, ClientTransport, DuplexSocket, Rx, RxOnce, Splitter, Tx, TxOnce,
+};
 use futures::channel::{mpsc, oneshot};
 use futures::{Future, Stream};
 use std::error::Error;
@@ -29,6 +31,7 @@ where
     setup: SetupPayloadBuilder,
     responder: Option<fn() -> Box<dyn RSocket>>,
     closer: Option<Box<dyn FnMut() + Send + Sync>>,
+    mtu: usize,
 }
 
 impl<T> ClientBuilder<T>
@@ -41,7 +44,20 @@ where
             responder: None,
             setup: SetupPayload::builder(),
             closer: None,
+            mtu: 0,
         }
+    }
+
+    pub fn fragment(mut self, mtu: usize) -> Self {
+        if mtu > 0 && mtu <= frame::LEN_HEADER {
+            warn!(
+                "ignore illegal fragment: mtu should greater than {}!",
+                frame::LEN_HEADER
+            );
+        } else {
+            self.mtu = mtu;
+        }
+        self
     }
 
     pub fn transport(mut self, transport: T) -> Self {
@@ -112,8 +128,12 @@ where
         let (connected_tx, connected_rx) = oneshot::channel::<Result<(), RSocketError>>();
         tp.attach(rcv_tx, snd_rx, Some(connected_tx));
         connected_rx.await??;
-
-        let duplex_socket = DuplexSocket::new(rt, 1, snd_tx.clone()).await;
+        let splitter = if self.mtu == 0 {
+            None
+        } else {
+            Some(Splitter::new(self.mtu))
+        };
+        let duplex_socket = DuplexSocket::new(rt, 1, snd_tx.clone(), splitter).await;
         let cloned_duplex_socket = duplex_socket.clone();
         let acceptor = match self.responder {
             Some(r) => Acceptor::Simple(Arc::new(r)),

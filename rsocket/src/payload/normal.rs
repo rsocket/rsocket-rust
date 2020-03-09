@@ -51,7 +51,7 @@ impl PayloadBuilder {
 }
 
 impl Payload {
-    fn new(data: Option<Bytes>, metadata: Option<Bytes>) -> Payload {
+    pub(crate) fn new(data: Option<Bytes>, metadata: Option<Bytes>) -> Payload {
         Payload {
             d: data,
             m: metadata,
@@ -80,6 +80,21 @@ impl Payload {
         self.m
             .as_ref()
             .map(|raw| String::from_utf8(raw.to_vec()).unwrap())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn len(&self) -> usize {
+        let mut n = 0;
+        if let Some(it) = &self.m {
+            n += it.len();
+        }
+        if let Some(it) = &self.d {
+            n += it.len();
+        }
+        n
     }
 
     pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {

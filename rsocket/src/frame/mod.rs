@@ -62,7 +62,7 @@ pub const TYPE_RESUME_OK: u16 = 0x0E;
 
 pub const REQUEST_MAX: u32 = 0x7FFF_FFFF; // 2147483647
 
-const LEN_HEADER: usize = 6;
+pub(crate) const LEN_HEADER: usize = 6;
 
 #[derive(Debug, PartialEq)]
 pub enum Body {

@@ -4,7 +4,7 @@ use crate::payload::SetupPayload;
 use crate::runtime::{DefaultSpawner, Spawner};
 use crate::spi::{EmptyRSocket, RSocket};
 use crate::transport::{
-    Acceptor, ClientTransport, DuplexSocket, FnAcceptorWithSetup, ServerTransport,
+    Acceptor, ClientTransport, DuplexSocket, FnAcceptorWithSetup, ServerTransport, Splitter,
 };
 use futures::channel::{mpsc, oneshot};
 use std::error::Error;
@@ -22,6 +22,7 @@ where
     transport: Option<T>,
     on_setup: FnAcceptorWithSetup,
     start_handler: Option<Box<dyn FnMut() + Send + Sync>>,
+    mtu: usize,
 }
 
 impl<T, C> ServerBuilder<T, C>
@@ -34,7 +35,20 @@ where
             transport: None,
             on_setup: on_setup_noop,
             start_handler: None,
+            mtu: 0,
         }
+    }
+
+    pub fn fragment(mut self, mtu: usize) -> Self {
+        if mtu > 0 && mtu <= frame::LEN_HEADER {
+            warn!(
+                "ignore illegal fragment: mtu should greater than {}!",
+                frame::LEN_HEADER
+            );
+        } else {
+            self.mtu = mtu;
+        }
+        self
     }
 
     pub fn acceptor(mut self, handler: FnAcceptorWithSetup) -> Self {
@@ -63,14 +77,23 @@ where
         let tp = self.transport.take().expect("missing transport");
         let starter = self.start_handler;
         let setuper = self.on_setup;
+
+        let mtu = self.mtu;
+
         tp.start(starter, move |tp| {
             let cloned_rt = rt.clone();
             let setuper = Arc::new(setuper);
             let (rcv_tx, rcv_rx) = mpsc::unbounded::<Frame>();
             let (snd_tx, snd_rx) = mpsc::unbounded::<Frame>();
             tp.attach(rcv_tx, snd_rx, None);
+
             rt.spawn(async move {
-                let ds = DuplexSocket::new(cloned_rt, 0, snd_tx).await;
+                let splitter = if mtu == 0 {
+                    None
+                } else {
+                    Some(Splitter::new(mtu))
+                };
+                let ds = DuplexSocket::new(cloned_rt, 0, snd_tx, splitter).await;
                 let acceptor = Acceptor::Generate(setuper.clone());
                 ds.event_loop(acceptor, rcv_rx).await;
             });
