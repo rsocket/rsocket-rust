@@ -5,6 +5,7 @@ use clap::{App, Arg, SubCommand};
 use rsocket_rust::prelude::*;
 use rsocket_rust_transport_tcp::{TcpClientTransport, TcpServerTransport};
 use std::error::Error;
+use std::fs;
 
 enum RequestMode {
     FNF,
@@ -154,7 +155,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                 .expect("Connect failed!");
             let mut bu = Payload::builder();
             if let Some(data) = flags.value_of("input") {
-                bu = bu.set_data_utf8(data);
+                if data.starts_with("@") {
+                    let file_content =
+                        fs::read_to_string(&data[1..].to_owned()).expect("Read file failed.");
+                    bu = bu.set_data_utf8(&file_content);
+                } else {
+                    bu = bu.set_data_utf8(data);
+                }
             }
             let req = bu.build();
 

@@ -32,6 +32,7 @@ where
     handlers: Arc<Mutex<HashMap<u32, Handler>>>,
     canceller: Tx<u32>,
     splitter: Option<Splitter>,
+    joiners: Arc<Mutex<HashMap<u32, Joiner>>>,
 }
 
 #[derive(Clone)]
@@ -66,6 +67,7 @@ where
             canceller: canceller_tx,
             responder: Responder::new(),
             handlers: Arc::new(Mutex::new(HashMap::new())),
+            joiners: Arc::new(Mutex::new(HashMap::new())),
             splitter,
         };
 
@@ -185,6 +187,29 @@ where
                     // TODO: support Lease
                 }
             }
+        }
+    }
+
+    async fn join_frame(&self, input: Frame) {
+        let sid = input.get_stream_id();
+        let mut joiners = self.joiners.lock().await;
+        match (*joiners).remove(&sid) {
+            Some(joiner) => {
+                // joiner.push(input);
+            }
+            None => {}
+        }
+    }
+
+    async fn try_join(&self, input: Frame) {
+        let follow = input.get_flag() & frame::FLAG_FOLLOW != 0;
+        match input.get_frame_type() {
+            frame::TYPE_REQUEST_RESPONSE => if follow {},
+            frame::TYPE_REQUEST_STREAM => {}
+            frame::TYPE_REQUEST_FNF => {}
+            frame::TYPE_REQUEST_CHANNEL => {}
+            frame::TYPE_PAYLOAD => {}
+            _ => {}
         }
     }
 

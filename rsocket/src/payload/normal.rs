@@ -122,7 +122,8 @@ impl From<(&'static str, &'static str)> for Payload {
 
 impl From<frame::Payload> for Payload {
     fn from(input: frame::Payload) -> Payload {
-        Payload::new(input.get_data().clone(), input.get_data().clone())
+        let (d, m) = input.split();
+        Payload::new(d, m)
     }
 }
 
