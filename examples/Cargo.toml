@@ -21,7 +21,7 @@ path = "../rsocket-transport-tcp"
 path = "../rsocket-transport-websocket"
 
 [dev-dependencies.tokio]
-version = "0.2.13"
+version = "0.2.16"
 default-features = false
 features = ["full"]
 

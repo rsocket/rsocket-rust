@@ -20,7 +20,7 @@ path = "../rsocket"
 features = ["frame"]
 
 [dependencies.tokio]
-version = "0.2.13"
+version = "0.2.16"
 default-features = false
 features = [ "rt-core", "rt-threaded", "tcp", "sync", "stream" ]
 

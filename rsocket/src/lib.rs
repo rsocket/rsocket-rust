@@ -44,7 +44,7 @@
 //! async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 //!     RSocketFactory::receive()
 //!         .transport(TcpServerTransport::from("127.0.0.1:7878"))
-//!         .acceptor(|setup, socket| {
+//!         .acceptor(Box::new(|setup, socket| {
 //!             println!("socket establish: setup={:?}", setup);
 //!             tokio::spawn(async move {
 //!                 let req = Payload::builder().set_data_utf8("Hello World!").build();
@@ -54,7 +54,7 @@
 //!             // Return a responder.
 //!             // You can write you own responder by implementing `RSocket` trait.
 //!             Ok(Box::new(EchoRSocket))
-//!         })
+//!         }))
 //!         .on_start(Box::new(|| println!("echo server start success!")))
 //!         .serve()
 //!         .await
@@ -72,10 +72,10 @@
 //! async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 //!     let client = RSocketFactory::connect()
 //!         .transport(TcpClientTransport::from("127.0.0.1:7878"))
-//!         .acceptor(|| {
+//!         .acceptor(Box::new(|| {
 //!             // Return a responder.
 //!             Box::new(EchoRSocket)
-//!         })
+//!         }))
 //!         .start()
 //!         .await
 //!         .expect("Connect failed!");

@@ -2,7 +2,7 @@ use crate::error::RSocketError;
 use crate::frame::{self, Frame};
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::runtime::{DefaultSpawner, Spawner};
-use crate::spi::{Flux, Mono, RSocket};
+use crate::spi::{ClientResponder, Flux, Mono, RSocket};
 use crate::transport::{
     self, Acceptor, ClientTransport, DuplexSocket, Rx, RxOnce, Splitter, Tx, TxOnce,
 };
@@ -29,7 +29,7 @@ where
 {
     transport: Option<T>,
     setup: SetupPayloadBuilder,
-    responder: Option<fn() -> Box<dyn RSocket>>,
+    responder: Option<ClientResponder>,
     closer: Option<Box<dyn FnMut() + Send + Sync>>,
     mtu: usize,
 }
@@ -100,7 +100,7 @@ where
         self
     }
 
-    pub fn acceptor(mut self, acceptor: fn() -> Box<dyn RSocket>) -> Self {
+    pub fn acceptor(mut self, acceptor: ClientResponder) -> Self {
         self.responder = Some(acceptor);
         self
     }
@@ -135,9 +135,9 @@ where
         };
         let duplex_socket = DuplexSocket::new(rt, 1, snd_tx.clone(), splitter).await;
         let cloned_duplex_socket = duplex_socket.clone();
-        let acceptor = match self.responder {
-            Some(r) => Acceptor::Simple(Arc::new(r)),
-            None => Acceptor::Empty(),
+        let acceptor: Option<Acceptor> = match self.responder {
+            Some(it) => Some(Acceptor::Simple(Arc::new(it))),
+            None => None,
         };
         let closer = self.closer.take();
         cloned_rt.spawn(async move {

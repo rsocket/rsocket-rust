@@ -109,12 +109,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             RSocketFactory::receive()
                 .transport(TcpServerTransport::from(addr))
                 .fragment(mtu)
-                .acceptor(|setup, _socket| {
+                .acceptor(Box::new(|setup, _socket| {
                     info!("accept setup: {:?}", setup);
                     Ok(Box::new(EchoRSocket))
                     // Or you can reject setup
                     // Err(From::from("SETUP_NOT_ALLOW"))
-                })
+                }))
                 .on_start(Box::new(|| info!("+++++++ echo server started! +++++++")))
                 .serve()
                 .await

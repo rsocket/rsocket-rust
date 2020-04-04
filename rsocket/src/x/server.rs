@@ -2,10 +2,8 @@ use crate::error::RSocketError;
 use crate::frame::{self, Frame};
 use crate::payload::SetupPayload;
 use crate::runtime::{DefaultSpawner, Spawner};
-use crate::spi::{EmptyRSocket, RSocket};
-use crate::transport::{
-    Acceptor, ClientTransport, DuplexSocket, FnAcceptorWithSetup, ServerTransport, Splitter,
-};
+use crate::spi::{EmptyRSocket, RSocket, ServerResponder};
+use crate::transport::{Acceptor, ClientTransport, DuplexSocket, ServerTransport, Splitter};
 use futures::channel::{mpsc, oneshot};
 use std::error::Error;
 use std::future::Future;
@@ -20,7 +18,7 @@ where
     C: Send + Sync + ClientTransport,
 {
     transport: Option<T>,
-    on_setup: FnAcceptorWithSetup,
+    on_setup: Option<ServerResponder>,
     start_handler: Option<Box<dyn FnMut() + Send + Sync>>,
     mtu: usize,
 }
@@ -33,7 +31,7 @@ where
     pub(crate) fn new() -> ServerBuilder<T, C> {
         ServerBuilder {
             transport: None,
-            on_setup: on_setup_noop,
+            on_setup: None,
             start_handler: None,
             mtu: 0,
         }
@@ -51,8 +49,8 @@ where
         self
     }
 
-    pub fn acceptor(mut self, handler: FnAcceptorWithSetup) -> Self {
-        self.on_setup = handler;
+    pub fn acceptor(mut self, handler: ServerResponder) -> Self {
+        self.on_setup = Some(handler);
         self
     }
 
@@ -76,16 +74,19 @@ where
     {
         let tp = self.transport.take().expect("missing transport");
         let starter = self.start_handler;
-        let setuper = self.on_setup;
+        let acceptor = match self.on_setup {
+            Some(v) => Some(Acceptor::Generate(Arc::new(v))),
+            None => None,
+        };
 
         let mtu = self.mtu;
 
         tp.start(starter, move |tp| {
             let cloned_rt = rt.clone();
-            let setuper = Arc::new(setuper);
             let (rcv_tx, rcv_rx) = mpsc::unbounded::<Frame>();
             let (snd_tx, snd_rx) = mpsc::unbounded::<Frame>();
             tp.attach(rcv_tx, snd_rx, None);
+            let acceptor = acceptor.clone();
 
             rt.spawn(async move {
                 let splitter = if mtu == 0 {
@@ -94,7 +95,6 @@ where
                     Some(Splitter::new(mtu))
                 };
                 let ds = DuplexSocket::new(cloned_rt, 0, snd_tx, splitter).await;
-                let acceptor = Acceptor::Generate(setuper.clone());
                 ds.event_loop(acceptor, rcv_rx).await;
             });
         })

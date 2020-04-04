@@ -118,7 +118,7 @@ where
         }
     }
 
-    pub(crate) async fn event_loop(&self, acceptor: Acceptor, mut rx: Rx<Frame>) {
+    pub(crate) async fn event_loop(&self, acceptor: Option<Acceptor>, mut rx: Rx<Frame>) {
         while let Some(msg) = rx.next().await {
             let sid = msg.get_stream_id();
             let flag = msg.get_flag();
@@ -191,6 +191,7 @@ where
     }
 
     async fn join_frame(&self, input: Frame) {
+        // TODO: support fragmentation
         let sid = input.get_stream_id();
         let mut joiners = self.joiners.lock().await;
         match (*joiners).remove(&sid) {
@@ -224,7 +225,7 @@ where
                 Handler::ReqRR(tx) => tx.send(e).expect("Send RR failed"),
                 Handler::ResRR(_) => unreachable!(),
                 Handler::ReqRS(tx) => tx.unbounded_send(e).expect("Send RS failed"),
-                _ => unimplemented!(),
+                Handler::ReqRC(tx) => tx.unbounded_send(e).expect("Send RC failed"),
             }
         }
     }
@@ -287,27 +288,27 @@ where
     #[inline]
     fn on_setup(
         &self,
-        acceptor: &Acceptor,
+        acceptor: &Option<Acceptor>,
         sid: u32,
         flag: u16,
         setup: SetupPayload,
     ) -> Result<(), Box<dyn Error>> {
         match acceptor {
-            Acceptor::Simple(gen) => {
+            None => {
+                self.responder.set(Box::new(EmptyRSocket));
+                Ok(())
+            }
+            Some(Acceptor::Simple(gen)) => {
                 self.responder.set(gen());
                 Ok(())
             }
-            Acceptor::Generate(gen) => match gen(setup, Box::new(self.clone())) {
+            Some(Acceptor::Generate(gen)) => match gen(setup, Box::new(self.clone())) {
                 Ok(it) => {
                     self.responder.set(it);
                     Ok(())
                 }
                 Err(e) => Err(e),
             },
-            Acceptor::Empty() => {
-                self.responder.set(Box::new(EmptyRSocket));
-                Ok(())
-            }
         }
     }
 

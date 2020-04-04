@@ -6,10 +6,10 @@ use std::error::Error;
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let client = RSocketFactory::connect()
         .transport(TcpClientTransport::from("127.0.0.1:7878"))
-        .acceptor(|| {
+        .acceptor(Box::new(|| {
             // Return a responder.
             Box::new(EchoRSocket)
-        })
+        }))
         .start()
         .await
         .expect("Connect failed!");
