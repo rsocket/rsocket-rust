@@ -38,7 +38,7 @@ where
     }
 
     pub fn fragment(mut self, mtu: usize) -> Self {
-        if mtu < transport::MIN_MTU {
+        if mtu > 0 && mtu < transport::MIN_MTU {
             panic!("invalid fragment mtu: at least {}!", transport::MIN_MTU)
         }
         self.mtu = mtu;
