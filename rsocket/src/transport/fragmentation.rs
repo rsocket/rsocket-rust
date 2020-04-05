@@ -3,6 +3,8 @@ use crate::payload::Payload;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::collections::LinkedList;
 
+pub(crate) const MIN_MTU: usize = 64;
+
 pub(crate) struct Joiner {
     inner: LinkedList<Frame>,
 }
@@ -79,7 +81,7 @@ impl Into<Payload> for Joiner {
         let mut bf = BytesMut::new();
         let mut bf2 = BytesMut::new();
         self.inner.into_iter().for_each(|it: Frame| {
-            let (d, m) = match it.get_body() {
+            let (d, m) = match it.body {
                 Body::RequestResponse(body) => body.split(),
                 Body::RequestStream(body) => body.split(),
                 Body::RequestChannel(body) => body.split(),
@@ -110,10 +112,10 @@ impl Into<Payload> for Joiner {
 }
 
 impl Joiner {
-    pub(crate) fn new(first: Frame) -> Joiner {
-        let mut inner = LinkedList::new();
-        inner.push_back(first);
-        Joiner { inner }
+    pub(crate) fn new() -> Joiner {
+        Joiner {
+            inner: LinkedList::new(),
+        }
     }
 
     pub(crate) fn get_stream_id(&self) -> u32 {
@@ -129,13 +131,11 @@ impl Joiner {
     }
 
     pub(crate) fn first(&self) -> &Frame {
-        self.inner.front().unwrap()
+        self.inner.front().expect("No frames pushed!")
     }
 
-    pub(crate) fn push(&mut self, next: Frame) -> bool {
-        let has_follow = (next.get_flag() & frame::FLAG_FOLLOW) != 0;
+    pub(crate) fn push(&mut self, next: Frame) {
         self.inner.push_back(next);
-        !has_follow
     }
 }
 
@@ -153,7 +153,8 @@ mod tests {
             .set_data(Bytes::from("(ROOT)"))
             .set_metadata(Bytes::from("(ROOT)"))
             .build();
-        let mut joiner = Joiner::new(first);
+        let mut joiner = Joiner::new();
+        joiner.push(first);
 
         for i in 0..10 {
             let flag = if i == 9 { 0u16 } else { frame::FLAG_FOLLOW };

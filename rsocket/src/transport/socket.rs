@@ -9,7 +9,7 @@ use crate::spi::{EmptyRSocket, Flux, Mono, RSocket};
 use crate::utils::RSocketResult;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use futures::{future, Sink, SinkExt, Stream, StreamExt};
-use std::collections::HashMap;
+use std::collections::{hash_map::Entry, HashMap};
 use std::env;
 use std::error::Error;
 use std::future::Future;
@@ -118,99 +118,149 @@ where
         }
     }
 
-    pub(crate) async fn event_loop(&self, acceptor: Option<Acceptor>, mut rx: Rx<Frame>) {
-        while let Some(msg) = rx.next().await {
-            let sid = msg.get_stream_id();
-            let flag = msg.get_flag();
-            misc::debug_frame(false, &msg);
-            match msg.get_body() {
-                Body::Setup(v) => {
-                    if let Err(e) = self.on_setup(&acceptor, sid, flag, SetupPayload::from(v)) {
-                        let errmsg = format!("{}", e);
-                        let sending = frame::Error::builder(0, 0)
-                            .set_code(error::ERR_REJECT_SETUP)
-                            .set_data(Bytes::from(errmsg))
-                            .build();
-                        self.tx
-                            .unbounded_send(sending)
-                            .expect("Reject setup failed");
-                        return;
-                    }
+    #[inline]
+    async fn process_once(&self, msg: Frame, acceptor: &Option<Acceptor>) {
+        let sid = msg.get_stream_id();
+        let flag = msg.get_flag();
+        misc::debug_frame(false, &msg);
+        match msg.get_body() {
+            Body::Setup(v) => {
+                if let Err(e) = self.on_setup(acceptor, sid, flag, SetupPayload::from(v)) {
+                    let errmsg = format!("{}", e);
+                    let sending = frame::Error::builder(0, 0)
+                        .set_code(error::ERR_REJECT_SETUP)
+                        .set_data(Bytes::from(errmsg))
+                        .build();
+                    self.tx
+                        .unbounded_send(sending)
+                        .expect("Reject setup failed");
+                    return;
                 }
-                Body::Resume(v) => {
-                    // TODO: support resume
+            }
+            Body::Resume(v) => {
+                // TODO: support resume
+            }
+            Body::ResumeOK(v) => {
+                // TODO: support resume ok
+            }
+            Body::MetadataPush(v) => {
+                let input = Payload::from(v);
+                self.on_metadata_push(input).await;
+            }
+            Body::RequestFNF(v) => {
+                let input = Payload::from(v);
+                self.on_fire_and_forget(sid, input).await;
+            }
+            Body::RequestResponse(v) => {
+                let input = Payload::from(v);
+                self.on_request_response(sid, flag, input).await;
+            }
+            Body::RequestStream(v) => {
+                let input = Payload::from(v);
+                self.on_request_stream(sid, flag, input).await;
+            }
+            Body::RequestChannel(v) => {
+                let input = Payload::from(v);
+                self.on_request_channel(sid, flag, input).await;
+            }
+            Body::Payload(v) => {
+                let input = Payload::from(v);
+                self.on_payload(sid, flag, input).await;
+            }
+            Body::Keepalive(v) => {
+                if flag & frame::FLAG_RESPOND != 0 {
+                    debug!("got keepalive: {:?}", v);
+                    self.on_keepalive(v).await;
                 }
-                Body::ResumeOK(v) => {
-                    // TODO: support resume ok
-                }
-                Body::MetadataPush(v) => {
-                    let input = Payload::from(v);
-                    self.on_metadata_push(input).await;
-                }
-                Body::RequestFNF(v) => {
-                    let input = Payload::from(v);
-                    self.on_fire_and_forget(sid, input).await;
-                }
-                Body::RequestResponse(v) => {
-                    let input = Payload::from(v);
-                    self.on_request_response(sid, flag, input).await;
-                }
-                Body::RequestStream(v) => {
-                    let input = Payload::from(v);
-                    self.on_request_stream(sid, flag, input).await;
-                }
-                Body::RequestChannel(v) => {
-                    let input = Payload::from(v);
-                    self.on_request_channel(sid, flag, input).await;
-                }
-                Body::Payload(v) => {
-                    let input = Payload::from(v);
-                    self.on_payload(sid, flag, input).await;
-                }
-                Body::Keepalive(v) => {
-                    if flag & frame::FLAG_RESPOND != 0 {
-                        debug!("got keepalive: {:?}", v);
-                        self.on_keepalive(v).await;
-                    }
-                }
-                Body::RequestN(v) => {
-                    // TODO: support RequestN
-                }
-                Body::Error(v) => {
-                    // TODO: support error
-                    self.on_error(sid, flag, v).await;
-                }
-                Body::Cancel() => {
-                    self.on_cancel(sid, flag).await;
-                }
-                Body::Lease(v) => {
-                    // TODO: support Lease
-                }
+            }
+            Body::RequestN(v) => {
+                // TODO: support RequestN
+            }
+            Body::Error(v) => {
+                // TODO: support error
+                self.on_error(sid, flag, v).await;
+            }
+            Body::Cancel() => {
+                self.on_cancel(sid, flag).await;
+            }
+            Body::Lease(v) => {
+                // TODO: support Lease
             }
         }
     }
 
-    async fn join_frame(&self, input: Frame) {
-        // TODO: support fragmentation
+    pub(crate) async fn event_loop(&self, acceptor: Option<Acceptor>, mut rx: Rx<Frame>) {
+        while let Some(next) = rx.next().await {
+            if let Some(f) = self.join_frame(next).await {
+                self.process_once(f, &acceptor).await
+            }
+        }
+    }
+
+    // TODO: support fragmentation
+    async fn join_frame(&self, input: Frame) -> Option<Frame> {
+        if !input.is_followable() {
+            return Some(input);
+        }
         let sid = input.get_stream_id();
         let mut joiners = self.joiners.lock().await;
-        match (*joiners).remove(&sid) {
-            Some(joiner) => {
-                // joiner.push(input);
-            }
-            None => {}
-        }
-    }
 
-    async fn try_join(&self, input: Frame) {
-        let follow = input.get_flag() & frame::FLAG_FOLLOW != 0;
-        match input.get_frame_type() {
-            frame::TYPE_REQUEST_RESPONSE => if follow {},
-            frame::TYPE_REQUEST_STREAM => {}
-            frame::TYPE_REQUEST_FNF => {}
-            frame::TYPE_REQUEST_CHANNEL => {}
-            frame::TYPE_PAYLOAD => {}
-            _ => {}
+        if input.get_flag() & frame::FLAG_FOLLOW != 0 {
+            (*joiners)
+                .entry(sid)
+                .or_insert_with(Joiner::new)
+                .push(input);
+            return None;
+        }
+        match (*joiners).remove(&sid) {
+            None => Some(input),
+            Some(mut joiner) => {
+                joiner.push(input);
+                let flag = joiner.get_flag();
+                let first = joiner.first();
+                match &first.body {
+                    frame::Body::RequestResponse(_) => {
+                        let pa: Payload = joiner.into();
+                        let result = frame::RequestResponse::builder(sid, flag)
+                            .set_all(pa.split())
+                            .build();
+                        Some(result)
+                    }
+                    frame::Body::RequestStream(b) => {
+                        let n = b.get_initial_request_n();
+                        let pa: Payload = joiner.into();
+                        let result = frame::RequestStream::builder(sid, flag)
+                            .set_initial_request_n(n)
+                            .set_all(pa.split())
+                            .build();
+                        Some(result)
+                    }
+                    frame::Body::RequestFNF(_) => {
+                        let pa: Payload = joiner.into();
+                        let result = frame::RequestFNF::builder(sid, flag)
+                            .set_all(pa.split())
+                            .build();
+                        Some(result)
+                    }
+                    frame::Body::RequestChannel(b) => {
+                        let n = b.get_initial_request_n();
+                        let pa: Payload = joiner.into();
+                        let result = frame::RequestChannel::builder(sid, flag)
+                            .set_initial_request_n(n)
+                            .set_all(pa.split())
+                            .build();
+                        Some(result)
+                    }
+                    frame::Body::Payload(b) => {
+                        let pa: Payload = joiner.into();
+                        let result = frame::Payload::builder(sid, flag)
+                            .set_all(pa.split())
+                            .build();
+                        Some(result)
+                    }
+                    _ => unreachable!(),
+                }
+            }
         }
     }
 
@@ -258,31 +308,67 @@ where
     async fn on_payload(&self, sid: u32, flag: u16, input: Payload) {
         let mut handlers = self.handlers.lock().await;
         // fire event!
-        match (*handlers).remove(&sid).unwrap() {
-            Handler::ReqRR(sender) => sender.send(Ok(input)).unwrap(),
-            Handler::ResRR(c) => unreachable!(),
-            Handler::ReqRS(sender) => {
-                if flag & frame::FLAG_NEXT != 0 {
-                    sender
-                        .unbounded_send(Ok(input))
-                        .expect("Send payload response failed.");
-                }
-                if flag & frame::FLAG_COMPLETE == 0 {
-                    (*handlers).insert(sid, Handler::ReqRS(sender));
+        match (*handlers).entry(sid) {
+            Entry::Occupied(o) => {
+                match o.get() {
+                    Handler::ReqRR(_) => match o.remove() {
+                        Handler::ReqRR(sender) => {
+                            sender.send(Ok(input)).unwrap();
+                        }
+                        _ => unreachable!(),
+                    },
+                    Handler::ResRR(c) => unreachable!(),
+                    Handler::ReqRS(sender) => {
+                        if flag & frame::FLAG_NEXT != 0 {
+                            sender
+                                .unbounded_send(Ok(input))
+                                .expect("Send payload response failed.");
+                        }
+                        if flag & frame::FLAG_COMPLETE != 0 {
+                            o.remove();
+                        }
+                    }
+                    Handler::ReqRC(sender) => {
+                        // TODO: support channel
+                        if flag & frame::FLAG_NEXT != 0 {
+                            sender
+                                .unbounded_send(Ok(input))
+                                .expect("Send payload response failed");
+                        }
+                        if flag & frame::FLAG_COMPLETE != 0 {
+                            o.remove();
+                        }
+                    }
                 }
             }
-            Handler::ReqRC(sender) => {
-                // TODO: support channel
-                if flag & frame::FLAG_NEXT != 0 {
-                    sender
-                        .unbounded_send(Ok(input))
-                        .expect("Send payload response failed");
-                }
-                if flag & frame::FLAG_COMPLETE == 0 {
-                    (*handlers).insert(sid, Handler::ReqRC(sender));
-                }
-            }
-        };
+            Entry::Vacant(v) => warn!("invalid payload id {}: no such request!", sid),
+        }
+
+        // match (*handlers).remove(&sid).unwrap() {
+        //     Handler::ReqRR(sender) => sender.send(Ok(input)).unwrap(),
+        //     Handler::ResRR(c) => unreachable!(),
+        //     Handler::ReqRS(sender) => {
+        //         if flag & frame::FLAG_NEXT != 0 {
+        //             sender
+        //                 .unbounded_send(Ok(input))
+        //                 .expect("Send payload response failed.");
+        //         }
+        //         if flag & frame::FLAG_COMPLETE == 0 {
+        //             (*handlers).insert(sid, Handler::ReqRS(sender));
+        //         }
+        //     }
+        //     Handler::ReqRC(sender) => {
+        //         // TODO: support channel
+        //         if flag & frame::FLAG_NEXT != 0 {
+        //             sender
+        //                 .unbounded_send(Ok(input))
+        //                 .expect("Send payload response failed");
+        //         }
+        //         if flag & frame::FLAG_COMPLETE == 0 {
+        //             (*handlers).insert(sid, Handler::ReqRC(sender));
+        //         }
+        //     }
+        // };
     }
 
     #[inline]

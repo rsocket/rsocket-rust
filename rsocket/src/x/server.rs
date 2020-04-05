@@ -3,7 +3,7 @@ use crate::frame::{self, Frame};
 use crate::payload::SetupPayload;
 use crate::runtime::{DefaultSpawner, Spawner};
 use crate::spi::{EmptyRSocket, RSocket, ServerResponder};
-use crate::transport::{Acceptor, ClientTransport, DuplexSocket, ServerTransport, Splitter};
+use crate::transport::{self, Acceptor, ClientTransport, DuplexSocket, ServerTransport, Splitter};
 use futures::channel::{mpsc, oneshot};
 use std::error::Error;
 use std::future::Future;
@@ -38,14 +38,10 @@ where
     }
 
     pub fn fragment(mut self, mtu: usize) -> Self {
-        if mtu > 0 && mtu <= frame::LEN_HEADER {
-            warn!(
-                "ignore illegal fragment: mtu should greater than {}!",
-                frame::LEN_HEADER
-            );
-        } else {
-            self.mtu = mtu;
+        if mtu < transport::MIN_MTU {
+            panic!("invalid fragment mtu: at least {}!", transport::MIN_MTU)
         }
+        self.mtu = mtu;
         self
     }
 

@@ -49,14 +49,10 @@ where
     }
 
     pub fn fragment(mut self, mtu: usize) -> Self {
-        if mtu > 0 && mtu <= frame::LEN_HEADER {
-            warn!(
-                "ignore illegal fragment: mtu should greater than {}!",
-                frame::LEN_HEADER
-            );
-        } else {
-            self.mtu = mtu;
+        if mtu < transport::MIN_MTU {
+            panic!("invalid fragment mtu: at least {}!", transport::MIN_MTU)
         }
+        self.mtu = mtu;
         self
     }
 

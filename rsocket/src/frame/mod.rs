@@ -84,9 +84,9 @@ pub enum Body {
 
 #[derive(Debug, PartialEq)]
 pub struct Frame {
-    stream_id: u32,
-    body: Body,
-    flag: u16,
+    pub(crate) stream_id: u32,
+    pub(crate) body: Body,
+    pub(crate) flag: u16,
 }
 
 impl Writeable for Frame {
@@ -165,6 +165,17 @@ impl Frame {
             _ => Err(RSocketError::from(format!("illegal frame type: {}", kind))),
         };
         body.map(|it| Frame::new(sid, it, flag))
+    }
+
+    pub fn is_followable(&self) -> bool {
+        match &self.body {
+            Body::RequestFNF(_) => true,
+            Body::RequestResponse(_) => true,
+            Body::RequestStream(_) => true,
+            Body::RequestChannel(_) => true,
+            Body::Payload(_) => true,
+            _ => false,
+        }
     }
 
     pub fn get_body(self) -> Body {
