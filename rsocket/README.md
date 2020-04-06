@@ -36,12 +36,12 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     RSocketFactory::receive()
         .transport(TcpServerTransport::from(addr))
-        .acceptor(|setup, _socket| {
+        .acceptor(Box::new(|setup, _socket| {
             info!("accept setup: {:?}", setup);
             Ok(Box::new(EchoRSocket))
             // Or you can reject setup
             // Err(From::from("SETUP_NOT_ALLOW"))
-        })
+        }))
         .on_start(|| info!("+++++++ echo server started! +++++++"))
         .serve()
         .await
@@ -58,7 +58,7 @@ use rsocket_rust_transport_tcp::TcpClientTransport;
 #[test]
 async fn test() {
     let cli = RSocketFactory::connect()
-        .acceptor(|| Box::new(EchoRSocket))
+        .acceptor(Box::new(|| Box::new(EchoRSocket)))
         .transport(TcpClientTransport::from("127.0.0.1:7878"))
         .setup(Payload::from("READY!"))
         .mime_type("text/plain", "text/plain")

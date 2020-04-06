@@ -1,15 +1,22 @@
 use crate::error::{self, ErrorKind, RSocketError};
 use crate::frame;
-use crate::payload::Payload;
+use crate::payload::{Payload, SetupPayload};
 use crate::utils::RSocketResult;
-
 use futures::future;
 use futures::{Sink, SinkExt, Stream, StreamExt};
+use std::error::Error;
 use std::future::Future;
 use std::pin::Pin;
 use std::result::Result;
 use std::sync::Arc;
 use tokio::sync::mpsc;
+
+pub type ClientResponder = Box<dyn Send + Sync + Fn() -> Box<dyn RSocket>>;
+pub type ServerResponder = Box<
+    dyn Send
+        + Sync
+        + Fn(SetupPayload, Box<dyn RSocket>) -> Result<Box<dyn RSocket>, Box<dyn Error>>,
+>;
 
 pub type Mono<T> = Pin<Box<dyn Send + Sync + Future<Output = T>>>;
 pub type Flux<T> = Pin<Box<dyn Send + Sync + Stream<Item = T>>>;

@@ -3,17 +3,25 @@ name = "examples"
 version = "0.0.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
+publish = false
 
 [dev-dependencies]
-rsocket_rust = "0.5.0"
-rsocket_rust_transport_tcp = "0.5.0"
-rsocket_rust_transport_websocket = "0.5.0"
 log = "0.4.8"
 env_logger = "0.7.1"
 futures = "0.3.4"
+clap = "2.33.0"
+
+[dev-dependencies.rsocket_rust]
+path = "../rsocket"
+
+[dev-dependencies.rsocket_rust_transport_tcp]
+path = "../rsocket-transport-tcp"
+
+[dev-dependencies.rsocket_rust_transport_websocket]
+path = "../rsocket-transport-websocket"
 
 [dev-dependencies.tokio]
-version = "0.2.11"
+version = "0.2.16"
 default-features = false
 features = ["full"]
 
@@ -24,3 +32,7 @@ path = "echo.rs"
 [[example]]
 name = "proxy"
 path = "proxy.rs"
+
+[[example]]
+name = "cli"
+path = "cli.rs"

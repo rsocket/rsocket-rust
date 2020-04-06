@@ -62,7 +62,7 @@ pub const TYPE_RESUME_OK: u16 = 0x0E;
 
 pub const REQUEST_MAX: u32 = 0x7FFF_FFFF; // 2147483647
 
-const LEN_HEADER: usize = 6;
+pub(crate) const LEN_HEADER: usize = 6;
 
 #[derive(Debug, PartialEq)]
 pub enum Body {
@@ -84,9 +84,9 @@ pub enum Body {
 
 #[derive(Debug, PartialEq)]
 pub struct Frame {
-    stream_id: u32,
-    body: Body,
-    flag: u16,
+    pub(crate) stream_id: u32,
+    pub(crate) body: Body,
+    pub(crate) flag: u16,
 }
 
 impl Writeable for Frame {
@@ -165,6 +165,17 @@ impl Frame {
             _ => Err(RSocketError::from(format!("illegal frame type: {}", kind))),
         };
         body.map(|it| Frame::new(sid, it, flag))
+    }
+
+    pub(crate) fn is_followable_or_payload(&self) -> (bool, bool) {
+        match &self.body {
+            Body::RequestFNF(_) => (true, false),
+            Body::RequestResponse(_) => (true, false),
+            Body::RequestStream(_) => (true, false),
+            Body::RequestChannel(_) => (true, false),
+            Body::Payload(_) => (true, true),
+            _ => (false, false),
+        }
     }
 
     pub fn get_body(self) -> Body {

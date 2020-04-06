@@ -21,7 +21,7 @@ impl ServerTransport for TcpServerTransport {
 
     fn start(
         self,
-        starter: Option<fn()>,
+        starter: Option<Box<dyn FnMut() + Send + Sync>>,
         acceptor: impl Fn(Self::Item) + Send + Sync + 'static,
     ) -> Pin<Box<dyn Send + Future<Output = Result<(), Box<dyn Send + Sync + Error>>>>>
     where
@@ -31,7 +31,7 @@ impl ServerTransport for TcpServerTransport {
             match TcpListener::bind(&self.addr).await {
                 Ok(mut listener) => {
                     debug!("listening on: {}", &self.addr);
-                    if let Some(bingo) = starter {
+                    if let Some(mut bingo) = starter {
                         bingo();
                     }
                     while let Ok((socket, _)) = listener.accept().await {

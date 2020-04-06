@@ -1,7 +1,7 @@
 use crate::error::RSocketError;
 use crate::frame::Frame;
 use crate::payload::SetupPayload;
-use crate::spi::RSocket;
+use crate::spi::{ClientResponder, RSocket, ServerResponder};
 use futures::channel::{mpsc, oneshot};
 use std::error::Error;
 use std::future::Future;
@@ -37,18 +37,15 @@ pub trait ServerTransport {
 
     fn start(
         self,
-        starter: Option<fn()>,
+        starter: Option<Box<dyn FnMut() + Send + Sync>>,
         acceptor: impl Fn(Self::Item) + Send + Sync + 'static,
     ) -> Pin<Box<dyn Send + Future<Output = Result<(), Box<dyn Send + Sync + Error>>>>>
     where
         Self::Item: ClientTransport + Sized;
 }
 
-pub type FnAcceptorWithSetup =
-    fn(SetupPayload, Box<dyn RSocket>) -> Result<Box<dyn RSocket>, Box<dyn Error>>;
-
+#[derive(Clone)]
 pub(crate) enum Acceptor {
-    Simple(Arc<fn() -> Box<dyn RSocket>>),
-    Generate(Arc<FnAcceptorWithSetup>),
-    Empty(),
+    Simple(Arc<ClientResponder>),
+    Generate(Arc<ServerResponder>),
 }

@@ -1,6 +1,6 @@
 use bytes::BytesMut;
-use futures_channel::{mpsc, oneshot};
-use futures_util::{SinkExt, StreamExt, TryStreamExt};
+use futures_channel::oneshot;
+use futures_util::StreamExt;
 use js_sys::{ArrayBuffer, Uint8Array};
 use rsocket_rust::error::RSocketError;
 use rsocket_rust::frame::Frame;
@@ -8,7 +8,6 @@ use rsocket_rust::transport::{ClientTransport, Rx, Tx, TxOnce};
 use rsocket_rust::utils::Writeable;
 use std::cell::RefCell;
 use std::future::Future;
-use std::pin::Pin;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -91,8 +90,8 @@ impl ClientTransport for WebsocketClientTransport {
                     while let Some(v) = sending.next().await {
                         let mut bf = BytesMut::new();
                         v.write_to(&mut bf);
-                        let mut raw = bf.to_vec();
-                        ws.send_with_u8_array(&mut raw[..])
+                        let raw = bf.to_vec();
+                        ws.send_with_u8_array(&raw[..])
                             .expect("write data into websocket failed.");
                     }
                     console_log!("***** attch end *****");

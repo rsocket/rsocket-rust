@@ -38,11 +38,13 @@ fn test_websocket() {
     server_runtime.spawn(async move {
         RSocketFactory::receive()
             .transport(WebsocketServerTransport::from(addr))
-            .acceptor(|setup, _socket| {
+            .acceptor(Box::new(|setup, _socket| {
                 info!("accept setup: {:?}", setup);
                 Ok(Box::new(EchoRSocket))
-            })
-            .on_start(|| info!("+++++++ websocket echo server started! +++++++"))
+            }))
+            .on_start(Box::new(|| {
+                info!("+++++++ websocket echo server started! +++++++")
+            }))
             .serve()
             .await
     });
@@ -53,7 +55,7 @@ fn test_websocket() {
 
     client_runtime.block_on(async {
         let cli = RSocketFactory::connect()
-            .acceptor(|| Box::new(EchoRSocket))
+            .acceptor(Box::new(|| Box::new(EchoRSocket)))
             .transport(WebsocketClientTransport::from(addr))
             .setup(Payload::from("READY!"))
             .mime_type("text/plain", "text/plain")
@@ -84,11 +86,13 @@ fn test_tcp() {
     server_runtime.spawn(async move {
         RSocketFactory::receive()
             .transport(TcpServerTransport::from(addr))
-            .acceptor(|setup, _socket| {
+            .acceptor(Box::new(|setup, _socket| {
                 info!("accept setup: {:?}", setup);
                 Ok(Box::new(EchoRSocket))
-            })
-            .on_start(|| info!("+++++++ tcp echo server started! +++++++"))
+            }))
+            .on_start(Box::new(|| {
+                info!("+++++++ tcp echo server started! +++++++")
+            }))
             .serve()
             .await
     });
@@ -99,7 +103,7 @@ fn test_tcp() {
 
     client_runtime.block_on(async {
         let cli = RSocketFactory::connect()
-            .acceptor(|| Box::new(EchoRSocket))
+            .acceptor(Box::new(|| Box::new(EchoRSocket)))
             .transport(TcpClientTransport::from(addr))
             .setup(Payload::from("READY!"))
             .mime_type("text/plain", "text/plain")

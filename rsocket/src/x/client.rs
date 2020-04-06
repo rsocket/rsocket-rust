@@ -2,8 +2,10 @@ use crate::error::RSocketError;
 use crate::frame::{self, Frame};
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::runtime::{DefaultSpawner, Spawner};
-use crate::spi::{Flux, Mono, RSocket};
-use crate::transport::{self, Acceptor, ClientTransport, DuplexSocket, Rx, Tx};
+use crate::spi::{ClientResponder, Flux, Mono, RSocket};
+use crate::transport::{
+    self, Acceptor, ClientTransport, DuplexSocket, Rx, RxOnce, Splitter, Tx, TxOnce,
+};
 use futures::channel::{mpsc, oneshot};
 use futures::{Future, Stream};
 use std::error::Error;
@@ -27,20 +29,9 @@ where
 {
     transport: Option<T>,
     setup: SetupPayloadBuilder,
-    responder: Option<fn() -> Box<dyn RSocket>>,
-}
-
-impl<R> Client<R>
-where
-    R: Send + Sync + Clone + Spawner + 'static,
-{
-    fn new(socket: DuplexSocket<R>) -> Client<R> {
-        Client { socket }
-    }
-
-    pub fn close(self) {
-        self.socket.close();
-    }
+    responder: Option<ClientResponder>,
+    closer: Option<Box<dyn FnMut() + Send + Sync>>,
+    mtu: usize,
 }
 
 impl<T> ClientBuilder<T>
@@ -52,7 +43,17 @@ where
             transport: None,
             responder: None,
             setup: SetupPayload::builder(),
+            closer: None,
+            mtu: 0,
         }
+    }
+
+    pub fn fragment(mut self, mtu: usize) -> Self {
+        if mtu > 0 && mtu < transport::MIN_MTU {
+            panic!("invalid fragment mtu: at least {}!", transport::MIN_MTU)
+        }
+        self.mtu = mtu;
+        self
     }
 
     pub fn transport(mut self, transport: T) -> Self {
@@ -62,12 +63,8 @@ where
 
     pub fn setup(mut self, setup: Payload) -> Self {
         let (d, m) = setup.split();
-        if let Some(b) = d {
-            self.setup = self.setup.set_data(b);
-        }
-        if let Some(b) = m {
-            self.setup = self.setup.set_metadata(b);
-        }
+        self.setup = self.setup.set_data_bytes(d);
+        self.setup = self.setup.set_metadata_bytes(m);
         self
     }
 
@@ -99,8 +96,13 @@ where
         self
     }
 
-    pub fn acceptor(mut self, acceptor: fn() -> Box<dyn RSocket>) -> Self {
+    pub fn acceptor(mut self, acceptor: ClientResponder) -> Self {
         self.responder = Some(acceptor);
+        self
+    }
+
+    pub fn on_close(mut self, callback: Box<dyn FnMut() + Sync + Send>) -> Self {
+        self.closer = Some(callback);
         self
     }
 
@@ -122,19 +124,40 @@ where
         let (connected_tx, connected_rx) = oneshot::channel::<Result<(), RSocketError>>();
         tp.attach(rcv_tx, snd_rx, Some(connected_tx));
         connected_rx.await??;
-
-        let duplex_socket = DuplexSocket::new(rt, 1, snd_tx.clone()).await;
-        let cloned_duplex_socket = duplex_socket.clone();
-        let acceptor = match self.responder {
-            Some(r) => Acceptor::Simple(Arc::new(r)),
-            None => Acceptor::Empty(),
+        let splitter = if self.mtu == 0 {
+            None
+        } else {
+            Some(Splitter::new(self.mtu))
         };
+        let duplex_socket = DuplexSocket::new(rt, 1, snd_tx.clone(), splitter).await;
+        let cloned_duplex_socket = duplex_socket.clone();
+        let acceptor: Option<Acceptor> = match self.responder {
+            Some(it) => Some(Acceptor::Simple(Arc::new(it))),
+            None => None,
+        };
+        let closer = self.closer.take();
         cloned_rt.spawn(async move {
             cloned_duplex_socket.event_loop(acceptor, rcv_rx).await;
+            if let Some(mut invoke) = closer {
+                invoke();
+            }
         });
         let setup = self.setup.build();
         duplex_socket.setup(setup).await;
         Ok(Client::new(duplex_socket))
+    }
+}
+
+impl<R> Client<R>
+where
+    R: Send + Sync + Clone + Spawner + 'static,
+{
+    fn new(socket: DuplexSocket<R>) -> Client<R> {
+        Client { socket }
+    }
+
+    pub fn close(self) {
+        self.socket.close();
     }
 }
 

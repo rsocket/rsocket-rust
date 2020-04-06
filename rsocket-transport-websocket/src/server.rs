@@ -35,13 +35,13 @@ impl ServerTransport for WebsocketServerTransport {
 
     fn start(
         self,
-        starter: Option<fn()>,
+        starter: Option<Box<dyn FnMut() + Send + Sync>>,
         acceptor: impl Fn(WebsocketClientTransport) + Send + Sync + 'static,
     ) -> Pin<Box<dyn Send + Future<Output = Result<(), Box<dyn Send + Sync + Error>>>>> {
         Box::pin(async move {
             match TcpListener::bind(self.addr).await {
                 Ok(mut listener) => {
-                    if let Some(bingo) = starter {
+                    if let Some(mut bingo) = starter {
                         bingo();
                     }
                     while let Ok((socket, _)) = listener.accept().await {

@@ -40,6 +40,21 @@ impl RequestFNFBuilder {
         self.value.data = Some(data);
         self
     }
+
+    pub fn set_all(mut self, data_and_metadata: (Option<Bytes>, Option<Bytes>)) -> Self {
+        self.value.data = data_and_metadata.0;
+        match data_and_metadata.1 {
+            Some(m) => {
+                self.value.metadata = Some(m);
+                self.flag |= FLAG_METADATA;
+            }
+            None => {
+                self.value.metadata = None;
+                self.flag &= !FLAG_METADATA;
+            }
+        }
+        self
+    }
 }
 
 impl RequestFNF {
