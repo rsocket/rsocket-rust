@@ -6,8 +6,8 @@
 [![GitHub Release](https://img.shields.io/github/release-pre/rsocket/rsocket-rust.svg)](https://github.com/rsocket/rsocket-rust/releases)
 
 > rsocket-rust is an implementation of the RSocket protocol in Rust(1.39+).
-It's an **alpha** version and still under active development.  
-**Do not use it in a production environment!**  
+It's an **alpha** version and still under active development.
+**Do not use it in a production environment!**
 
 ## Example
 
@@ -96,8 +96,9 @@ async fn test() {
 - More Operations
   - [x] Error
   - [ ] Cancel
-  - [ ] Fragmentation
+  - [x] Fragmentation
   - [ ] Resume
+  - [ ] Keepalive
 - QoS
   - [ ] RequestN
   - [ ] Lease

@@ -16,7 +16,6 @@ bytes = "0.5.4"
 
 [dependencies.rsocket_rust]
 version = "0.5.1"
-path = "../rsocket"
 features = ["frame"]
 
 [dependencies.tokio]

@@ -18,7 +18,6 @@ tokio-tungstenite = "0.10.1"
 
 [dependencies.rsocket_rust]
 version = "0.5.1"
-path = "../rsocket"
 features = ["frame"]
 
 [dependencies.tokio]
