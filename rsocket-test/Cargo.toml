@@ -14,14 +14,14 @@ hex = "0.4.2"
 rand = "0.7.3"
 
 [dev-dependencies.rsocket_rust]
-version = "0.5.1"
+path = "../rsocket"
 features = ["frame"]
 
 [dev-dependencies.rsocket_rust_transport_tcp]
-version = "0.5.1"
+path = "../rsocket-transport-tcp"
 
 [dev-dependencies.rsocket_rust_transport_websocket]
-version = "0.5.1"
+path = "../rsocket-transport-websocket"
 
 [dev-dependencies.tokio]
 version = "0.2.16"
