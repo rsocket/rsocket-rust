@@ -17,7 +17,6 @@ impl PayloadSupport {
         a + b
     }
 
-    // TODO: change to Result
     pub fn read(flag: u16, bf: &mut BytesMut) -> (Option<Bytes>, Option<Bytes>) {
         let m: Option<Bytes> = if flag & FLAG_METADATA != 0 {
             let n = U24::read_advance(bf);

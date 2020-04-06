@@ -24,11 +24,11 @@
 //! The easiest way to get started is to use RSocket. Do this by enabling TCP transport support.
 //!
 //! ```toml
-//! rsocket_rust = "0.5"
-//! rsocket_rust_transport_tcp = "0.5"
+//! rsocket_rust = "0.5.1"
+//! rsocket_rust_transport_tcp = "0.5.1"
 //!
 //! # If you want to use websocket transport instead.
-//! # rsocket_rust_transport_websocket = "0.5"
+//! # rsocket_rust_transport_websocket = "0.5.1"
 //! ```
 //!
 //! # Examples

@@ -197,21 +197,27 @@ where
         }
     }
 
-    // TODO: support fragmentation
     async fn join_frame(&self, input: Frame) -> Option<Frame> {
-        if !input.is_followable() {
+        let (is_follow, is_payload) = input.is_followable_or_payload();
+        if !is_follow {
             return Some(input);
         }
         let sid = input.get_stream_id();
         let mut joiners = self.joiners.lock().await;
 
         if input.get_flag() & frame::FLAG_FOLLOW != 0 {
+            // TODO: check conflict
             (*joiners)
                 .entry(sid)
                 .or_insert_with(Joiner::new)
                 .push(input);
             return None;
         }
+
+        if !is_payload {
+            return Some(input);
+        }
+
         match (*joiners).remove(&sid) {
             None => Some(input),
             Some(mut joiner) => {
@@ -266,6 +272,10 @@ where
 
     #[inline]
     async fn on_error(&self, sid: u32, flag: u16, input: frame::Error) {
+        {
+            let mut joiners = self.joiners.lock().await;
+            (*joiners).remove(&sid);
+        }
         // pick handler
         let mut handlers = self.handlers.lock().await;
         if let Some(handler) = (*handlers).remove(&sid) {
@@ -282,6 +292,10 @@ where
 
     #[inline]
     async fn on_cancel(&self, sid: u32, _flag: u16) {
+        {
+            let mut joiners = self.joiners.lock().await;
+            (*joiners).remove(&sid);
+        }
         let mut handlers = self.handlers.lock().await;
         if let Some(handler) = (*handlers).remove(&sid) {
             let e = Err(RSocketError::from(ErrorKind::Cancelled()));
@@ -343,32 +357,6 @@ where
             }
             Entry::Vacant(v) => warn!("invalid payload id {}: no such request!", sid),
         }
-
-        // match (*handlers).remove(&sid).unwrap() {
-        //     Handler::ReqRR(sender) => sender.send(Ok(input)).unwrap(),
-        //     Handler::ResRR(c) => unreachable!(),
-        //     Handler::ReqRS(sender) => {
-        //         if flag & frame::FLAG_NEXT != 0 {
-        //             sender
-        //                 .unbounded_send(Ok(input))
-        //                 .expect("Send payload response failed.");
-        //         }
-        //         if flag & frame::FLAG_COMPLETE == 0 {
-        //             (*handlers).insert(sid, Handler::ReqRS(sender));
-        //         }
-        //     }
-        //     Handler::ReqRC(sender) => {
-        //         // TODO: support channel
-        //         if flag & frame::FLAG_NEXT != 0 {
-        //             sender
-        //                 .unbounded_send(Ok(input))
-        //                 .expect("Send payload response failed");
-        //         }
-        //         if flag & frame::FLAG_COMPLETE == 0 {
-        //             (*handlers).insert(sid, Handler::ReqRC(sender));
-        //         }
-        //     }
-        // };
     }
 
     #[inline]

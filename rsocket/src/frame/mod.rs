@@ -167,14 +167,14 @@ impl Frame {
         body.map(|it| Frame::new(sid, it, flag))
     }
 
-    pub fn is_followable(&self) -> bool {
+    pub(crate) fn is_followable_or_payload(&self) -> (bool, bool) {
         match &self.body {
-            Body::RequestFNF(_) => true,
-            Body::RequestResponse(_) => true,
-            Body::RequestStream(_) => true,
-            Body::RequestChannel(_) => true,
-            Body::Payload(_) => true,
-            _ => false,
+            Body::RequestFNF(_) => (true, false),
+            Body::RequestResponse(_) => (true, false),
+            Body::RequestStream(_) => (true, false),
+            Body::RequestChannel(_) => (true, false),
+            Body::Payload(_) => (true, true),
+            _ => (false, false),
         }
     }
 

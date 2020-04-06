@@ -35,7 +35,6 @@ impl Writeable for Setup {
             bf.put_u16(b.len() as u16);
             bf.put(b.bytes());
         }
-        // TODO: remove string clone
         bf.put_u8(self.mime_metadata.len() as u8);
         bf.put(Bytes::from(self.mime_metadata.clone()));
         bf.put_u8(self.mime_data.len() as u8);
