@@ -1,5 +1,4 @@
 use crate::error::{ErrorKind, RSocketError};
-use crate::mime::WellKnownMIME;
 use crate::utils::{RSocketResult, Writeable, U24};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 

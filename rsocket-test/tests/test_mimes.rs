@@ -1,15 +1,12 @@
 extern crate rsocket_rust;
 
-use rsocket_rust::mime::WellKnownMIME;
+use rsocket_rust::extension::{self, MimeType};
 
 #[test]
 fn test_wellknown() {
-    let got = WellKnownMIME::from("application/json");
-    assert_eq!(WellKnownMIME::ApplicationJson, got);
-    WellKnownMIME::foreach(|m| {
-        let mut result = WellKnownMIME::from(m.raw());
-        assert_eq!(m, &result);
-        result = WellKnownMIME::from(format!("{}", m));
-        assert_eq!(m, &result);
-    });
+    let well = MimeType::from("application/json");
+    assert_eq!(extension::MIME_APPLICATION_JSON, well);
+    assert_eq!(0x05, well.as_u8().unwrap());
+    let custom = MimeType::from("application/custom");
+    assert_eq!(MimeType::Normal("application/custom".to_owned()), custom);
 }

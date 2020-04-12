@@ -98,12 +98,18 @@ impl SetupPayloadBuilder {
 }
 
 impl SetupPayload {
-    pub fn metadata(&self) -> &Option<Bytes> {
-        &self.m
+    pub fn metadata(&self) -> Option<&Bytes> {
+        match &self.m {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
-    pub fn data(&self) -> &Option<Bytes> {
-        &self.d
+    pub fn data(&self) -> Option<&Bytes> {
+        match &self.d {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
     pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
@@ -118,16 +124,18 @@ impl SetupPayload {
         self.keepalive.1
     }
 
-    pub fn metadata_mime_type(&self) -> Option<String> {
-        self.mime_m
-            .as_ref()
-            .map(|raw| String::from_utf8(raw.to_vec()).expect("read metadata MIME type failed!"))
+    pub fn metadata_mime_type(&self) -> Option<&str> {
+        match &self.mime_m {
+            Some(b) => Some(std::str::from_utf8(b.as_ref()).expect("Invalid UTF-8 bytes.")),
+            None => None,
+        }
     }
 
-    pub fn data_mime_type(&self) -> Option<String> {
-        self.mime_d
-            .as_ref()
-            .map(|raw| String::from_utf8(raw.to_vec()).expect("read data MIME type failed!"))
+    pub fn data_mime_type(&self) -> Option<&str> {
+        match &self.mime_d {
+            Some(b) => Some(std::str::from_utf8(b.as_ref()).expect("Invalid UTF-8 bytes.")),
+            None => None,
+        }
     }
 }
 

@@ -12,6 +12,8 @@ env_logger = "0.7.1"
 bytes = "0.5.4"
 hex = "0.4.2"
 rand = "0.7.3"
+serde = "1.0.106"
+serde_derive = "1.0.106"
 
 [dev-dependencies.rsocket_rust]
 path = "../rsocket"
@@ -23,7 +25,10 @@ path = "../rsocket-transport-tcp"
 [dev-dependencies.rsocket_rust_transport_websocket]
 path = "../rsocket-transport-websocket"
 
+[dev-dependencies.rsocket_rust_messaging]
+path = "../rsocket-messaging"
+
 [dev-dependencies.tokio]
-version = "0.2.16"
+version = "0.2.20"
 default-features = false
 features = ["full"]

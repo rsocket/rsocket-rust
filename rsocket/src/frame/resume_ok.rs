@@ -32,7 +32,7 @@ impl ResumeOKBuilder {
 }
 
 impl ResumeOK {
-    pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<ResumeOK> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<ResumeOK> {
         let position = bf.get_u64();
         Ok(ResumeOK { position })
     }

@@ -53,7 +53,7 @@ impl RequestStreamBuilder {
 }
 
 impl RequestStream {
-    pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestStream> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestStream> {
         let n = bf.get_u32();
         let (m, d) = PayloadSupport::read(flag, bf);
         Ok(RequestStream {
@@ -79,12 +79,18 @@ impl RequestStream {
         self.initial_request_n
     }
 
-    pub fn get_metadata(&self) -> &Option<Bytes> {
-        &self.metadata
+    pub fn get_metadata(&self) -> Option<&Bytes> {
+        match &self.metadata {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
-    pub fn get_data(&self) -> &Option<Bytes> {
-        &self.data
+    pub fn get_data(&self) -> Option<&Bytes> {
+        match &self.data {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
     pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {

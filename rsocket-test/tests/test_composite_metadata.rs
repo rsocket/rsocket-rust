@@ -1,20 +1,23 @@
 use bytes::BytesMut;
-use rsocket_rust::extension::{CompositeMetadata, Metadata};
+use rsocket_rust::extension::{self, CompositeMetadata, CompositeMetadataEntry, MimeType};
 use rsocket_rust::utils::Writeable;
 
 #[test]
 fn encode_and_decode_composite_metadata() {
-    let bingo = |metadatas: Vec<&Metadata>| {
+    let bingo = |metadatas: Vec<&CompositeMetadataEntry>| {
         assert_eq!(2, metadatas.len());
-        assert_eq!("text/plain", metadatas[0].get_mime());
-        assert_eq!(b"Hello World!", metadatas[0].get_payload().as_ref());
-        assert_eq!("application/not_well", metadatas[1].get_mime());
-        assert_eq!(b"Not Well!", metadatas[1].get_payload().as_ref());
+        assert_eq!(extension::MIME_TEXT_PLAIN, *metadatas[0].get_mime_type());
+        assert_eq!("Hello World!", metadatas[0].get_metadata_utf8());
+        assert_eq!(
+            MimeType::from("application/not_well"),
+            *metadatas[1].get_mime_type()
+        );
+        assert_eq!(b"Not Well!", metadatas[1].get_metadata().as_ref());
     };
 
     let cm = CompositeMetadata::builder()
-        .push("text/plain", b"Hello World!")
-        .push("application/not_well", "Not Well!")
+        .push(MimeType::from("text/plain"), b"Hello World!")
+        .push(MimeType::from("application/not_well"), "Not Well!")
         .build();
     bingo(cm.iter().collect());
 

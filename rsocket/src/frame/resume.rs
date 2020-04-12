@@ -26,7 +26,7 @@ impl Resume {
         }
     }
 
-    pub fn decode(flag: u16, b: &mut BytesMut) -> RSocketResult<Resume> {
+    pub(crate) fn decode(flag: u16, b: &mut BytesMut) -> RSocketResult<Resume> {
         let major = b.get_u16();
         let minor = b.get_u16();
         let token_size = b.get_u16();

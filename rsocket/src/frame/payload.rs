@@ -58,7 +58,7 @@ impl PayloadBuilder {
 }
 
 impl Payload {
-    pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Payload> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Payload> {
         let (m, d) = PayloadSupport::read(flag, bf);
         Ok(Payload {
             metadata: m,
@@ -70,12 +70,18 @@ impl Payload {
         PayloadBuilder::new(stream_id, flag)
     }
 
-    pub fn get_metadata(&self) -> &Option<Bytes> {
-        &self.metadata
+    pub fn get_metadata(&self) -> Option<&Bytes> {
+        match &self.metadata {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
-    pub fn get_data(&self) -> &Option<Bytes> {
-        &self.data
+    pub fn get_data(&self) -> Option<&Bytes> {
+        match &self.data {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
     pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {

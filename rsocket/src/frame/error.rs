@@ -43,7 +43,7 @@ impl ErrorBuilder {
 }
 
 impl Error {
-    pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Error> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Error> {
         let code = bf.get_u32();
         let d: Option<Bytes> = if !bf.is_empty() {
             Some(bf.to_bytes())
@@ -57,15 +57,18 @@ impl Error {
         ErrorBuilder::new(stream_id, flag)
     }
 
-    pub fn get_data_utf8(&self) -> String {
-        match self.get_data() {
-            Some(b) => String::from_utf8(b.to_vec()).unwrap(),
-            None => String::from(""),
+    pub fn get_data_utf8(&self) -> Option<&str> {
+        match &self.data {
+            Some(b) => Some(std::str::from_utf8(b.as_ref()).expect("Invalid UTF-8 bytes.")),
+            None => None,
         }
     }
 
-    pub fn get_data(&self) -> &Option<Bytes> {
-        &self.data
+    pub fn get_data(&self) -> Option<&Bytes> {
+        match &self.data {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
     pub fn get_code(&self) -> u32 {

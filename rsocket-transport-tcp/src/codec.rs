@@ -28,8 +28,7 @@ impl Decoder for LengthBasedFrameCodec {
     }
 }
 
-impl Encoder for LengthBasedFrameCodec {
-    type Item = Frame;
+impl Encoder<Frame> for LengthBasedFrameCodec {
     type Error = Error;
     fn encode(&mut self, item: Frame, buf: &mut BytesMut) -> Result<(), Self::Error> {
         let l = item.len();

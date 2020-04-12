@@ -50,7 +50,7 @@ impl LeaseBuilder {
 }
 
 impl Lease {
-    pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Lease> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Lease> {
         let ttl = bf.get_u32();
         let n = bf.get_u32();
         let m = if flag & FLAG_METADATA != 0 {
@@ -73,8 +73,11 @@ impl Lease {
         self.number_of_requests
     }
 
-    pub fn get_metadata(&self) -> &Option<Bytes> {
-        &self.metadata
+    pub fn get_metadata(&self) -> Option<&Bytes> {
+        match &self.metadata {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
     pub fn get_ttl(&self) -> u32 {

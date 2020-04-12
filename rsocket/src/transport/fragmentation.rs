@@ -126,10 +126,6 @@ impl Joiner {
         self.first().get_flag() & !frame::FLAG_FOLLOW
     }
 
-    pub(crate) fn get_frame_type(&self) -> u16 {
-        self.first().get_frame_type()
-    }
-
     pub(crate) fn first(&self) -> &Frame {
         self.inner.front().expect("No frames pushed!")
     }

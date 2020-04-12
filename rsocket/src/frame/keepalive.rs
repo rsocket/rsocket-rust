@@ -42,7 +42,7 @@ impl KeepaliveBuilder {
 }
 
 impl Keepalive {
-    pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Keepalive> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Keepalive> {
         let position = bf.get_u64();
         let mut d: Option<Bytes> = None;
         if !bf.is_empty() {
@@ -62,8 +62,11 @@ impl Keepalive {
         self.last_received_position
     }
 
-    pub fn get_data(&self) -> &Option<Bytes> {
-        &self.data
+    pub fn get_data(&self) -> Option<&Bytes> {
+        match &self.data {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
     pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {

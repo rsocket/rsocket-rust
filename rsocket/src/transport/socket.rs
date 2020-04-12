@@ -29,7 +29,7 @@ where
     seq: StreamID,
     responder: Responder,
     tx: Tx<Frame>,
-    handlers: Arc<Mutex<HashMap<u32, Handler>>>,
+    handlers: [Arc<Mutex<HashMap<u32, Handler>>>; 16],
     canceller: Tx<u32>,
     splitter: Option<Splitter>,
     joiners: Arc<Mutex<HashMap<u32, Joiner>>>,
@@ -60,13 +60,31 @@ where
     ) -> DuplexSocket<R> {
         let rt2 = rt.clone();
         let (canceller_tx, canceller_rx) = new_tx_rx::<u32>();
+        let handlers = [
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+        ];
         let ds = DuplexSocket {
             rt,
             seq: StreamID::from(first_stream_id),
             tx,
             canceller: canceller_tx,
             responder: Responder::new(),
-            handlers: Arc::new(Mutex::new(HashMap::new())),
+            handlers,
             joiners: Arc::new(Mutex::new(HashMap::new())),
             splitter,
         };
@@ -85,10 +103,10 @@ where
     pub(crate) async fn setup(&self, setup: SetupPayload) {
         let mut bu = frame::Setup::builder(0, 0);
         if let Some(s) = setup.data_mime_type() {
-            bu = bu.set_mime_data(&s);
+            bu = bu.set_mime_data(s);
         }
         if let Some(s) = setup.metadata_mime_type() {
-            bu = bu.set_mime_metadata(&s);
+            bu = bu.set_mime_metadata(s);
         }
         bu = bu.set_keepalive(setup.keepalive_interval());
         bu = bu.set_lifetime(setup.keepalive_lifetime());
@@ -105,15 +123,21 @@ where
     }
 
     #[inline]
-    async fn register_handler(&self, sid: u32, handler: Handler) {
-        let mut handlers = self.handlers.lock().await;
-        (*handlers).insert(sid, handler);
+    fn get_handler(&self, sid: u32) -> &Arc<Mutex<HashMap<u32, Handler>>> {
+        let i = ((sid ^ (sid >> 16)) & 15) as usize;
+        &self.handlers[i]
     }
 
     #[inline]
+    async fn register_handler(&self, sid: u32, handler: Handler) {
+        let h = self.get_handler(sid);
+        let mut handlers = h.lock().await;
+        (*handlers).insert(sid, handler);
+    }
+
     pub(crate) async fn loop_canceller(&self, mut rx: Rx<u32>) {
         while let Some(sid) = rx.next().await {
-            let mut handlers = self.handlers.lock().await;
+            let mut handlers = self.get_handler(sid).lock().await;
             (*handlers).remove(&sid);
         }
     }
@@ -197,6 +221,7 @@ where
         }
     }
 
+    #[inline]
     async fn join_frame(&self, input: Frame) -> Option<Frame> {
         let (is_follow, is_payload) = input.is_followable_or_payload();
         if !is_follow {
@@ -277,9 +302,10 @@ where
             (*joiners).remove(&sid);
         }
         // pick handler
-        let mut handlers = self.handlers.lock().await;
+        let mut handlers = self.get_handler(sid).lock().await;
         if let Some(handler) = (*handlers).remove(&sid) {
-            let kind = ErrorKind::Internal(input.get_code(), input.get_data_utf8());
+            let kind =
+                ErrorKind::Internal(input.get_code(), input.get_data_utf8().unwrap().to_owned());
             let e = Err(RSocketError::from(kind));
             match handler {
                 Handler::ReqRR(tx) => tx.send(e).expect("Send RR failed"),
@@ -296,7 +322,7 @@ where
             let mut joiners = self.joiners.lock().await;
             (*joiners).remove(&sid);
         }
-        let mut handlers = self.handlers.lock().await;
+        let mut handlers = self.get_handler(sid).lock().await;
         if let Some(handler) = (*handlers).remove(&sid) {
             let e = Err(RSocketError::from(ErrorKind::Cancelled()));
             match handler {
@@ -320,7 +346,7 @@ where
 
     #[inline]
     async fn on_payload(&self, sid: u32, flag: u16, input: Payload) {
-        let mut handlers = self.handlers.lock().await;
+        let mut handlers = self.get_handler(sid).lock().await;
         // fire event!
         match (*handlers).entry(sid) {
             Entry::Occupied(o) => {
@@ -726,7 +752,7 @@ where
     fn request_response(&self, req: Payload) -> Mono<Result<Payload, RSocketError>> {
         let (tx, rx) = new_tx_rx_once::<Result<Payload, RSocketError>>();
         let sid = self.seq.next();
-        let handlers = Arc::clone(&self.handlers);
+        let handlers = Arc::clone(&self.get_handler(sid));
         let sender = self.tx.clone();
 
         let splitter = self.splitter.clone();
@@ -806,7 +832,7 @@ where
         let tx = self.tx.clone();
         // register handler
         let (sender, receiver) = new_tx_rx::<Result<Payload, RSocketError>>();
-        let handlers = Arc::clone(&self.handlers);
+        let handlers = Arc::clone(&self.get_handler(sid));
         let splitter = self.splitter.clone();
         self.rt.spawn(async move {
             {
@@ -878,7 +904,7 @@ where
         let tx = self.tx.clone();
         // register handler
         let (sender, receiver) = new_tx_rx::<Result<Payload, RSocketError>>();
-        let handlers = Arc::clone(&self.handlers);
+        let handlers = Arc::clone(&self.get_handler(sid));
         let splitter = self.splitter.clone();
         self.rt.spawn(async move {
             {

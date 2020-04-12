@@ -33,7 +33,7 @@ impl RequestNBuilder {
 }
 
 impl RequestN {
-    pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestN> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestN> {
         let n = bf.get_u32();
         Ok(RequestN { n })
     }
