@@ -2,7 +2,7 @@ use super::client::WebsocketClientTransport;
 use super::runtime::WASMSpawner;
 use js_sys::{Promise, Uint8Array};
 use rsocket_rust::prelude::*;
-use wasm_bindgen::prelude::*;
+use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 use wasm_bindgen_futures::future_to_promise;
 
 #[derive(Serialize, Deserialize)]
@@ -79,6 +79,16 @@ impl JsClient {
                 }
                 Err(e) => Err(JsValue::from(&format!("{:?}", e))),
             }
+        })
+    }
+
+    pub fn fire_and_forget(&self, request: &JsValue) -> Promise {
+        let inner = self.inner.clone();
+        let request: JsPayload = request.into_serde().unwrap();
+
+        future_to_promise(async move {
+            inner.fire_and_forget(request.into());
+            Ok(JsValue::NULL)
         })
     }
 }
