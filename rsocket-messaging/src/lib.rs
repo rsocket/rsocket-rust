@@ -4,4 +4,4 @@ extern crate log;
 mod misc;
 mod requester;
 
-pub use requester::{RequestSpec, Requester};
+pub use requester::{RequestSpec, Requester, RequesterBuilder};

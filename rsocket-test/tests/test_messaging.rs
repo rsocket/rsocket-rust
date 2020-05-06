@@ -32,7 +32,7 @@ async fn test_messaging() {
         .start()
         .await
         .expect("Connect failed!");
-    let requester = Requester::new(rsocket);
+    let requester = Requester::from(rsocket);
 
     let post = Student {
         id: 1234,
@@ -40,6 +40,9 @@ async fn test_messaging() {
         birth: "2020-01-01".to_owned(),
     };
     let mut req = requester.route("student.v1.upsert");
+    req.metadata_raw("raw metadata", "application/json")
+        .unwrap();
+    req.metadata(&post, "application/json").unwrap();
     req.data(&post).unwrap();
     let res: Response<Student> = req
         .retrieve_mono()
@@ -48,5 +51,9 @@ async fn test_messaging() {
         .expect("Retrieve failed!")
         .expect("Empty result!");
     println!("------> RESPONSE: {:?}", res);
-    ()
+}
+
+#[test]
+fn test_builder() {
+    RequesterBuilder::default().data_mime_type("application/json");
 }

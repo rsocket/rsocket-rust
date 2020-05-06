@@ -11,6 +11,55 @@ use serde::{Deserialize, Serialize};
 use std::collections::LinkedList;
 use std::error::Error;
 
+pub struct RequesterBuilder {
+    data_mime_type: MimeType,
+    route: Option<String>,
+    data: Option<Vec<u8>>,
+}
+
+impl Default for RequesterBuilder {
+    fn default() -> Self {
+        Self {
+            data_mime_type: MIME_APPLICATION_JSON,
+            route: None,
+            data: None,
+        }
+    }
+}
+
+impl RequesterBuilder {
+    pub fn data_mime_type<I>(mut self, mime_type: I) -> Self
+    where
+        I: Into<MimeType>,
+    {
+        self.data_mime_type = mime_type.into();
+        self
+    }
+
+    pub fn setup_route<I>(mut self, route: I) -> Self
+    where
+        I: Into<String>,
+    {
+        self.route = Some(route.into());
+        self
+    }
+
+    pub fn setup_data<D>(mut self, data: D) -> Self
+    where
+        D: Into<Vec<u8>>,
+    {
+        self.data = Some(data.into());
+        self
+    }
+
+    pub fn build<S>(self) -> Requester<S>
+    where
+        S: RSocket + Clone,
+    {
+        todo!("build requester")
+    }
+}
+
 pub struct Requester<S>
 where
     S: RSocket + Clone,
@@ -22,20 +71,25 @@ pub struct RequestSpec<S>
 where
     S: RSocket + Clone,
 {
-    data_buf: BytesMut,
+    data: Option<Vec<u8>>,
     rsocket: S,
     data_mime_type: MimeType,
     metadatas: LinkedList<(MimeType, Vec<u8>)>,
+}
+
+impl<S> From<S> for Requester<S>
+where
+    S: RSocket + Clone,
+{
+    fn from(rsocket: S) -> Requester<S> {
+        Requester { rsocket }
+    }
 }
 
 impl<C> Requester<C>
 where
     C: RSocket + Clone,
 {
-    pub fn new(rsocket: C) -> Requester<C> {
-        Requester { rsocket }
-    }
-
     pub fn route(&self, route: &str) -> RequestSpec<C> {
         let routing = RoutingMetadata::builder().push_str(route).build();
         let mut buf = BytesMut::new();
@@ -44,7 +98,7 @@ where
         let mut metadatas: LinkedList<(MimeType, Vec<u8>)> = Default::default();
         metadatas.push_back((MIME_MESSAGE_X_RSOCKET_ROUTING_V0, buf.to_vec()));
         RequestSpec {
-            data_buf: BytesMut::new(),
+            data: None,
             rsocket: self.rsocket.clone(),
             data_mime_type: MIME_APPLICATION_JSON,
             metadatas,
@@ -56,14 +110,25 @@ impl<C> RequestSpec<C>
 where
     C: RSocket + Clone,
 {
-    pub fn metadata<T>(&mut self, metadata: &T, mime_type: &str) -> Result<(), Box<dyn Error>>
+    pub fn metadata<T, M>(&mut self, metadata: &T, mime_type: M) -> Result<(), Box<dyn Error>>
     where
         T: Sized + Serialize,
+        M: Into<MimeType>,
     {
-        let mime_type = MimeType::from(mime_type);
+        let mime_type = mime_type.into();
         let mut b = BytesMut::new();
         marshal(&mime_type, &mut b, metadata)?;
         self.metadatas.push_back((mime_type, b.to_vec()));
+        Ok(())
+    }
+
+    pub fn metadata_raw<I, M>(&mut self, metadata: I, mime_type: M) -> Result<(), Box<dyn Error>>
+    where
+        I: Into<Vec<u8>>,
+        M: Into<MimeType>,
+    {
+        self.metadatas
+            .push_back((mime_type.into(), metadata.into()));
         Ok(())
     }
 
@@ -71,29 +136,43 @@ where
     where
         T: Sized + Serialize,
     {
-        marshal(&self.data_mime_type, &mut self.data_buf, data)
+        let mut bf = BytesMut::new();
+        marshal(&self.data_mime_type, &mut bf, data)?;
+        self.data = Some(bf.to_vec());
+        Ok(())
     }
 
-    pub async fn retrieve_mono(&self) -> Unpacker {
-        let req = self.to_req();
-        let res = self.rsocket.request_response(req).await;
+    pub fn data_raw<I>(&mut self, data: I) -> Result<(), Box<dyn Error>>
+    where
+        I: Into<Vec<u8>>,
+    {
+        self.data = Some(data.into());
+        Ok(())
+    }
+
+    pub async fn retrieve_mono(self) -> Unpacker {
+        let (req, mime_type, rsocket) = self.preflight();
+        let res = rsocket.request_response(req).await;
         Unpacker {
-            mime_type: self.data_mime_type.clone(),
+            mime_type,
             inner: res,
         }
     }
 
-    fn to_req(&self) -> Payload {
+    #[inline]
+    fn preflight(self) -> (Payload, MimeType, C) {
         let mut b = BytesMut::new();
         let mut c = CompositeMetadata::builder();
-        for (a, b) in self.metadatas.iter() {
-            c = c.push(a.clone(), b);
+        for (mime_type, raw) in self.metadatas.into_iter() {
+            c = c.push(mime_type, raw);
         }
         c.build().write_to(&mut b);
-        Payload::builder()
-            .set_metadata(b.to_vec())
-            .set_data(self.data_buf.to_vec())
-            .build()
+
+        let mut bu = Payload::builder().set_metadata(b.to_vec());
+        if let Some(raw) = self.data {
+            bu = bu.set_data(raw);
+        }
+        (bu.build(), self.data_mime_type, self.rsocket)
     }
 }
 
