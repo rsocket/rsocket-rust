@@ -35,7 +35,7 @@ impl MimeType {
 
     pub fn as_u8(&self) -> Option<u8> {
         match self {
-            Self::WellKnown(n) => Some(n.clone()),
+            Self::WellKnown(n) => Some(*n),
             Self::Normal(_) => None,
         }
     }
@@ -59,7 +59,7 @@ impl AsRef<str> for MimeType {
 impl From<&str> for MimeType {
     fn from(value: &str) -> MimeType {
         match STR_TO_U8.get(&value) {
-            Some(v) => Self::WellKnown(v.clone()),
+            Some(v) => Self::WellKnown(*v),
             None => Self::Normal(value.to_owned()),
         }
     }

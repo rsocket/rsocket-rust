@@ -12,4 +12,5 @@ members = [
 # internal
 "examples",
 "rsocket-test",
+"rsocket-benchmark",
 ]

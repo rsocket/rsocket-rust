@@ -20,9 +20,8 @@ pub trait Writeable {
 pub struct U24;
 
 impl U24 {
-    pub fn max() -> usize {
-        0x00FF_FFFF
-    }
+    pub const MAX: u32 = 0x00FF_FFFF;
+    pub const MIN: u32 = 0;
 
     pub fn write(n: u32, bf: &mut BytesMut) {
         bf.put_u8((0xFF & (n >> 16)) as u8);

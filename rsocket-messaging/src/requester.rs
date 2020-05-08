@@ -1,5 +1,5 @@
 use super::misc::{marshal, unmarshal};
-use bytes::{BufMut, BytesMut};
+use bytes::BytesMut;
 use rsocket_rust::error::RSocketError;
 use rsocket_rust::extension::{
     CompositeMetadata, MimeType, RoutingMetadata, MIME_APPLICATION_JSON,

@@ -159,12 +159,10 @@ impl CompositeMetadata {
 
 impl CompositeMetadataEntry {
     pub fn new(mime_type: MimeType, metadata: Bytes) -> CompositeMetadataEntry {
-        if metadata.len() > U24::max() {
-            panic!("too large Payload!")
-        }
+        assert!(metadata.len() <= (U24::MAX as usize));
         CompositeMetadataEntry {
-            mime_type: mime_type,
-            metadata: metadata,
+            mime_type,
+            metadata,
         }
     }
 
