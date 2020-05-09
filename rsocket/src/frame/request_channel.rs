@@ -1,4 +1,4 @@
-use super::{Body, Frame, PayloadSupport, FLAG_METADATA, REQUEST_MAX};
+use super::{Body, Frame, PayloadSupport, REQUEST_MAX};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -42,11 +42,11 @@ impl RequestChannelBuilder {
         match data_and_metadata.1 {
             Some(m) => {
                 self.value.metadata = Some(m);
-                self.flag |= FLAG_METADATA;
+                self.flag |= Frame::FLAG_METADATA;
             }
             None => {
                 self.value.metadata = None;
-                self.flag &= !FLAG_METADATA;
+                self.flag &= !Frame::FLAG_METADATA;
             }
         }
         self
@@ -54,7 +54,7 @@ impl RequestChannelBuilder {
 
     pub fn set_metadata(mut self, metadata: Bytes) -> Self {
         self.value.metadata = Some(metadata);
-        self.flag |= FLAG_METADATA;
+        self.flag |= Frame::FLAG_METADATA;
         self
     }
 

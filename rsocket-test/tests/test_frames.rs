@@ -20,7 +20,7 @@ fn test_setup() {
 
 #[test]
 fn test_keepalive() {
-    let f = Keepalive::builder(1234, FLAG_RESPOND)
+    let f = Keepalive::builder(1234, Frame::FLAG_RESPOND)
         .set_last_received_position(123)
         .set_data(Bytes::from("foobar"))
         .build();
@@ -38,7 +38,7 @@ fn test_request_response() {
 
 #[test]
 fn test_payload() {
-    let f = Payload::builder(1234, FLAG_NEXT | FLAG_COMPLETE)
+    let f = Payload::builder(1234, Frame::FLAG_NEXT | Frame::FLAG_COMPLETE)
         .set_data(Bytes::from("Hello World!"))
         .set_metadata(Bytes::from("foobar"))
         .build();
@@ -111,7 +111,7 @@ fn resume_ok() {
 
 #[test]
 fn test_resume() {
-    let f = Resume::builder(0, FLAG_RESUME)
+    let f = Resume::builder(0, Frame::FLAG_RESUME)
         .set_last_received_server_position(123)
         .set_first_available_client_position(22)
         .set_token(Bytes::from("this is a token"))

@@ -6,7 +6,10 @@ use rsocket_rust::utils::Writeable;
 fn encode_and_decode_composite_metadata() {
     let bingo = |metadatas: Vec<&CompositeMetadataEntry>| {
         assert_eq!(2, metadatas.len());
-        assert_eq!(extension::MIME_TEXT_PLAIN, *metadatas[0].get_mime_type());
+        assert_eq!(
+            extension::MimeType::TEXT_PLAIN,
+            *metadatas[0].get_mime_type()
+        );
         assert_eq!("Hello World!", metadatas[0].get_metadata_utf8());
         assert_eq!(
             MimeType::from("application/not_well"),

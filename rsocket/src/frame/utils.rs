@@ -1,5 +1,5 @@
-use super::FLAG_METADATA;
-use crate::utils::U24;
+use super::Frame;
+use crate::utils::{u24, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 pub(crate) struct PayloadSupport {}
@@ -18,9 +18,9 @@ impl PayloadSupport {
     }
 
     pub fn read(flag: u16, bf: &mut BytesMut) -> (Option<Bytes>, Option<Bytes>) {
-        let m: Option<Bytes> = if flag & FLAG_METADATA != 0 {
-            let n = U24::read_advance(bf);
-            Some(bf.split_to(n as usize).freeze())
+        let m: Option<Bytes> = if flag & Frame::FLAG_METADATA != 0 {
+            let n = u24::read_advance(bf);
+            Some(bf.split_to(n.into()).freeze())
         } else {
             None
         };
@@ -34,8 +34,7 @@ impl PayloadSupport {
 
     pub fn write(bf: &mut BytesMut, metadata: Option<&Bytes>, data: Option<&Bytes>) {
         if let Some(v) = metadata {
-            let n = v.len() as u32;
-            U24::write(n, bf);
+            u24::from(v.len()).write_to(bf);
             bf.put(v.clone());
         }
         if let Some(v) = data {

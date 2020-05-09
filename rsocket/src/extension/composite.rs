@@ -1,6 +1,6 @@
 use super::mime::MimeType;
 use crate::error::{ErrorKind, RSocketError};
-use crate::utils::{RSocketResult, Writeable, U24};
+use crate::utils::{u24, RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::collections::LinkedList;
 use std::convert::TryFrom;
@@ -141,7 +141,7 @@ impl CompositeMetadata {
                 "broken composite metadata: not enough bytes!",
             ));
         }
-        let payload_size = U24::read_advance(bs) as usize;
+        let payload_size = u24::read_advance(bs).into();
         if bs.len() < payload_size {
             return Err(RSocketError::from(format!(
                 "broken composite metadata: require {} bytes!",
@@ -159,7 +159,7 @@ impl CompositeMetadata {
 
 impl CompositeMetadataEntry {
     pub fn new(mime_type: MimeType, metadata: Bytes) -> CompositeMetadataEntry {
-        assert!(metadata.len() <= (U24::MAX as usize));
+        assert!(metadata.len() <= (u24::MAX as usize));
         CompositeMetadataEntry {
             mime_type,
             metadata,
@@ -196,8 +196,8 @@ impl Writeable for CompositeMetadataEntry {
                 bf.put_slice(s.as_ref());
             }
         };
-        let metadata_len = self.metadata.len() as u32;
-        U24::write(metadata_len, bf);
+        let metadata_len = self.metadata.len();
+        u24::from(metadata_len).write_to(bf);
         if metadata_len > 0 {
             bf.put(self.metadata.bytes());
         }

@@ -1,4 +1,4 @@
-use super::{Body, Frame, FLAG_METADATA};
+use super::{Body, Frame};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -30,7 +30,7 @@ impl LeaseBuilder {
 
     pub fn set_metadata(mut self, metadata: Bytes) -> Self {
         self.value.metadata = Some(metadata);
-        self.flag |= FLAG_METADATA;
+        self.flag |= Frame::FLAG_METADATA;
         self
     }
 
@@ -53,7 +53,7 @@ impl Lease {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Lease> {
         let ttl = bf.get_u32();
         let n = bf.get_u32();
-        let m = if flag & FLAG_METADATA != 0 {
+        let m = if flag & Frame::FLAG_METADATA != 0 {
             Some(bf.to_bytes())
         } else {
             None

@@ -1,5 +1,5 @@
-use super::{Body, Frame, PayloadSupport, FLAG_METADATA};
-use crate::utils::{RSocketResult, Writeable, U24};
+use super::{Body, Frame, PayloadSupport};
+use crate::utils::{RSocketResult, Writeable};
 use bytes::{BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
@@ -31,11 +31,11 @@ impl RequestResponseBuilder {
         match data_and_metadata.1 {
             Some(m) => {
                 self.value.metadata = Some(m);
-                self.flag |= FLAG_METADATA;
+                self.flag |= Frame::FLAG_METADATA;
             }
             None => {
                 self.value.metadata = None;
-                self.flag &= !FLAG_METADATA;
+                self.flag &= !Frame::FLAG_METADATA;
             }
         }
         self
@@ -43,7 +43,7 @@ impl RequestResponseBuilder {
 
     pub fn set_metadata(mut self, metadata: Bytes) -> Self {
         self.value.metadata = Some(metadata);
-        self.flag |= FLAG_METADATA;
+        self.flag |= Frame::FLAG_METADATA;
         self
     }
 

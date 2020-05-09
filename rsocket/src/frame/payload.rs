@@ -1,4 +1,4 @@
-use super::{Body, Frame, PayloadSupport, FLAG_METADATA};
+use super::{Body, Frame, PayloadSupport};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -31,11 +31,11 @@ impl PayloadBuilder {
         match data_and_metadata.1 {
             Some(m) => {
                 self.value.metadata = Some(m);
-                self.flag |= FLAG_METADATA;
+                self.flag |= Frame::FLAG_METADATA;
             }
             None => {
                 self.value.metadata = None;
-                self.flag &= !FLAG_METADATA;
+                self.flag &= !Frame::FLAG_METADATA;
             }
         }
         self
@@ -48,7 +48,7 @@ impl PayloadBuilder {
 
     pub fn set_metadata(mut self, metadata: Bytes) -> Self {
         self.value.metadata = Some(metadata);
-        self.flag |= FLAG_METADATA;
+        self.flag |= Frame::FLAG_METADATA;
         self
     }
 

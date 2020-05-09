@@ -1,4 +1,4 @@
-use super::{Body, Frame, PayloadSupport, Version, FLAG_METADATA, FLAG_RESUME};
+use super::{Body, Frame, PayloadSupport, Version};
 use crate::utils::{RSocketResult, Writeable, DEFAULT_MIME_TYPE};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::time::Duration;
@@ -27,7 +27,7 @@ impl Setup {
         let minor = b.get_u16();
         let keepalive = b.get_u32();
         let lifetime = b.get_u32();
-        let token: Option<Bytes> = if flag & FLAG_RESUME != 0 {
+        let token: Option<Bytes> = if flag & Frame::FLAG_RESUME != 0 {
             let l = b.get_u16();
             Some(b.split_to(l as usize).freeze())
         } else {
@@ -158,7 +158,7 @@ impl SetupBuilder {
     }
 
     pub fn set_metadata(mut self, bs: Bytes) -> Self {
-        self.flag |= FLAG_METADATA;
+        self.flag |= Frame::FLAG_METADATA;
         self.value.metadata = Some(bs);
         self
     }
@@ -180,7 +180,7 @@ impl SetupBuilder {
 
     pub fn set_token(mut self, token: Bytes) -> Self {
         self.value.token = Some(token);
-        self.flag |= FLAG_RESUME;
+        self.flag |= Frame::FLAG_RESUME;
         self
     }
 
@@ -189,9 +189,7 @@ impl SetupBuilder {
         I: Into<String>,
     {
         let mime = mime.into();
-        if mime.len() > 256 {
-            panic!("maximum mime length is 256");
-        }
+        assert!(mime.len() <= 256);
         self.value.mime_metadata = Bytes::from(mime);
         self
     }
@@ -201,9 +199,7 @@ impl SetupBuilder {
         I: Into<String>,
     {
         let mime = mime.into();
-        if mime.len() > 256 {
-            panic!("maximum mime length is 256");
-        }
+        assert!(mime.len() <= 256);
         self.value.mime_data = Bytes::from(mime);
         self
     }

@@ -1,4 +1,6 @@
+mod builder;
 mod misc;
 mod requester;
 
-pub use requester::{RequestSpec, Requester, RequesterBuilder};
+pub use builder::RequesterBuilder;
+pub use requester::{RequestSpec, Requester};

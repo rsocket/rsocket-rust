@@ -32,6 +32,8 @@ async fn test_messaging() {
         .start()
         .await
         .expect("Connect failed!");
+
+    let rsocket: Box<dyn RSocket> = Box::new(rsocket);
     let requester = Requester::from(rsocket);
 
     let post = Student {
@@ -51,9 +53,4 @@ async fn test_messaging() {
         .expect("Retrieve failed!")
         .expect("Empty result!");
     println!("------> RESPONSE: {:?}", res);
-}
-
-#[test]
-fn test_builder() {
-    RequesterBuilder::default().data_mime_type("application/json");
 }

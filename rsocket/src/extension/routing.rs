@@ -1,5 +1,5 @@
 use crate::error::{ErrorKind, RSocketError};
-use crate::utils::{RSocketResult, Writeable, U24};
+use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 const MAX_ROUTING_TAG_LEN: usize = 0xFF;

@@ -123,7 +123,7 @@ impl Joiner {
     }
 
     pub(crate) fn get_flag(&self) -> u16 {
-        self.first().get_flag() & !frame::FLAG_FOLLOW
+        self.first().get_flag() & !Frame::FLAG_FOLLOW
     }
 
     pub(crate) fn first(&self) -> &Frame {
@@ -138,14 +138,14 @@ impl Joiner {
 #[cfg(test)]
 mod tests {
 
-    use crate::frame;
+    use crate::frame::{self, Frame};
     use crate::payload::Payload;
     use crate::transport::{Joiner, Splitter};
     use bytes::{Buf, Bytes};
 
     #[test]
     fn test_joiner() {
-        let first = frame::Payload::builder(1, frame::FLAG_FOLLOW)
+        let first = frame::Payload::builder(1, Frame::FLAG_FOLLOW)
             .set_data(Bytes::from("(ROOT)"))
             .set_metadata(Bytes::from("(ROOT)"))
             .build();
@@ -153,7 +153,7 @@ mod tests {
         joiner.push(first);
 
         for i in 0..10 {
-            let flag = if i == 9 { 0u16 } else { frame::FLAG_FOLLOW };
+            let flag = if i == 9 { 0u16 } else { Frame::FLAG_FOLLOW };
             let next = frame::Payload::builder(1, flag)
                 .set_data(Bytes::from(format!("(data{:04})", i)))
                 .set_metadata(Bytes::from(format!("(data{:04})", i)))

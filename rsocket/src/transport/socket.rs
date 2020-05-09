@@ -192,7 +192,7 @@ where
                 self.on_payload(sid, flag, input).await;
             }
             Body::Keepalive(v) => {
-                if flag & frame::FLAG_RESPOND != 0 {
+                if flag & Frame::FLAG_RESPOND != 0 {
                     debug!("got keepalive: {:?}", v);
                     self.on_keepalive(v).await;
                 }
@@ -230,7 +230,7 @@ where
         let sid = input.get_stream_id();
         let mut joiners = self.joiners.lock().await;
 
-        if input.get_flag() & frame::FLAG_FOLLOW != 0 {
+        if input.get_flag() & Frame::FLAG_FOLLOW != 0 {
             // TODO: check conflict
             (*joiners)
                 .entry(sid)
@@ -359,23 +359,23 @@ where
                     },
                     Handler::ResRR(c) => unreachable!(),
                     Handler::ReqRS(sender) => {
-                        if flag & frame::FLAG_NEXT != 0 {
+                        if flag & Frame::FLAG_NEXT != 0 {
                             sender
                                 .unbounded_send(Ok(input))
                                 .expect("Send payload response failed.");
                         }
-                        if flag & frame::FLAG_COMPLETE != 0 {
+                        if flag & Frame::FLAG_COMPLETE != 0 {
                             o.remove();
                         }
                     }
                     Handler::ReqRC(sender) => {
                         // TODO: support channel
-                        if flag & frame::FLAG_NEXT != 0 {
+                        if flag & Frame::FLAG_NEXT != 0 {
                             sender
                                 .unbounded_send(Ok(input))
                                 .expect("Send payload response failed");
                         }
-                        if flag & frame::FLAG_COMPLETE != 0 {
+                        if flag & Frame::FLAG_COMPLETE != 0 {
                             o.remove();
                         }
                     }
@@ -446,7 +446,7 @@ where
                         &tx,
                         sid,
                         res,
-                        frame::FLAG_NEXT | frame::FLAG_COMPLETE,
+                        Frame::FLAG_NEXT | Frame::FLAG_COMPLETE,
                     );
                 }
                 Err(e) => {
@@ -473,7 +473,7 @@ where
             while let Some(next) = payloads.next().await {
                 match next {
                     Ok(it) => {
-                        Self::try_send_payload(&splitter, &tx, sid, it, frame::FLAG_NEXT);
+                        Self::try_send_payload(&splitter, &tx, sid, it, Frame::FLAG_NEXT);
                     }
                     Err(e) => {
                         let sending = frame::Error::builder(sid, 0)
@@ -485,7 +485,7 @@ where
                     }
                 };
             }
-            let complete = frame::Payload::builder(sid, frame::FLAG_COMPLETE).build();
+            let complete = frame::Payload::builder(sid, Frame::FLAG_COMPLETE).build();
             tx.unbounded_send(complete)
                 .expect("Send stream complete response failed");
         });
@@ -512,7 +512,7 @@ where
                 let sending = match next {
                     Ok(v) => {
                         let (d, m) = v.split();
-                        let mut bu = frame::Payload::builder(sid, frame::FLAG_NEXT);
+                        let mut bu = frame::Payload::builder(sid, Frame::FLAG_NEXT);
                         if let Some(b) = d {
                             bu = bu.set_data(b);
                         }
@@ -528,7 +528,7 @@ where
                 };
                 tx.unbounded_send(sending).unwrap();
             }
-            let complete = frame::Payload::builder(sid, frame::FLAG_COMPLETE).build();
+            let complete = frame::Payload::builder(sid, Frame::FLAG_COMPLETE).build();
             if let Err(e) = tx.unbounded_send(complete) {
                 error!("complete REQUEST_CHANNEL failed: {}", e);
             }
@@ -569,11 +569,11 @@ where
                 for next in sp.cut(res, 4) {
                     if let Some(cur) = prev.take() {
                         let sending = if cuts == 1 {
-                            frame::RequestChannel::builder(sid, flag | frame::FLAG_FOLLOW)
+                            frame::RequestChannel::builder(sid, flag | Frame::FLAG_FOLLOW)
                                 .set_all(cur.split())
                                 .build()
                         } else {
-                            frame::Payload::builder(sid, frame::FLAG_FOLLOW)
+                            frame::Payload::builder(sid, Frame::FLAG_FOLLOW)
                                 .set_all(cur.split())
                                 .build()
                         };
@@ -629,11 +629,11 @@ where
                 for next in sp.cut(res, 0) {
                     if let Some(cur) = prev.take() {
                         let sending = if cuts == 1 {
-                            frame::Payload::builder(sid, flag | frame::FLAG_FOLLOW)
+                            frame::Payload::builder(sid, flag | Frame::FLAG_FOLLOW)
                                 .set_all(cur.split())
                                 .build()
                         } else {
-                            frame::Payload::builder(sid, frame::FLAG_FOLLOW)
+                            frame::Payload::builder(sid, Frame::FLAG_FOLLOW)
                                 .set_all(cur.split())
                                 .build()
                         };
@@ -702,12 +702,12 @@ where
                         if let Some(cur) = prev.take() {
                             let sending = if cuts == 1 {
                                 // make first frame as request_fnf.
-                                frame::RequestFNF::builder(sid, frame::FLAG_FOLLOW)
+                                frame::RequestFNF::builder(sid, Frame::FLAG_FOLLOW)
                                     .set_all(cur.split())
                                     .build()
                             } else {
                                 // make other frames as payload.
-                                frame::Payload::builder(sid, frame::FLAG_FOLLOW)
+                                frame::Payload::builder(sid, Frame::FLAG_FOLLOW)
                                     .set_all(cur.split())
                                     .build()
                             };
@@ -772,12 +772,12 @@ where
                         if let Some(cur) = prev.take() {
                             let sending = if cuts == 1 {
                                 // make first frame as request_response.
-                                frame::RequestResponse::builder(sid, frame::FLAG_FOLLOW)
+                                frame::RequestResponse::builder(sid, Frame::FLAG_FOLLOW)
                                     .set_all(cur.split())
                                     .build()
                             } else {
                                 // make other frames as payload.
-                                frame::Payload::builder(sid, frame::FLAG_FOLLOW)
+                                frame::Payload::builder(sid, Frame::FLAG_FOLLOW)
                                     .set_all(cur.split())
                                     .build()
                             };
@@ -848,12 +848,12 @@ where
                         if let Some(cur) = prev.take() {
                             let sending: Frame = if cuts == 1 {
                                 // make first frame as request_stream.
-                                frame::RequestStream::builder(sid, frame::FLAG_FOLLOW)
+                                frame::RequestStream::builder(sid, Frame::FLAG_FOLLOW)
                                     .set_all(cur.split())
                                     .build()
                             } else {
                                 // make other frames as payload.
-                                frame::Payload::builder(sid, frame::FLAG_FOLLOW)
+                                frame::Payload::builder(sid, Frame::FLAG_FOLLOW)
                                     .set_all(cur.split())
                                     .build()
                             };
@@ -917,9 +917,9 @@ where
                     Ok(it) => {
                         if first {
                             first = false;
-                            Self::try_send_channel(&splitter, &tx, sid, it, frame::FLAG_NEXT)
+                            Self::try_send_channel(&splitter, &tx, sid, it, Frame::FLAG_NEXT)
                         } else {
-                            Self::try_send_payload(&splitter, &tx, sid, it, frame::FLAG_NEXT)
+                            Self::try_send_payload(&splitter, &tx, sid, it, Frame::FLAG_NEXT)
                         }
                     }
                     Err(e) => {
@@ -933,7 +933,7 @@ where
                     }
                 };
             }
-            let sending = frame::Payload::builder(sid, frame::FLAG_COMPLETE).build();
+            let sending = frame::Payload::builder(sid, Frame::FLAG_COMPLETE).build();
             if let Err(e) = tx.unbounded_send(sending) {
                 error!("complete REQUEST_CHANNEL failed: {}", e);
             }

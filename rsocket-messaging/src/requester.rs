@@ -1,115 +1,51 @@
 use super::misc::{marshal, unmarshal};
 use bytes::BytesMut;
 use rsocket_rust::error::RSocketError;
-use rsocket_rust::extension::{
-    CompositeMetadata, MimeType, RoutingMetadata, MIME_APPLICATION_JSON,
-    MIME_MESSAGE_X_RSOCKET_ROUTING_V0,
-};
+use rsocket_rust::extension::{CompositeMetadata, MimeType, RoutingMetadata};
 use rsocket_rust::prelude::*;
 use rsocket_rust::utils::Writeable;
 use serde::{Deserialize, Serialize};
 use std::collections::LinkedList;
 use std::error::Error;
+use std::sync::Arc;
 
-pub struct RequesterBuilder {
-    data_mime_type: MimeType,
-    route: Option<String>,
+pub struct Requester {
+    rsocket: Arc<Box<dyn RSocket>>,
+}
+
+pub struct RequestSpec {
     data: Option<Vec<u8>>,
-}
-
-impl Default for RequesterBuilder {
-    fn default() -> Self {
-        Self {
-            data_mime_type: MIME_APPLICATION_JSON,
-            route: None,
-            data: None,
-        }
-    }
-}
-
-impl RequesterBuilder {
-    pub fn data_mime_type<I>(mut self, mime_type: I) -> Self
-    where
-        I: Into<MimeType>,
-    {
-        self.data_mime_type = mime_type.into();
-        self
-    }
-
-    pub fn setup_route<I>(mut self, route: I) -> Self
-    where
-        I: Into<String>,
-    {
-        self.route = Some(route.into());
-        self
-    }
-
-    pub fn setup_data<D>(mut self, data: D) -> Self
-    where
-        D: Into<Vec<u8>>,
-    {
-        self.data = Some(data.into());
-        self
-    }
-
-    pub fn build<S>(self) -> Requester<S>
-    where
-        S: RSocket + Clone,
-    {
-        todo!("build requester")
-    }
-}
-
-pub struct Requester<S>
-where
-    S: RSocket + Clone,
-{
-    rsocket: S,
-}
-
-pub struct RequestSpec<S>
-where
-    S: RSocket + Clone,
-{
-    data: Option<Vec<u8>>,
-    rsocket: S,
+    rsocket: Arc<Box<dyn RSocket>>,
     data_mime_type: MimeType,
     metadatas: LinkedList<(MimeType, Vec<u8>)>,
 }
 
-impl<S> From<S> for Requester<S>
-where
-    S: RSocket + Clone,
-{
-    fn from(rsocket: S) -> Requester<S> {
-        Requester { rsocket }
+impl From<Box<dyn RSocket>> for Requester {
+    fn from(rsocket: Box<dyn RSocket>) -> Requester {
+        Requester {
+            rsocket: Arc::new(rsocket),
+        }
     }
 }
 
-impl<C> Requester<C>
-where
-    C: RSocket + Clone,
-{
-    pub fn route(&self, route: &str) -> RequestSpec<C> {
+impl Requester {
+    pub fn route(&self, route: &str) -> RequestSpec {
         let routing = RoutingMetadata::builder().push_str(route).build();
         let mut buf = BytesMut::new();
         routing.write_to(&mut buf);
 
         let mut metadatas: LinkedList<(MimeType, Vec<u8>)> = Default::default();
-        metadatas.push_back((MIME_MESSAGE_X_RSOCKET_ROUTING_V0, buf.to_vec()));
+        metadatas.push_back((MimeType::MESSAGE_X_RSOCKET_ROUTING_V0, buf.to_vec()));
         RequestSpec {
             data: None,
             rsocket: self.rsocket.clone(),
-            data_mime_type: MIME_APPLICATION_JSON,
+            data_mime_type: MimeType::APPLICATION_JSON,
             metadatas,
         }
     }
 }
 
-impl<C> RequestSpec<C>
-where
-    C: RSocket + Clone,
-{
+impl RequestSpec {
     pub fn metadata<T, M>(&mut self, metadata: &T, mime_type: M) -> Result<(), Box<dyn Error>>
     where
         T: Sized + Serialize,
@@ -160,7 +96,7 @@ where
     }
 
     #[inline]
-    fn preflight(self) -> (Payload, MimeType, C) {
+    fn preflight(self) -> (Payload, MimeType, Arc<Box<dyn RSocket>>) {
         let mut b = BytesMut::new();
         let mut c = CompositeMetadata::builder();
         for (mime_type, raw) in self.metadatas.into_iter() {

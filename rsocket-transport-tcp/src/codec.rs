@@ -1,6 +1,6 @@
 use bytes::{Buf, BytesMut};
 use rsocket_rust::frame::Frame;
-use rsocket_rust::utils::{Writeable, U24};
+use rsocket_rust::utils::{u24, Writeable};
 use std::io::{Error, ErrorKind};
 use tokio_util::codec::{Decoder, Encoder};
 
@@ -15,7 +15,7 @@ impl Decoder for LengthBasedFrameCodec {
         if actual < 3 {
             return Ok(None);
         }
-        let l = U24::read(buf) as usize;
+        let l = u24::read(buf).into();
         if actual < 3 + l {
             return Ok(None);
         }
@@ -33,7 +33,7 @@ impl Encoder<Frame> for LengthBasedFrameCodec {
     fn encode(&mut self, item: Frame, buf: &mut BytesMut) -> Result<(), Self::Error> {
         let l = item.len();
         buf.reserve(3 + l);
-        U24::write(l as u32, buf);
+        u24::from(l).write_to(buf);
         item.write_to(buf);
         Ok(())
     }

@@ -17,32 +17,89 @@ pub trait Writeable {
     }
 }
 
-pub struct U24;
+#[allow(non_camel_case_types)]
+#[derive(Default, Clone, Copy, Debug)]
+pub struct u24(u32);
 
-impl U24 {
+macro_rules! ux {
+    ($type:ident) => {
+        impl From<$type> for u24 {
+            fn from(n: $type) -> Self {
+                assert!(n <= Self::MAX as $type);
+                Self(n as u32)
+            }
+        }
+        impl Into<$type> for u24 {
+            fn into(self) -> $type {
+                if (std::$type::MAX as u64) < (std::u16::MAX as u64) {
+                    assert!(self.0 <= (std::$type::MAX as u32));
+                }
+                self.0 as $type
+            }
+        }
+    };
+}
+
+macro_rules! ix {
+    ($type:ident) => {
+        impl From<$type> for u24 {
+            fn from(n: $type) -> Self {
+                assert!(n >= Self::MIN as $type && n <= Self::MAX as $type);
+                Self(n as u32)
+            }
+        }
+        impl Into<$type> for u24 {
+            fn into(self) -> $type {
+                if (std::$type::MAX as u64) < (std::u16::MAX as u64) {
+                    assert!(self.0 <= (std::$type::MAX as u32));
+                }
+                self.0 as $type
+            }
+        }
+    };
+}
+
+ux!(u8);
+ux!(u16);
+ux!(u32);
+ux!(u64);
+ux!(usize);
+ix!(i8);
+ix!(i16);
+ix!(i32);
+ix!(i64);
+ix!(isize);
+
+impl Writeable for u24 {
+    fn write_to(&self, bf: &mut BytesMut) {
+        bf.put_u8((0xFF & (self.0 >> 16)) as u8);
+        bf.put_u8((0xFF & (self.0 >> 8)) as u8);
+        bf.put_u8((0xFF & self.0) as u8);
+    }
+    fn len(&self) -> usize {
+        3
+    }
+}
+
+impl u24 {
     pub const MAX: u32 = 0x00FF_FFFF;
     pub const MIN: u32 = 0;
 
-    pub fn write(n: u32, bf: &mut BytesMut) {
-        bf.put_u8((0xFF & (n >> 16)) as u8);
-        bf.put_u8((0xFF & (n >> 8)) as u8);
-        bf.put_u8((0xFF & n) as u8);
+    pub fn parse(b: &[u8]) -> u24 {
+        assert!(b.len() > 2);
+        let mut n = 0u32;
+        n += (b[0] as u32) << 16;
+        n += (b[1] as u32) << 8;
+        n += b[2] as u32;
+        u24(n)
     }
 
-    pub fn read(bf: &mut BytesMut) -> u32 {
-        let mut n: u32 = 0;
-        n += u32::from(bf[0]) << 16;
-        n += u32::from(bf[1]) << 8;
-        n += u32::from(bf[2]);
-        n
+    pub fn read(bf: &mut BytesMut) -> u24 {
+        Self::parse(bf)
     }
 
-    pub fn read_advance(bf: &mut BytesMut) -> u32 {
-        let mut n: u32 = 0;
+    pub fn read_advance(bf: &mut BytesMut) -> u24 {
         let raw = bf.split_to(3);
-        n += u32::from(raw[0]) << 16;
-        n += u32::from(raw[1]) << 8;
-        n += u32::from(raw[2]);
-        n
+        Self::parse(&raw)
     }
 }
