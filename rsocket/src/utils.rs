@@ -15,6 +15,11 @@ pub trait Writeable {
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+    fn bytes(&self) -> Vec<u8> {
+        let mut b = BytesMut::new();
+        self.write_to(&mut b);
+        b.to_vec()
+    }
 }
 
 #[allow(non_camel_case_types)]

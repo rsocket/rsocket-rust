@@ -7,13 +7,13 @@ publish = false
 
 [dev-dependencies]
 log = "0.4"
-futures = "0.3.4"
+futures = "0.3.5"
 env_logger = "0.7.1"
 bytes = "0.5.4"
 hex = "0.4.2"
 rand = "0.7.3"
-serde = "1.0.106"
-serde_derive = "1.0.106"
+serde = "1.0.110"
+serde_derive = "1.0.110"
 criterion = "0.3.2"
 
 [dev-dependencies.rsocket_rust]

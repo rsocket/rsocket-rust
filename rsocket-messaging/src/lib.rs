@@ -1,6 +1,7 @@
-mod builder;
+#[macro_use]
+extern crate log;
+
 mod misc;
 mod requester;
 
-pub use builder::RequesterBuilder;
-pub use requester::{RequestSpec, Requester};
+pub use requester::{RequestSpec, Requester, RequesterBuilder};

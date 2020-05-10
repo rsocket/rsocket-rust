@@ -11,7 +11,7 @@ description = "Websocket RSocket transport implementation."
 
 [dependencies]
 log = "0.4.8"
-futures = "0.3.4"
+futures = "0.3.5"
 bytes = "0.5.4"
 url = "2.1.1"
 tokio-tungstenite = "0.10.1"
@@ -21,6 +21,6 @@ path = "../rsocket"
 features = ["frame"]
 
 [dependencies.tokio]
-version = "0.2.19"
+version = "0.2.20"
 default-features = false
 features = [ "rt-core", "rt-threaded", "tcp", "sync", "stream" ]

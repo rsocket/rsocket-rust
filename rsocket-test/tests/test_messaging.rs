@@ -3,9 +3,21 @@ extern crate log;
 #[macro_use]
 extern crate serde_derive;
 
-use rsocket_rust::prelude::*;
+use rsocket_rust::extension::MimeType;
 use rsocket_rust_messaging::*;
-use rsocket_rust_transport_tcp::TcpClientTransport;
+
+fn init() {
+    let _ = env_logger::builder()
+        .format_timestamp_millis()
+        .is_test(true)
+        .try_init();
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Token {
+    app: String,
+    access: String,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Student {
@@ -25,16 +37,18 @@ pub struct Response<T> {
 #[test]
 #[ignore]
 async fn test_messaging() {
-    let rsocket = RSocketFactory::connect()
-        .transport(TcpClientTransport::from("tcp://127.0.0.1:7878"))
-        .data_mime_type("application/json")
-        .metadata_mime_type("message/x.rsocket.composite-metadata.v0")
-        .start()
+    init();
+    let token = Token {
+        app: "xxx".to_owned(),
+        access: "yyy".to_owned(),
+    };
+    let requester = Requester::builder()
+        .setup_metadata(&token, MimeType::APPLICATION_JSON)
+        .setup_data(&token)
+        .connect_tcp("127.0.0.1", 7878)
+        .build()
         .await
         .expect("Connect failed!");
-
-    let rsocket: Box<dyn RSocket> = Box::new(rsocket);
-    let requester = Requester::from(rsocket);
 
     let post = Student {
         id: 1234,
@@ -52,5 +66,5 @@ async fn test_messaging() {
         .block()
         .expect("Retrieve failed!")
         .expect("Empty result!");
-    println!("------> RESPONSE: {:?}", res);
+    info!("------> RESPONSE: {:?}", res);
 }
