@@ -1,38 +1,73 @@
-use bytes::{BufMut, BytesMut};
-use rsocket_rust::extension::MimeType;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 use std::error::Error;
 
-pub(crate) fn unmarshal<'a, T>(mime_type: &MimeType, raw: &'a [u8]) -> Result<T, Box<dyn Error>>
-where
-    T: Deserialize<'a>,
-{
-    match *mime_type {
-        MimeType::APPLICATION_JSON => Ok(serde_json::from_slice(raw)?),
-        MimeType::APPLICATION_CBOR => Ok(serde_cbor::from_slice(raw)?),
-        _ => panic!(""),
+pub trait SerDe {
+    fn marshal<T>(&self, data: &T) -> Result<Vec<u8>, Box<dyn Error>>
+    where
+        Self: Sized,
+        T: Sized + Serialize;
+
+    fn unmarshal<T>(&self, raw: &[u8]) -> Result<T, Box<dyn Error>>
+    where
+        Self: Sized,
+        T: Sized + DeserializeOwned;
+}
+
+#[derive(Default)]
+struct JsonSerDe {}
+
+impl SerDe for JsonSerDe {
+    fn marshal<T>(&self, data: &T) -> Result<Vec<u8>, Box<dyn Error>>
+    where
+        T: Sized + Serialize,
+    {
+        Ok(serde_json::to_vec(data)?)
+    }
+
+    fn unmarshal<T>(&self, raw: &[u8]) -> Result<T, Box<dyn Error>>
+    where
+        T: Sized + DeserializeOwned,
+    {
+        Ok(serde_json::from_slice(raw)?)
     }
 }
 
-pub(crate) fn marshal<T>(
-    mime_type: &MimeType,
-    bf: &mut BytesMut,
-    data: &T,
-) -> Result<(), Box<dyn Error>>
+pub fn json() -> impl SerDe {
+    JsonSerDe {}
+}
+
+pub fn cbor() -> impl SerDe {
+    CborSerDe {}
+}
+
+struct CborSerDe {}
+
+impl SerDe for CborSerDe {
+    fn marshal<T>(&self, data: &T) -> Result<Vec<u8>, Box<dyn Error>>
+    where
+        T: Sized + Serialize,
+    {
+        Ok(serde_cbor::to_vec(data)?)
+    }
+
+    fn unmarshal<T>(&self, raw: &[u8]) -> Result<T, Box<dyn Error>>
+    where
+        T: Sized + DeserializeOwned,
+    {
+        Ok(serde_cbor::from_slice(raw)?)
+    }
+}
+
+pub(crate) fn marshal<T>(ser: impl SerDe, data: &T) -> Result<Vec<u8>, Box<dyn Error>>
 where
     T: Sized + Serialize,
 {
-    match *mime_type {
-        MimeType::APPLICATION_JSON => {
-            let raw = serde_json::to_vec(data)?;
-            bf.put_slice(&raw[..]);
-            Ok(())
-        }
-        MimeType::APPLICATION_CBOR => {
-            let raw = serde_cbor::to_vec(data)?;
-            bf.put_slice(&raw[..]);
-            Ok(())
-        }
-        _ => panic!(""),
-    }
+    ser.marshal(data)
+}
+
+pub(crate) fn unmarshal<T>(de: impl SerDe, raw: &[u8]) -> Result<T, Box<dyn Error>>
+where
+    T: Sized + DeserializeOwned,
+{
+    de.unmarshal(raw)
 }

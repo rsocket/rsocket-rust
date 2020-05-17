@@ -13,17 +13,23 @@ fn init() {
         .try_init();
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Token {
     app: String,
     access: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Student {
     id: i64,
     name: String,
     birth: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct Tracing {
+    id: String,
+    ts: i64,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -55,12 +61,12 @@ async fn test_messaging() {
         name: "Jeffsky".to_owned(),
         birth: "2020-01-01".to_owned(),
     };
-    let mut req = requester.route("student.v1.upsert");
-    req.metadata_raw("raw metadata", "application/json")
-        .unwrap();
-    req.metadata(&post, "application/json").unwrap();
-    req.data(&post).unwrap();
-    let res: Response<Student> = req
+
+    let res: Response<Student> = requester
+        .route("student.v1.upsert")
+        .metadata(Tracing::default(), "application/json")
+        .metadata_raw("foobar", "message/x.rsocket.authentication.bearer.v0")
+        .data(post)
         .retrieve_mono()
         .await
         .block()
