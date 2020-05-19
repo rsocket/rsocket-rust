@@ -19,6 +19,8 @@ use url::Url;
 type FnMetadata = Box<dyn FnMut() -> Result<(MimeType, Vec<u8>), Box<dyn Error>>>;
 type FnData = Box<dyn FnMut(&MimeType) -> Result<Vec<u8>, Box<dyn Error>>>;
 type PreflightResult = Result<(Payload, MimeType, Arc<Box<dyn RSocket>>), Box<dyn Error>>;
+type UnpackerResult = Result<(MimeType, Payload), RSocketError>;
+type UnpackersResult = Result<(MimeType, Flux<Result<Payload, RSocketError>>), Box<dyn Error>>;
 
 enum TransportKind {
     TCP(String, u16),
@@ -42,6 +44,14 @@ pub struct RequesterBuilder {
     metadata: Vec<CompositeMetadataEntry>,
     data: Option<Vec<u8>>,
     tp: Option<TransportKind>,
+}
+
+pub struct Unpackers {
+    inner: UnpackersResult,
+}
+
+pub struct Unpacker {
+    inner: UnpackerResult,
 }
 
 impl Default for RequesterBuilder {
@@ -263,6 +273,16 @@ impl RequestSpec {
         self
     }
 
+    pub async fn retrieve(self) -> Result<(), Box<dyn Error>> {
+        match self.preflight() {
+            Ok((req, _mime_type, rsocket)) => {
+                rsocket.fire_and_forget(req).await;
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
+
     pub async fn retrieve_mono(self) -> Unpacker {
         match self.preflight() {
             Ok((req, mime_type, rsocket)) => {
@@ -281,6 +301,18 @@ impl RequestSpec {
                     inner: Err(RSocketError::from(msg)),
                 }
             }
+        }
+    }
+
+    pub fn retrieve_flux(self) -> Unpackers {
+        match self.preflight() {
+            Ok((req, mime_type, rsocket)) => {
+                let results = rsocket.request_stream(req);
+                Unpackers {
+                    inner: Ok((mime_type, results)),
+                }
+            }
+            Err(e) => Unpackers { inner: Err(e) },
         }
     }
 
@@ -304,33 +336,80 @@ impl RequestSpec {
     }
 }
 
-pub struct Unpacker {
-    inner: Result<(MimeType, Payload), RSocketError>,
-}
-
-impl Unpacker {
-    pub fn block<T>(&self) -> Result<Option<T>, Box<dyn Error>>
+impl Unpackers {
+    pub async fn block<T>(self) -> Result<Vec<T>, Box<dyn Error>>
     where
         T: Sized + DeserializeOwned,
     {
-        match &self.inner {
+        let (mime_type, mut results) = self.inner?;
+        let mut res = Vec::new();
+        while let Some(next) = results.next().await {
+            match next {
+                Ok(v) => {
+                    if let Some(data) = v.data() {
+                        let t = do_unmarshal::<T>(&mime_type, data)?;
+                        if let Some(t) = t {
+                            res.push(t);
+                        }
+                    }
+                }
+                Err(e) => return Err(format!("{}", e).into()),
+            }
+        }
+        Ok(res)
+    }
+    pub async fn foreach<T>(self, callback: impl Fn(T)) -> Result<(), Box<dyn Error>>
+    where
+        T: Sized + DeserializeOwned,
+    {
+        let (mime_type, mut results) = self.inner?;
+        while let Some(next) = results.next().await {
+            match next {
+                Ok(v) => {
+                    if let Some(data) = v.data() {
+                        let t = do_unmarshal::<T>(&mime_type, data)?;
+                        if let Some(t) = t {
+                            callback(t);
+                        }
+                    }
+                }
+                Err(e) => return Err(format!("{}", e).into()),
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Unpacker {
+    pub fn block<T>(self) -> Result<Option<T>, Box<dyn Error>>
+    where
+        T: Sized + DeserializeOwned,
+    {
+        match self.inner {
             Ok((mime_type, inner)) => match inner.data() {
                 // TODO: support more mime types.
-                Some(raw) => match *mime_type {
-                    MimeType::APPLICATION_JSON => {
-                        let t = unmarshal(misc::json(), &raw.as_ref())?;
-                        Ok(Some(t))
-                    }
-                    MimeType::APPLICATION_CBOR => {
-                        let t = unmarshal(misc::cbor(), &raw.as_ref())?;
-                        Ok(Some(t))
-                    }
-                    _ => Err("unsupported mime type!".into()),
-                },
+                Some(raw) => do_unmarshal(&mime_type, raw),
                 None => Ok(None),
             },
             Err(e) => Err(format!("{}", e).into()),
         }
+    }
+}
+
+fn do_unmarshal<T>(mime_type: &MimeType, raw: &Bytes) -> Result<Option<T>, Box<dyn Error>>
+where
+    T: Sized + DeserializeOwned,
+{
+    match *mime_type {
+        MimeType::APPLICATION_JSON => {
+            let t = unmarshal(misc::json(), &raw.as_ref())?;
+            Ok(Some(t))
+        }
+        MimeType::APPLICATION_CBOR => {
+            let t = unmarshal(misc::cbor(), &raw.as_ref())?;
+            Ok(Some(t))
+        }
+        _ => Err("unsupported mime type!".into()),
     }
 }
 

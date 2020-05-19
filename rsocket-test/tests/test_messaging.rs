@@ -19,7 +19,7 @@ pub struct Token {
     access: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Student {
     id: i64,
     name: String,
@@ -56,21 +56,45 @@ async fn test_messaging() {
         .await
         .expect("Connect failed!");
 
-    let post = Student {
-        id: 1234,
-        name: "Jeffsky".to_owned(),
-        birth: "2020-01-01".to_owned(),
-    };
-
+    // TEST MONO BEGIN
     let res: Response<Student> = requester
         .route("student.v1.upsert")
         .metadata(Tracing::default(), "application/json")
         .metadata_raw("foobar", "message/x.rsocket.authentication.bearer.v0")
-        .data(post)
+        .data(next_post())
         .retrieve_mono()
         .await
         .block()
         .expect("Retrieve failed!")
         .expect("Empty result!");
     info!("------> RESPONSE: {:?}", res);
+
+    // TEST FLUX BEGIN
+    let res: Vec<Student> = requester
+        .route("students.v1")
+        .data(next_post())
+        .retrieve_flux()
+        .block()
+        .await
+        .expect("Retrieve failed!");
+    for it in res.iter() {
+        info!("===> NEXT: {:?}", it);
+    }
+    requester
+        .route("students.v1")
+        .data(next_post())
+        .retrieve_flux()
+        .foreach(|it: Student| {
+            info!("===> FOREACH: {:?}", it);
+        })
+        .await
+        .expect("Retrieve failed!");
+}
+
+fn next_post() -> Student {
+    Student {
+        id: 1234,
+        name: "Jeffsky".to_owned(),
+        birth: "2020-01-01".to_owned(),
+    }
 }
