@@ -1,3 +1,4 @@
+use super::utils::{read_payload, too_short};
 use super::{Body, Frame, PayloadSupport};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{BufMut, Bytes, BytesMut};
@@ -59,8 +60,7 @@ impl RequestFNFBuilder {
 
 impl RequestFNF {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestFNF> {
-        let (m, d) = PayloadSupport::read(flag, bf);
-        Ok(RequestFNF {
+        read_payload(flag, bf).map(|(m, d)| RequestFNF {
             metadata: m,
             data: d,
         })

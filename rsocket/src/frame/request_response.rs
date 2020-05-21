@@ -1,3 +1,4 @@
+use super::utils::{read_payload, too_short};
 use super::{Body, Frame, PayloadSupport};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{BufMut, Bytes, BytesMut};
@@ -59,8 +60,7 @@ impl RequestResponseBuilder {
 
 impl RequestResponse {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestResponse> {
-        let (m, d) = PayloadSupport::read(flag, bf);
-        Ok(RequestResponse {
+        read_payload(flag, bf).map(|(m, d)| RequestResponse {
             metadata: m,
             data: d,
         })

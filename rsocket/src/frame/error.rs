@@ -1,3 +1,4 @@
+use super::utils::too_short;
 use super::{Body, Frame};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
@@ -44,13 +45,17 @@ impl ErrorBuilder {
 
 impl Error {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Error> {
-        let code = bf.get_u32();
-        let d: Option<Bytes> = if !bf.is_empty() {
-            Some(bf.to_bytes())
+        if bf.len() < 4 {
+            too_short(4)
         } else {
-            None
-        };
-        Ok(Error { code, data: d })
+            let code = bf.get_u32();
+            let data: Option<Bytes> = if !bf.is_empty() {
+                Some(bf.to_bytes())
+            } else {
+                None
+            };
+            Ok(Error { code, data })
+        }
     }
 
     pub fn builder(stream_id: u32, flag: u16) -> ErrorBuilder {

@@ -1,3 +1,4 @@
+use super::utils::too_short;
 use super::{Body, Frame};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
@@ -51,6 +52,9 @@ impl LeaseBuilder {
 
 impl Lease {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Lease> {
+        if bf.len() < 8 {
+            return too_short(8);
+        }
         let ttl = bf.get_u32();
         let n = bf.get_u32();
         let m = if flag & Frame::FLAG_METADATA != 0 {

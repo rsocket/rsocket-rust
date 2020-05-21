@@ -1,3 +1,4 @@
+use super::utils::{read_payload, too_short};
 use super::{Body, Frame, PayloadSupport, REQUEST_MAX};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
@@ -54,13 +55,16 @@ impl RequestStreamBuilder {
 
 impl RequestStream {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestStream> {
-        let n = bf.get_u32();
-        let (m, d) = PayloadSupport::read(flag, bf);
-        Ok(RequestStream {
-            initial_request_n: n,
-            metadata: m,
-            data: d,
-        })
+        if bf.len() < 4 {
+            too_short(4)
+        } else {
+            let initial_request_n = bf.get_u32();
+            read_payload(flag, bf).map(move |(metadata, data)| RequestStream {
+                initial_request_n,
+                metadata,
+                data,
+            })
+        }
     }
 
     pub fn builder(stream_id: u32, flag: u16) -> RequestStreamBuilder {

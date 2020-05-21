@@ -1,3 +1,4 @@
+use super::utils::too_short;
 use super::{Body, Frame, Version};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
@@ -27,21 +28,30 @@ impl Resume {
     }
 
     pub(crate) fn decode(flag: u16, b: &mut BytesMut) -> RSocketResult<Resume> {
+        if b.len() < 6 {
+            return too_short(6);
+        }
         let major = b.get_u16();
         let minor = b.get_u16();
-        let token_size = b.get_u16();
+        let token_size = b.get_u16() as usize;
         let token = if token_size > 0 {
-            Some(b.split_to(token_size as usize).to_bytes())
+            if b.len() < token_size {
+                return too_short(token_size);
+            }
+            Some(b.split_to(token_size).freeze())
         } else {
             None
         };
-        let p1 = b.get_u64();
-        let p2 = b.get_u64();
+        if b.len() < 16 {
+            return too_short(16);
+        }
+        let last_received_server_position = b.get_u64();
+        let first_available_client_position = b.get_u64();
         Ok(Resume {
             version: Version::new(major, minor),
             token,
-            last_received_server_position: p1,
-            first_available_client_position: p2,
+            last_received_server_position,
+            first_available_client_position,
         })
     }
 

@@ -16,9 +16,6 @@ lazy_static! {
         }
         m
     };
-}
-
-lazy_static! {
     static ref STR_TO_U8: HashMap<&'static str, u8> = {
         let mut m = HashMap::new();
         for it in list_all().iter() {
@@ -58,7 +55,7 @@ impl AsRef<str> for MimeType {
 
 impl From<&str> for MimeType {
     fn from(value: &str) -> MimeType {
-        match STR_TO_U8.get(&value) {
+        match STR_TO_U8.get(value) {
             Some(v) => Self::WellKnown(*v),
             None => Self::Normal(value.to_owned()),
         }

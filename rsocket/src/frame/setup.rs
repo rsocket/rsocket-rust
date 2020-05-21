@@ -1,3 +1,4 @@
+use super::utils::{read_payload, too_short};
 use super::{Body, Frame, PayloadSupport, Version};
 use crate::utils::{RSocketResult, Writeable, DEFAULT_MIME_TYPE};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
@@ -23,23 +24,45 @@ pub struct SetupBuilder {
 
 impl Setup {
     pub(crate) fn decode(flag: u16, b: &mut BytesMut) -> RSocketResult<Setup> {
+        // Check minimal length: version(4bytes) + keepalive(4bytes) + lifetime(4bytes)
+        if b.len() < 12 {
+            return too_short(12);
+        }
         let major = b.get_u16();
         let minor = b.get_u16();
         let keepalive = b.get_u32();
         let lifetime = b.get_u32();
         let token: Option<Bytes> = if flag & Frame::FLAG_RESUME != 0 {
-            let l = b.get_u16();
-            Some(b.split_to(l as usize).freeze())
+            if b.len() < 2 {
+                return too_short(2);
+            }
+            let token_length = b.get_u16() as usize;
+            if b.len() < token_length {
+                return too_short(token_length);
+            }
+            Some(b.split_to(token_length).freeze())
         } else {
             None
         };
-        let mut len_mime: usize = b[0] as usize;
+        if b.is_empty() {
+            return too_short(1);
+        }
+        let mut mime_type_length: usize = b[0] as usize;
         b.advance(1);
-        let mime_metadata = b.split_to(len_mime).freeze();
-        len_mime = b[0] as usize;
+        if b.len() < mime_type_length {
+            return too_short(mime_type_length);
+        }
+        let mime_metadata = b.split_to(mime_type_length).freeze();
+        if b.is_empty() {
+            return too_short(1);
+        }
+        mime_type_length = b[0] as usize;
         b.advance(1);
-        let mime_data = b.split_to(len_mime).freeze();
-        let (metadata, data) = PayloadSupport::read(flag, b);
+        if b.len() < mime_type_length {
+            return too_short(mime_type_length);
+        }
+        let mime_data = b.split_to(mime_type_length).freeze();
+        let (metadata, data) = read_payload(flag, b)?;
         Ok(Setup {
             version: Version::new(major, minor),
             keepalive,

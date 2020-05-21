@@ -1,3 +1,4 @@
+use super::utils::{read_payload, too_short};
 use super::{Body, Frame, PayloadSupport};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{BufMut, Bytes, BytesMut};
@@ -59,11 +60,7 @@ impl PayloadBuilder {
 
 impl Payload {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Payload> {
-        let (m, d) = PayloadSupport::read(flag, bf);
-        Ok(Payload {
-            metadata: m,
-            data: d,
-        })
+        read_payload(flag, bf).map(|(metadata, data)| Payload { metadata, data })
     }
 
     pub fn builder(stream_id: u32, flag: u16) -> PayloadBuilder {

@@ -1,4 +1,4 @@
-use crate::error::RSocketError;
+use crate::error::{ErrorKind, RSocketError};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -145,7 +145,9 @@ impl Frame {
     }
 
     pub fn decode(b: &mut BytesMut) -> RSocketResult<Frame> {
-        // TODO: check size
+        if b.len() < LEN_HEADER {
+            return Err(ErrorKind::LengthTooShort(LEN_HEADER).into());
+        }
         let sid = b.get_u32();
         let n = b.get_u16();
         let (flag, kind) = (n & 0x03FF, (n & 0xFC00) >> 10);

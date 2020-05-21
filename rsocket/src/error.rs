@@ -19,6 +19,7 @@ pub enum ErrorKind {
     WithDescription(String),
     IO(io::Error),
     Cancelled(),
+    LengthTooShort(usize),
 }
 
 #[derive(Debug)]
@@ -35,6 +36,7 @@ impl fmt::Display for RSocketError {
             ErrorKind::WithDescription(s) => write!(f, "{}", s),
             ErrorKind::IO(e) => write!(f, "{}", e),
             ErrorKind::Cancelled() => write!(f, "ERROR(CANCELLED)"),
+            ErrorKind::LengthTooShort(n) => write!(f, "ERROR(MINIMAL LENGTH {})", n),
         }
     }
 }

@@ -1,9 +1,9 @@
-use bytes::BytesMut;
+use bytes::{BufMut, BytesMut};
 use rsocket_rust::extension::{self, CompositeMetadata, CompositeMetadataEntry, MimeType};
 use rsocket_rust::utils::Writeable;
 
 #[test]
-fn encode_and_decode_composite_metadata() {
+fn test_encode_and_decode() {
     let bingo = |metadatas: Vec<&CompositeMetadataEntry>| {
         assert_eq!(2, metadatas.len());
         assert_eq!(
@@ -28,4 +28,14 @@ fn encode_and_decode_composite_metadata() {
     cm.write_to(&mut bf);
     let cm2 = CompositeMetadata::decode(&mut bf).unwrap();
     bingo(cm2.iter().collect());
+}
+
+#[test]
+fn test_bad() {
+    let mut bf = BytesMut::new();
+    bf.put_slice(b"must bad");
+    assert!(
+        CompositeMetadata::decode(&mut bf).is_err(),
+        "should be error"
+    )
 }

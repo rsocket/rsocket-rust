@@ -1,3 +1,4 @@
+use super::utils::too_short;
 use super::{Body, Frame};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
@@ -33,8 +34,13 @@ impl ResumeOKBuilder {
 
 impl ResumeOK {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<ResumeOK> {
-        let position = bf.get_u64();
-        Ok(ResumeOK { position })
+        if bf.len() < 8 {
+            too_short(8)
+        } else {
+            Ok(ResumeOK {
+                position: bf.get_u64(),
+            })
+        }
     }
 
     pub fn builder(stream_id: u32, flag: u16) -> ResumeOKBuilder {
