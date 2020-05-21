@@ -21,10 +21,7 @@ use tokio::prelude::*;
 use tokio::sync::Mutex;
 
 #[derive(Clone)]
-pub(crate) struct DuplexSocket<R>
-where
-    R: Send + Sync + Clone + Spawner + 'static,
-{
+pub(crate) struct DuplexSocket<R> {
     rt: R,
     seq: StreamID,
     responder: Responder,
@@ -50,7 +47,7 @@ enum Handler {
 
 impl<R> DuplexSocket<R>
 where
-    R: Send + Sync + Clone + Spawner + 'static,
+    R: Send + Sync + Copy + Spawner + 'static,
 {
     pub(crate) async fn new(
         rt: R,
@@ -58,7 +55,6 @@ where
         tx: Tx<Frame>,
         splitter: Option<Splitter>,
     ) -> DuplexSocket<R> {
-        let rt2 = rt.clone();
         let (canceller_tx, canceller_rx) = new_tx_rx::<u32>();
         let handlers = [
             Arc::new(Mutex::new(HashMap::new())),
@@ -78,7 +74,7 @@ where
             Arc::new(Mutex::new(HashMap::new())),
             Arc::new(Mutex::new(HashMap::new())),
         ];
-        let ds = DuplexSocket {
+        let duplex_socket = DuplexSocket {
             rt,
             seq: StreamID::from(first_stream_id),
             tx,
@@ -89,11 +85,11 @@ where
             splitter,
         };
 
-        let ds2 = ds.clone();
-        rt2.spawn(async move {
-            ds2.loop_canceller(canceller_rx).await;
+        let cloned_duplex_socket = duplex_socket.clone();
+        rt.spawn(async move {
+            cloned_duplex_socket.loop_canceller(canceller_rx).await;
         });
-        ds
+        duplex_socket
     }
 
     pub(crate) fn close(self) {
@@ -673,7 +669,7 @@ where
 
 impl<R> RSocket for DuplexSocket<R>
 where
-    R: Send + Sync + Clone + Spawner + 'static,
+    R: Send + Sync + Copy + Spawner + 'static,
 {
     fn metadata_push(&self, req: Payload) -> Mono<()> {
         let sid = self.seq.next();
@@ -959,8 +955,7 @@ impl Responder {
     }
 
     fn set(&self, rs: Box<dyn RSocket>) {
-        let inner = self.inner.clone();
-        let mut v = inner.write().unwrap();
+        let mut v = self.inner.write().unwrap();
         *v = rs;
     }
 }

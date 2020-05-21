@@ -16,7 +16,7 @@ futures = "0.3.5"
 lazy_static = "1.4.0"
 
 [dependencies.tokio]
-version = "0.2.20"
+version = "0.2.21"
 default-features = false
 features = [ "rt-core", "rt-threaded", "sync", "stream" ]
 

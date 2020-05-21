@@ -189,9 +189,7 @@ impl Writeable for CompositeMetadataEntry {
             MimeType::Normal(s) => {
                 // NotWellKnown
                 let mime_type_len = s.len() as u8;
-                if mime_type_len == 0 {
-                    panic!("invalid length of MimeType!")
-                }
+                assert!(mime_type_len > 0, "invalid length of MimeType!");
                 bf.put_u8(mime_type_len - 1);
                 bf.put_slice(s.as_ref());
             }

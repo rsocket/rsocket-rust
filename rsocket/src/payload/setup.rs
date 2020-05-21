@@ -145,7 +145,6 @@ impl From<Setup> for SetupPayload {
         // TODO: fill other properties.
         bu = bu.set_data_mime_type(input.get_mime_data());
         bu = bu.set_metadata_mime_type(input.get_mime_metadata());
-        // bu.set_data_mime_type(String::input.get_mime_data());
         let ka = (input.get_keepalive(), input.get_lifetime());
         let (d, m) = input.split();
         bu.inner.d = d;

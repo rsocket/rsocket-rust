@@ -1,5 +1,4 @@
-use super::utils::{read_payload, too_short};
-use super::{Body, Frame, PayloadSupport};
+use super::{utils, Body, Frame};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -60,7 +59,7 @@ impl RequestResponseBuilder {
 
 impl RequestResponse {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestResponse> {
-        read_payload(flag, bf).map(|(m, d)| RequestResponse {
+        utils::read_payload(flag, bf).map(|(m, d)| RequestResponse {
             metadata: m,
             data: d,
         })
@@ -91,10 +90,10 @@ impl RequestResponse {
 
 impl Writeable for RequestResponse {
     fn write_to(&self, bf: &mut BytesMut) {
-        PayloadSupport::write(bf, self.get_metadata(), self.get_data())
+        utils::write_payload(bf, self.get_metadata(), self.get_data())
     }
 
     fn len(&self) -> usize {
-        PayloadSupport::len(self.get_metadata(), self.get_data())
+        utils::calculate_payload_length(self.get_metadata(), self.get_data())
     }
 }

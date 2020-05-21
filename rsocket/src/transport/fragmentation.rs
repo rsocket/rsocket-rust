@@ -16,9 +16,7 @@ pub(crate) struct Splitter {
 
 impl Splitter {
     pub(crate) fn new(mtu: usize) -> Splitter {
-        if mtu <= frame::LEN_HEADER {
-            panic!("mtu is too small!")
-        }
+        assert!(mtu > frame::LEN_HEADER, "mtu is too small!");
         Splitter { mtu }
     }
 

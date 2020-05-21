@@ -1,5 +1,5 @@
-use super::utils::{read_payload, too_short};
-use super::{Body, Frame, PayloadSupport};
+use super::utils;
+use super::{Body, Frame};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{BufMut, Bytes, BytesMut};
 
@@ -60,7 +60,7 @@ impl PayloadBuilder {
 
 impl Payload {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Payload> {
-        read_payload(flag, bf).map(|(metadata, data)| Payload { metadata, data })
+        utils::read_payload(flag, bf).map(|(metadata, data)| Payload { metadata, data })
     }
 
     pub fn builder(stream_id: u32, flag: u16) -> PayloadBuilder {
@@ -88,10 +88,10 @@ impl Payload {
 
 impl Writeable for Payload {
     fn write_to(&self, bf: &mut BytesMut) {
-        PayloadSupport::write(bf, self.get_metadata(), self.get_data());
+        utils::write_payload(bf, self.get_metadata(), self.get_data());
     }
 
     fn len(&self) -> usize {
-        PayloadSupport::len(self.get_metadata(), self.get_data())
+        utils::calculate_payload_length(self.get_metadata(), self.get_data())
     }
 }

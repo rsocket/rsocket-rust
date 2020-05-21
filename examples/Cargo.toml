@@ -9,7 +9,7 @@ publish = false
 log = "0.4.8"
 env_logger = "0.7.1"
 futures = "0.3.5"
-clap = "2.33.0"
+clap = "2.33.1"
 
 [dev-dependencies.rsocket_rust]
 path = "../rsocket"
@@ -21,7 +21,7 @@ path = "../rsocket-transport-tcp"
 path = "../rsocket-transport-websocket"
 
 [dev-dependencies.tokio]
-version = "0.2.20"
+version = "0.2.21"
 default-features = false
 features = ["full"]
 
@@ -36,3 +36,7 @@ path = "proxy.rs"
 [[example]]
 name = "cli"
 path = "cli.rs"
+
+[[example]]
+name = "qps"
+path = "qps.rs"

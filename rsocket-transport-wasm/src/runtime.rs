@@ -2,7 +2,7 @@ use rsocket_rust::runtime::Spawner;
 use std::future::Future;
 use wasm_bindgen_futures::spawn_local;
 
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug)]
 pub struct WASMSpawner;
 
 impl Spawner for WASMSpawner {

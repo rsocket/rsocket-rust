@@ -1,5 +1,4 @@
-use super::utils::too_short;
-use super::{Body, Frame, REQUEST_MAX};
+use super::{utils, Body, Frame, REQUEST_MAX};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -36,7 +35,7 @@ impl RequestNBuilder {
 impl RequestN {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestN> {
         if bf.len() < 4 {
-            too_short(4)
+            utils::too_short(4)
         } else {
             let n = bf.get_u32();
             Ok(RequestN { n })

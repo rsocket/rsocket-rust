@@ -33,7 +33,6 @@ pub use request_stream::RequestStream;
 pub use resume::Resume;
 pub use resume_ok::ResumeOK;
 pub use setup::{Setup, SetupBuilder};
-pub use utils::*;
 pub use version::Version;
 
 pub const REQUEST_MAX: u32 = 0x7FFF_FFFF; // 2147483647

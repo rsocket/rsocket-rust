@@ -30,7 +30,7 @@ path = "../rsocket-transport-websocket"
 path = "../rsocket-messaging"
 
 [dev-dependencies.tokio]
-version = "0.2.20"
+version = "0.2.21"
 default-features = false
 features = ["full"]
 

@@ -66,7 +66,7 @@ where
 
     pub async fn serve_with_runtime<R>(mut self, rt: R) -> Result<(), Box<dyn Error + Send + Sync>>
     where
-        R: Send + Sync + Clone + Spawner + 'static,
+        R: Send + Sync + Copy + Spawner + 'static,
     {
         let tp = self.transport.take().expect("missing transport");
         let starter = self.start_handler;
@@ -78,7 +78,6 @@ where
         let mtu = self.mtu;
 
         tp.start(starter, move |tp| {
-            let cloned_rt = rt.clone();
             let (rcv_tx, rcv_rx) = mpsc::unbounded::<Frame>();
             let (snd_tx, snd_rx) = mpsc::unbounded::<Frame>();
             tp.attach(rcv_tx, snd_rx, None);
@@ -90,7 +89,7 @@ where
                 } else {
                     Some(Splitter::new(mtu))
                 };
-                let ds = DuplexSocket::new(cloned_rt, 0, snd_tx, splitter).await;
+                let ds = DuplexSocket::new(rt, 0, snd_tx, splitter).await;
                 ds.event_loop(acceptor, rcv_rx).await;
             });
         })

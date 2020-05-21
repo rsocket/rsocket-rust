@@ -1,5 +1,5 @@
-use super::utils::{read_payload, too_short};
-use super::{Body, Frame, PayloadSupport, Version};
+use super::utils::{self, too_short};
+use super::{Body, Frame, Version};
 use crate::utils::{RSocketResult, Writeable, DEFAULT_MIME_TYPE};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::time::Duration;
@@ -62,7 +62,7 @@ impl Setup {
             return too_short(mime_type_length);
         }
         let mime_data = b.split_to(mime_type_length).freeze();
-        let (metadata, data) = read_payload(flag, b)?;
+        let (metadata, data) = utils::read_payload(flag, b)?;
         Ok(Setup {
             version: Version::new(major, minor),
             keepalive,
@@ -133,7 +133,7 @@ impl Writeable for Setup {
             None => 0,
         };
         n += 2 + self.mime_metadata.len() + self.mime_data.len();
-        n += PayloadSupport::len(self.get_metadata(), self.get_data());
+        n += utils::calculate_payload_length(self.get_metadata(), self.get_data());
         n
     }
 
@@ -149,7 +149,7 @@ impl Writeable for Setup {
         bf.put(self.mime_metadata.clone());
         bf.put_u8(self.mime_data.len() as u8);
         bf.put(self.mime_data.clone());
-        PayloadSupport::write(bf, self.get_metadata(), self.get_data());
+        utils::write_payload(bf, self.get_metadata(), self.get_data());
     }
 }
 

@@ -24,29 +24,17 @@ pub(crate) fn read_payload(
     Ok((m, d))
 }
 
-pub(crate) struct PayloadSupport {}
+pub(crate) fn calculate_payload_length(metadata: Option<&Bytes>, data: Option<&Bytes>) -> usize {
+    metadata.map(|v| 3 + v.len()).unwrap_or(0) + data.map(|v| v.len()).unwrap_or(0)
+}
 
-impl PayloadSupport {
-    pub fn len(metadata: Option<&Bytes>, data: Option<&Bytes>) -> usize {
-        let a = match metadata {
-            Some(v) => 3 + v.len(),
-            None => 0,
-        };
-        let b = match data {
-            Some(v) => v.len(),
-            None => 0,
-        };
-        a + b
+pub(crate) fn write_payload(bf: &mut BytesMut, metadata: Option<&Bytes>, data: Option<&Bytes>) {
+    if let Some(v) = metadata {
+        u24::from(v.len()).write_to(bf);
+        bf.put(v.clone());
     }
-
-    pub fn write(bf: &mut BytesMut, metadata: Option<&Bytes>, data: Option<&Bytes>) {
-        if let Some(v) = metadata {
-            u24::from(v.len()).write_to(bf);
-            bf.put(v.clone());
-        }
-        if let Some(v) = data {
-            bf.put(v.clone())
-        }
+    if let Some(v) = data {
+        bf.put(v.clone())
     }
 }
 
