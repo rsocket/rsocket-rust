@@ -1,9 +1,7 @@
 use super::misc::{self, marshal, unmarshal};
 use bytes::{Bytes, BytesMut};
 use rsocket_rust::error::RSocketError;
-use rsocket_rust::extension::{
-    CompositeMetadata, CompositeMetadataEntry, MimeType, RoutingMetadata,
-};
+use rsocket_rust::extension::{CompositeMetadata, MimeType, RoutingMetadata};
 use rsocket_rust::prelude::*;
 use rsocket_rust::utils::Writeable;
 use rsocket_rust_transport_tcp::TcpClientTransport;
@@ -16,11 +14,13 @@ use std::result::Result;
 use std::sync::Arc;
 use url::Url;
 
-type FnMetadata = Box<dyn FnMut() -> Result<(MimeType, Vec<u8>), Box<dyn Error>>>;
-type FnData = Box<dyn FnMut(&MimeType) -> Result<Vec<u8>, Box<dyn Error>>>;
-type PreflightResult = Result<(Payload, MimeType, Arc<Box<dyn RSocket>>), Box<dyn Error>>;
-type UnpackerResult = Result<(MimeType, Payload), RSocketError>;
-type UnpackersResult = Result<(MimeType, Flux<Result<Payload, RSocketError>>), Box<dyn Error>>;
+type FnMetadata = Box<dyn FnMut() -> Result<(MimeType, Vec<u8>), Box<dyn Error + Sync + Send>>>;
+type FnData = Box<dyn FnMut(&MimeType) -> Result<Vec<u8>, Box<dyn Error + Sync + Send>>>;
+type PreflightResult =
+    Result<(Payload, MimeType, Arc<Box<dyn RSocket>>), Box<dyn Error + Sync + Send>>;
+type UnpackerResult = Result<(MimeType, Payload), Box<dyn Error + Sync + Send>>;
+type UnpackersResult =
+    Result<(MimeType, Flux<Result<Payload, RSocketError>>), Box<dyn Error + Sync + Send>>;
 
 enum TransportKind {
     TCP(String, u16),
@@ -41,8 +41,8 @@ pub struct RequestSpec {
 pub struct RequesterBuilder {
     data_mime_type: Option<MimeType>,
     route: Option<String>,
-    metadata: Vec<CompositeMetadataEntry>,
-    data: Option<Vec<u8>>,
+    metadata: LinkedList<FnMetadata>,
+    data: Option<FnData>,
     tp: Option<TransportKind>,
 }
 
@@ -83,40 +83,26 @@ impl RequesterBuilder {
         self
     }
 
-    pub fn setup_data<D>(mut self, data: &D) -> Self
+    pub fn setup_data<D>(mut self, data: D) -> Self
     where
-        D: Sized + Serialize,
+        D: Sized + Serialize + 'static,
     {
-        // TODO: lazy set
-        let result = match &self.data_mime_type {
-            Some(m) => do_marshal(m, data),
-            None => do_marshal(&MimeType::APPLICATION_JSON, data),
-        };
-        match result {
-            Ok(raw) => {
-                self.data = Some(raw);
-            }
-            Err(e) => {
-                error!("marshal failed: {:?}", e);
-            }
-        }
+        self.data = Some(Box::new(move |mime_type: &MimeType| {
+            do_marshal(mime_type, &data)
+        }));
         self
     }
 
-    pub fn setup_metadata<M, T>(mut self, metadata: &M, mime_type: T) -> Self
+    pub fn setup_metadata<M, T>(mut self, metadata: M, mime_type: T) -> Self
     where
-        M: Sized + Serialize,
+        M: Sized + Serialize + 'static,
         T: Into<MimeType>,
     {
-        // TODO: lazy set
         let mime_type = mime_type.into();
-        match do_marshal(&mime_type, metadata) {
-            Ok(raw) => {
-                let entry = CompositeMetadataEntry::new(mime_type, Bytes::from(raw));
-                self.metadata.push(entry);
-            }
-            Err(e) => error!("marshal failed: {:?}", e),
-        }
+        self.metadata.push_back(Box::new(move || {
+            let raw = do_marshal(&mime_type, &metadata)?;
+            Ok((mime_type.clone(), raw))
+        }));
         self
     }
 
@@ -148,8 +134,10 @@ impl RequesterBuilder {
                 composite_builder.push(MimeType::MESSAGE_X_RSOCKET_ROUTING_V0, routing.bytes());
             added += 1;
         }
-        for it in self.metadata.into_iter() {
-            composite_builder = composite_builder.push_entry(it);
+
+        for mut gen in self.metadata.into_iter() {
+            let (mime_type, raw) = gen()?;
+            composite_builder = composite_builder.push(mime_type, raw);
             added += 1;
         }
 
@@ -159,8 +147,8 @@ impl RequesterBuilder {
             payload_builder = payload_builder.set_metadata(composite_builder.build());
         }
 
-        if let Some(raw) = self.data {
-            payload_builder = payload_builder.set_data(raw);
+        if let Some(mut gen) = self.data {
+            payload_builder = payload_builder.set_data(gen(&data_mime_type)?);
         }
 
         let setup = payload_builder.build();
@@ -291,16 +279,12 @@ impl RequestSpec {
                     Ok(v) => Unpacker {
                         inner: Ok((mime_type, v)),
                     },
-                    Err(e) => Unpacker { inner: Err(e) },
+                    Err(e) => Unpacker {
+                        inner: Err(e.into()),
+                    },
                 }
             }
-            Err(e) => {
-                // TODO: better error
-                let msg = format!("{}", e);
-                Unpacker {
-                    inner: Err(RSocketError::from(msg)),
-                }
-            }
+            Err(e) => Unpacker { inner: Err(e) },
         }
     }
 
@@ -337,7 +321,7 @@ impl RequestSpec {
 }
 
 impl Unpackers {
-    pub async fn block<T>(self) -> Result<Vec<T>, Box<dyn Error>>
+    pub async fn block<T>(self) -> Result<Vec<T>, Box<dyn Error + Sync + Send>>
     where
         T: Sized + DeserializeOwned,
     {
@@ -353,12 +337,13 @@ impl Unpackers {
                         }
                     }
                 }
-                Err(e) => return Err(format!("{}", e).into()),
+                Err(e) => return Err(e.into()),
             }
         }
         Ok(res)
     }
-    pub async fn foreach<T>(self, callback: impl Fn(T)) -> Result<(), Box<dyn Error>>
+
+    pub async fn foreach<T>(self, callback: impl Fn(T)) -> Result<(), Box<dyn Error + Send + Sync>>
     where
         T: Sized + DeserializeOwned,
     {
@@ -381,39 +366,34 @@ impl Unpackers {
 }
 
 impl Unpacker {
-    pub fn block<T>(self) -> Result<Option<T>, Box<dyn Error>>
+    pub fn block<T>(self) -> Result<Option<T>, Box<dyn Error + Send + Sync>>
     where
         T: Sized + DeserializeOwned,
     {
-        match self.inner {
-            Ok((mime_type, inner)) => match inner.data() {
-                // TODO: support more mime types.
-                Some(raw) => do_unmarshal(&mime_type, raw),
-                None => Ok(None),
-            },
-            Err(e) => Err(format!("{}", e).into()),
+        let (mime_type, inner) = self.inner?;
+        match inner.data() {
+            Some(raw) => do_unmarshal(&mime_type, raw),
+            None => Ok(None),
         }
     }
 }
 
-fn do_unmarshal<T>(mime_type: &MimeType, raw: &Bytes) -> Result<Option<T>, Box<dyn Error>>
+fn do_unmarshal<T>(
+    mime_type: &MimeType,
+    raw: &Bytes,
+) -> Result<Option<T>, Box<dyn Error + Send + Sync>>
 where
     T: Sized + DeserializeOwned,
 {
+    // TODO: support more mime types
     match *mime_type {
-        MimeType::APPLICATION_JSON => {
-            let t = unmarshal(misc::json(), &raw.as_ref())?;
-            Ok(Some(t))
-        }
-        MimeType::APPLICATION_CBOR => {
-            let t = unmarshal(misc::cbor(), &raw.as_ref())?;
-            Ok(Some(t))
-        }
+        MimeType::APPLICATION_JSON => Ok(Some(unmarshal(misc::json(), &raw.as_ref())?)),
+        MimeType::APPLICATION_CBOR => Ok(Some(unmarshal(misc::cbor(), &raw.as_ref())?)),
         _ => Err("unsupported mime type!".into()),
     }
 }
 
-fn do_marshal<T>(mime_type: &MimeType, data: &T) -> Result<Vec<u8>, Box<dyn Error>>
+fn do_marshal<T>(mime_type: &MimeType, data: &T) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>>
 where
     T: Sized + Serialize,
 {

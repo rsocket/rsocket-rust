@@ -19,7 +19,7 @@ pub struct Token {
     access: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Student {
     id: i64,
     name: String,
@@ -44,13 +44,13 @@ pub struct Response<T> {
 #[ignore]
 async fn test_messaging() {
     init();
-    let token = Token {
+    let token = || Token {
         app: "xxx".to_owned(),
         access: "yyy".to_owned(),
     };
     let requester = Requester::builder()
-        .setup_metadata(&token, MimeType::APPLICATION_JSON)
-        .setup_data(&token)
+        .setup_metadata(token(), MimeType::APPLICATION_JSON)
+        .setup_data(token())
         .connect_tcp("127.0.0.1", 7878)
         .build()
         .await
