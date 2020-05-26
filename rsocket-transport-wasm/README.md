@@ -7,7 +7,7 @@ See: [https://github.com/jjeffcaii/rsocket-rust-wasm-example](https://github.com
 ## TODO
 
 - [ ] MetadataPush
-- [ ] FireAndForget
+- [x] FireAndForget
 - [x] RequestResponse
 - [ ] RequestStream
 - [ ] RequestChannel

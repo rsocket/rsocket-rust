@@ -3,6 +3,11 @@ name = "rsocket_rust_messaging"
 version = "0.5.2"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
+license = "Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/rsocket/rsocket-rust"
+homepage = "https://github.com/rsocket/rsocket-rust"
+description = "Communicate with Spring RSocket Messaging."
 
 [dependencies]
 futures = "0.3.5"
@@ -14,11 +19,11 @@ hex = "0.4.2"
 url = "2.1.1"
 
 [dependencies.rsocket_rust]
-path = "../rsocket"
+version = "0.5.2"
 features = ["frame"]
 
 [dependencies.rsocket_rust_transport_tcp]
-path = "../rsocket-transport-tcp"
+version = "0.5.2"
 
 [dependencies.rsocket_rust_transport_websocket]
-path = "../rsocket-transport-websocket"
+version = "0.5.2"
