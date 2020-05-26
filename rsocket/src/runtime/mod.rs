@@ -6,7 +6,7 @@ pub trait Spawner {
         F: Send + Future<Output = ()> + 'static;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy, Debug)]
 pub struct DefaultSpawner;
 
 impl Spawner for DefaultSpawner {

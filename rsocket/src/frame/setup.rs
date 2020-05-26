@@ -1,4 +1,5 @@
-use super::{Body, Frame, PayloadSupport, Version, FLAG_METADATA, FLAG_RESUME};
+use super::utils::{self, too_short};
+use super::{Body, Frame, Version};
 use crate::utils::{RSocketResult, Writeable, DEFAULT_MIME_TYPE};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::time::Duration;
@@ -9,66 +10,66 @@ pub struct Setup {
     keepalive: u32,
     lifetime: u32,
     token: Option<Bytes>,
-    mime_metadata: String,
-    mime_data: String,
+    mime_metadata: Bytes,
+    mime_data: Bytes,
     metadata: Option<Bytes>,
     data: Option<Bytes>,
 }
 
-impl Writeable for Setup {
-    fn len(&self) -> usize {
-        let mut n: usize = 12;
-        n += match &self.token {
-            Some(v) => 2 + v.len(),
-            None => 0,
-        };
-        n += 2 + self.mime_metadata.len() + self.mime_data.len();
-        n += PayloadSupport::len(&self.metadata, &self.data);
-        n
-    }
-
-    fn write_to(&self, bf: &mut BytesMut) {
-        self.version.write_to(bf);
-        bf.put_u32(self.keepalive);
-        bf.put_u32(self.lifetime);
-        if let Some(b) = &self.token {
-            bf.put_u16(b.len() as u16);
-            bf.put(b.bytes());
-        }
-        bf.put_u8(self.mime_metadata.len() as u8);
-        bf.put(Bytes::from(self.mime_metadata.clone()));
-        bf.put_u8(self.mime_data.len() as u8);
-        bf.put(Bytes::from(self.mime_data.clone()));
-        PayloadSupport::write(bf, self.get_metadata(), self.get_data());
-    }
+pub struct SetupBuilder {
+    stream_id: u32,
+    flag: u16,
+    value: Setup,
 }
 
 impl Setup {
-    pub fn decode(flag: u16, b: &mut BytesMut) -> RSocketResult<Setup> {
+    pub(crate) fn decode(flag: u16, b: &mut BytesMut) -> RSocketResult<Setup> {
+        // Check minimal length: version(4bytes) + keepalive(4bytes) + lifetime(4bytes)
+        if b.len() < 12 {
+            return too_short(12);
+        }
         let major = b.get_u16();
         let minor = b.get_u16();
         let keepalive = b.get_u32();
         let lifetime = b.get_u32();
-        let token: Option<Bytes> = if flag & FLAG_RESUME != 0 {
-            let l = b.get_u16();
-            Some(b.split_to(l as usize).to_bytes())
+        let token: Option<Bytes> = if flag & Frame::FLAG_RESUME != 0 {
+            if b.len() < 2 {
+                return too_short(2);
+            }
+            let token_length = b.get_u16() as usize;
+            if b.len() < token_length {
+                return too_short(token_length);
+            }
+            Some(b.split_to(token_length).freeze())
         } else {
             None
         };
-        let mut len_mime: usize = b[0] as usize;
+        if b.is_empty() {
+            return too_short(1);
+        }
+        let mut mime_type_length: usize = b[0] as usize;
         b.advance(1);
-        let mime_metadata = b.split_to(len_mime);
-        len_mime = b[0] as usize;
+        if b.len() < mime_type_length {
+            return too_short(mime_type_length);
+        }
+        let mime_metadata = b.split_to(mime_type_length).freeze();
+        if b.is_empty() {
+            return too_short(1);
+        }
+        mime_type_length = b[0] as usize;
         b.advance(1);
-        let mime_data = b.split_to(len_mime);
-        let (metadata, data) = PayloadSupport::read(flag, b);
+        if b.len() < mime_type_length {
+            return too_short(mime_type_length);
+        }
+        let mime_data = b.split_to(mime_type_length).freeze();
+        let (metadata, data) = utils::read_payload(flag, b)?;
         Ok(Setup {
             version: Version::new(major, minor),
             keepalive,
             lifetime,
             token,
-            mime_metadata: String::from_utf8(mime_metadata.to_vec()).unwrap(),
-            mime_data: String::from_utf8(mime_data.to_vec()).unwrap(),
+            mime_metadata,
+            mime_data,
             metadata,
             data,
         })
@@ -90,24 +91,33 @@ impl Setup {
         Duration::from_millis(u64::from(self.lifetime))
     }
 
-    pub fn get_token(&self) -> Option<Bytes> {
-        self.token.clone()
+    pub fn get_token(&self) -> Option<&Bytes> {
+        match &self.token {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
     pub fn get_mime_metadata(&self) -> &str {
-        &self.mime_metadata
+        std::str::from_utf8(self.mime_metadata.as_ref()).expect("Invalid UTF-8 bytes.")
     }
 
     pub fn get_mime_data(&self) -> &str {
-        &self.mime_data
+        std::str::from_utf8(self.mime_data.as_ref()).expect("Invalid UTF-8 bytes.")
     }
 
-    pub fn get_metadata(&self) -> &Option<Bytes> {
-        &self.metadata
+    pub fn get_metadata(&self) -> Option<&Bytes> {
+        match &self.metadata {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
-    pub fn get_data(&self) -> &Option<Bytes> {
-        &self.data
+    pub fn get_data(&self) -> Option<&Bytes> {
+        match &self.data {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
     pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
@@ -115,10 +125,32 @@ impl Setup {
     }
 }
 
-pub struct SetupBuilder {
-    stream_id: u32,
-    flag: u16,
-    value: Setup,
+impl Writeable for Setup {
+    fn len(&self) -> usize {
+        let mut n: usize = 12;
+        n += match &self.token {
+            Some(v) => 2 + v.len(),
+            None => 0,
+        };
+        n += 2 + self.mime_metadata.len() + self.mime_data.len();
+        n += utils::calculate_payload_length(self.get_metadata(), self.get_data());
+        n
+    }
+
+    fn write_to(&self, bf: &mut BytesMut) {
+        self.version.write_to(bf);
+        bf.put_u32(self.keepalive);
+        bf.put_u32(self.lifetime);
+        if let Some(b) = &self.token {
+            bf.put_u16(b.len() as u16);
+            bf.put(b.bytes());
+        }
+        bf.put_u8(self.mime_metadata.len() as u8);
+        bf.put(self.mime_metadata.clone());
+        bf.put_u8(self.mime_data.len() as u8);
+        bf.put(self.mime_data.clone());
+        utils::write_payload(bf, self.get_metadata(), self.get_data());
+    }
 }
 
 impl SetupBuilder {
@@ -131,8 +163,8 @@ impl SetupBuilder {
                 keepalive: 30_000,
                 lifetime: 90_000,
                 token: None,
-                mime_metadata: String::from(DEFAULT_MIME_TYPE),
-                mime_data: String::from(DEFAULT_MIME_TYPE),
+                mime_metadata: Bytes::from(DEFAULT_MIME_TYPE),
+                mime_data: Bytes::from(DEFAULT_MIME_TYPE),
                 metadata: None,
                 data: None,
             },
@@ -149,7 +181,7 @@ impl SetupBuilder {
     }
 
     pub fn set_metadata(mut self, bs: Bytes) -> Self {
-        self.flag |= FLAG_METADATA;
+        self.flag |= Frame::FLAG_METADATA;
         self.value.metadata = Some(bs);
         self
     }
@@ -171,23 +203,27 @@ impl SetupBuilder {
 
     pub fn set_token(mut self, token: Bytes) -> Self {
         self.value.token = Some(token);
-        self.flag |= FLAG_RESUME;
+        self.flag |= Frame::FLAG_RESUME;
         self
     }
 
-    pub fn set_mime_metadata(mut self, mime: &str) -> Self {
-        if mime.len() > 256 {
-            panic!("maximum mime length is 256");
-        }
-        self.value.mime_metadata = String::from(mime);
+    pub fn set_mime_metadata<I>(mut self, mime: I) -> Self
+    where
+        I: Into<String>,
+    {
+        let mime = mime.into();
+        assert!(mime.len() <= 256);
+        self.value.mime_metadata = Bytes::from(mime);
         self
     }
 
-    pub fn set_mime_data(mut self, mime: &str) -> Self {
-        if mime.len() > 256 {
-            panic!("maximum mime length is 256");
-        }
-        self.value.mime_data = String::from(mime);
+    pub fn set_mime_data<I>(mut self, mime: I) -> Self
+    where
+        I: Into<String>,
+    {
+        let mime = mime.into();
+        assert!(mime.len() <= 256);
+        self.value.mime_data = Bytes::from(mime);
         self
     }
 }

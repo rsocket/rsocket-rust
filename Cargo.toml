@@ -1,12 +1,16 @@
 [workspace]
 
 members = [
+# core
 "rsocket",
+# transports
 "rsocket-transport-tcp",
 "rsocket-transport-websocket",
 "rsocket-transport-wasm",
-
-# Internal
+# extra
+"rsocket-messaging",
+# internal
 "examples",
 "rsocket-test",
+"rsocket-benchmark",
 ]

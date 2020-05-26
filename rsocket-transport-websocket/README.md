@@ -6,9 +6,9 @@ Add dependencies in your `Cargo.toml`.
 
 ```toml
 [dependencies]
-tokio = "0.2.16"
-rsocket_rust = "0.5.1"
-rsocket_rust_transport_websocket = "0.5.1"
+tokio = "0.2.21"
+rsocket_rust = "0.5.2"
+rsocket_rust_transport_websocket = "0.5.2"
 ```
 
 ### Server

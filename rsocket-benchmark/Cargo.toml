@@ -1,18 +1,24 @@
 [package]
-name = "examples"
+name = "rsocket_rust_benchmark"
 version = "0.0.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
 publish = false
 
 [dev-dependencies]
-log = "0.4.8"
-env_logger = "0.7.1"
+log = "0.4"
 futures = "0.3.5"
-clap = "2.33.1"
+env_logger = "0.7.1"
+bytes = "0.5.4"
+hex = "0.4.2"
+rand = "0.7.3"
+serde = "1.0.110"
+serde_derive = "1.0.110"
+criterion = "0.3.2"
 
 [dev-dependencies.rsocket_rust]
 version = "0.5.2"
+features = ["frame"]
 
 [dev-dependencies.rsocket_rust_transport_tcp]
 version = "0.5.2"
@@ -20,23 +26,15 @@ version = "0.5.2"
 [dev-dependencies.rsocket_rust_transport_websocket]
 version = "0.5.2"
 
+[dev-dependencies.rsocket_rust_messaging]
+version = "0.5.2"
+
 [dev-dependencies.tokio]
 version = "0.2.21"
 default-features = false
 features = ["full"]
 
-[[example]]
-name = "echo"
-path = "echo.rs"
-
-[[example]]
-name = "proxy"
-path = "proxy.rs"
-
-[[example]]
-name = "cli"
-path = "cli.rs"
-
-[[example]]
-name = "qps"
-path = "qps.rs"
+[[bench]]
+name = "bench_main"
+path = "benchmark_main.rs"
+harness = false

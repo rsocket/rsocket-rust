@@ -1,6 +1,5 @@
 use crate::error::{ErrorKind, RSocketError};
-use crate::mime::WellKnownMIME;
-use crate::utils::{RSocketResult, Writeable, U24};
+use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 const MAX_ROUTING_TAG_LEN: usize = 0xFF;
@@ -19,9 +18,10 @@ impl RoutingMetadataBuilder {
         self.push(String::from(tag))
     }
     pub fn push(mut self, tag: String) -> Self {
-        if tag.len() > MAX_ROUTING_TAG_LEN {
-            panic!("exceeded maximum routing tag length!");
-        }
+        assert!(
+            tag.len() <= MAX_ROUTING_TAG_LEN,
+            "exceeded maximum routing tag length!"
+        );
         self.inner.tags.push(tag);
         self
     }

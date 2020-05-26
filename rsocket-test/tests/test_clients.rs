@@ -146,7 +146,7 @@ async fn test_request_response_err() {
 
 async fn exec_request_response<R>(socket: &Client<R>)
 where
-    R: Send + Sync + Clone + Spawner + 'static,
+    R: Send + Sync + Copy + Spawner + 'static,
 {
     // request response
     let sending = Payload::builder()
@@ -159,7 +159,7 @@ where
 
 async fn exec_metadata_push<R>(socket: &Client<R>)
 where
-    R: Send + Sync + Clone + Spawner + 'static,
+    R: Send + Sync + Copy + Spawner + 'static,
 {
     let pa = Payload::builder().set_metadata_utf8("Hello World!").build();
     // metadata push
@@ -168,7 +168,7 @@ where
 
 async fn exec_fire_and_forget<R>(socket: &Client<R>)
 where
-    R: Send + Sync + Clone + Spawner + 'static,
+    R: Send + Sync + Copy + Spawner + 'static,
 {
     // request fnf
     let fnf = Payload::from("Hello World!");
@@ -177,7 +177,7 @@ where
 
 async fn exec_request_stream<R>(socket: &Client<R>)
 where
-    R: Send + Sync + Clone + Spawner + 'static,
+    R: Send + Sync + Copy + Spawner + 'static,
 {
     // request stream
     let sending = Payload::builder()
@@ -197,7 +197,7 @@ where
 
 async fn exec_request_channel<R>(socket: &Client<R>)
 where
-    R: Send + Sync + Clone + Spawner + 'static,
+    R: Send + Sync + Copy + Spawner + 'static,
 {
     let sends: Vec<_> = (0..10)
         .map(|n| {

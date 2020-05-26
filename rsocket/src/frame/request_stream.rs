@@ -1,5 +1,5 @@
-use super::{Body, Frame, PayloadSupport, FLAG_METADATA, REQUEST_MAX};
-use crate::utils::{RSocketResult, Writeable, U24};
+use super::{utils, Body, Frame, REQUEST_MAX};
+use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
@@ -30,11 +30,11 @@ impl RequestStreamBuilder {
         match data_and_metadata.1 {
             Some(m) => {
                 self.value.metadata = Some(m);
-                self.flag |= FLAG_METADATA;
+                self.flag |= Frame::FLAG_METADATA;
             }
             None => {
                 self.value.metadata = None;
-                self.flag &= !FLAG_METADATA;
+                self.flag &= !Frame::FLAG_METADATA;
             }
         }
         self
@@ -47,20 +47,23 @@ impl RequestStreamBuilder {
 
     pub fn set_metadata(mut self, metadata: Bytes) -> Self {
         self.value.metadata = Some(metadata);
-        self.flag |= FLAG_METADATA;
+        self.flag |= Frame::FLAG_METADATA;
         self
     }
 }
 
 impl RequestStream {
-    pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestStream> {
-        let n = bf.get_u32();
-        let (m, d) = PayloadSupport::read(flag, bf);
-        Ok(RequestStream {
-            initial_request_n: n,
-            metadata: m,
-            data: d,
-        })
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestStream> {
+        if bf.len() < 4 {
+            utils::too_short(4)
+        } else {
+            let initial_request_n = bf.get_u32();
+            utils::read_payload(flag, bf).map(move |(metadata, data)| RequestStream {
+                initial_request_n,
+                metadata,
+                data,
+            })
+        }
     }
 
     pub fn builder(stream_id: u32, flag: u16) -> RequestStreamBuilder {
@@ -79,12 +82,18 @@ impl RequestStream {
         self.initial_request_n
     }
 
-    pub fn get_metadata(&self) -> &Option<Bytes> {
-        &self.metadata
+    pub fn get_metadata(&self) -> Option<&Bytes> {
+        match &self.metadata {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
-    pub fn get_data(&self) -> &Option<Bytes> {
-        &self.data
+    pub fn get_data(&self) -> Option<&Bytes> {
+        match &self.data {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
     pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
@@ -95,10 +104,10 @@ impl RequestStream {
 impl Writeable for RequestStream {
     fn write_to(&self, bf: &mut BytesMut) {
         bf.put_u32(self.initial_request_n);
-        PayloadSupport::write(bf, self.get_metadata(), self.get_data())
+        utils::write_payload(bf, self.get_metadata(), self.get_data())
     }
 
     fn len(&self) -> usize {
-        4 + PayloadSupport::len(self.get_metadata(), self.get_data())
+        4 + utils::calculate_payload_length(self.get_metadata(), self.get_data())
     }
 }

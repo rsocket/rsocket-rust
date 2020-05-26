@@ -4,8 +4,8 @@ use rsocket_rust::error::RSocketError;
 use rsocket_rust::frame::Frame;
 use rsocket_rust::runtime::{DefaultSpawner, Spawner};
 use rsocket_rust::transport::{ClientTransport, Rx, Tx, TxOnce};
-use std::net::SocketAddr;
-use std::net::TcpStream as StdTcpStream;
+use std::net::{AddrParseError, SocketAddr, TcpStream as StdTcpStream};
+use std::str::FromStr;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
 
@@ -75,6 +75,19 @@ impl ClientTransport for TcpClientTransport {
     }
 }
 
+impl FromStr for TcpClientTransport {
+    type Err = AddrParseError;
+
+    fn from_str(addr: &str) -> Result<Self, Self::Err> {
+        let socket_addr = if addr.starts_with("tcp://") || addr.starts_with("TCP://") {
+            addr.chars().skip(6).collect::<String>().parse()?
+        } else {
+            addr.parse()?
+        };
+        Ok(TcpClientTransport::new(Connector::Lazy(socket_addr)))
+    }
+}
+
 impl From<SocketAddr> for TcpClientTransport {
     fn from(addr: SocketAddr) -> TcpClientTransport {
         TcpClientTransport::new(Connector::Lazy(addr))
@@ -83,12 +96,12 @@ impl From<SocketAddr> for TcpClientTransport {
 
 impl From<&str> for TcpClientTransport {
     fn from(addr: &str) -> TcpClientTransport {
-        let socket_addr: SocketAddr = if addr.starts_with("tcp://") {
-            let ss: String = addr.chars().skip(6).collect();
-            ss.parse().unwrap()
+        let socket_addr: SocketAddr = if addr.starts_with("tcp://") || addr.starts_with("TCP://") {
+            addr.chars().skip(6).collect::<String>().parse()
         } else {
-            addr.parse().unwrap()
-        };
+            addr.parse()
+        }
+        .expect("Invalid transport string!");
         TcpClientTransport::new(Connector::Lazy(socket_addr))
     }
 }

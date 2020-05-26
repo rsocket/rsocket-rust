@@ -21,15 +21,12 @@ use tokio::prelude::*;
 use tokio::sync::Mutex;
 
 #[derive(Clone)]
-pub(crate) struct DuplexSocket<R>
-where
-    R: Send + Sync + Clone + Spawner + 'static,
-{
+pub(crate) struct DuplexSocket<R> {
     rt: R,
     seq: StreamID,
     responder: Responder,
     tx: Tx<Frame>,
-    handlers: Arc<Mutex<HashMap<u32, Handler>>>,
+    handlers: [Arc<Mutex<HashMap<u32, Handler>>>; 16],
     canceller: Tx<u32>,
     splitter: Option<Splitter>,
     joiners: Arc<Mutex<HashMap<u32, Joiner>>>,
@@ -50,7 +47,7 @@ enum Handler {
 
 impl<R> DuplexSocket<R>
 where
-    R: Send + Sync + Clone + Spawner + 'static,
+    R: Send + Sync + Copy + Spawner + 'static,
 {
     pub(crate) async fn new(
         rt: R,
@@ -58,24 +55,41 @@ where
         tx: Tx<Frame>,
         splitter: Option<Splitter>,
     ) -> DuplexSocket<R> {
-        let rt2 = rt.clone();
         let (canceller_tx, canceller_rx) = new_tx_rx::<u32>();
-        let ds = DuplexSocket {
+        let handlers = [
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+            Arc::new(Mutex::new(HashMap::new())),
+        ];
+        let duplex_socket = DuplexSocket {
             rt,
             seq: StreamID::from(first_stream_id),
             tx,
             canceller: canceller_tx,
             responder: Responder::new(),
-            handlers: Arc::new(Mutex::new(HashMap::new())),
+            handlers,
             joiners: Arc::new(Mutex::new(HashMap::new())),
             splitter,
         };
 
-        let ds2 = ds.clone();
-        rt2.spawn(async move {
-            ds2.loop_canceller(canceller_rx).await;
+        let cloned_duplex_socket = duplex_socket.clone();
+        rt.spawn(async move {
+            cloned_duplex_socket.loop_canceller(canceller_rx).await;
         });
-        ds
+        duplex_socket
     }
 
     pub(crate) fn close(self) {
@@ -85,10 +99,10 @@ where
     pub(crate) async fn setup(&self, setup: SetupPayload) {
         let mut bu = frame::Setup::builder(0, 0);
         if let Some(s) = setup.data_mime_type() {
-            bu = bu.set_mime_data(&s);
+            bu = bu.set_mime_data(s);
         }
         if let Some(s) = setup.metadata_mime_type() {
-            bu = bu.set_mime_metadata(&s);
+            bu = bu.set_mime_metadata(s);
         }
         bu = bu.set_keepalive(setup.keepalive_interval());
         bu = bu.set_lifetime(setup.keepalive_lifetime());
@@ -105,15 +119,21 @@ where
     }
 
     #[inline]
-    async fn register_handler(&self, sid: u32, handler: Handler) {
-        let mut handlers = self.handlers.lock().await;
-        (*handlers).insert(sid, handler);
+    fn get_handler(&self, sid: u32) -> &Arc<Mutex<HashMap<u32, Handler>>> {
+        let i = ((sid ^ (sid >> 16)) & 15) as usize;
+        &self.handlers[i]
     }
 
     #[inline]
+    async fn register_handler(&self, sid: u32, handler: Handler) {
+        let h = self.get_handler(sid);
+        let mut handlers = h.lock().await;
+        (*handlers).insert(sid, handler);
+    }
+
     pub(crate) async fn loop_canceller(&self, mut rx: Rx<u32>) {
         while let Some(sid) = rx.next().await {
-            let mut handlers = self.handlers.lock().await;
+            let mut handlers = self.get_handler(sid).lock().await;
             (*handlers).remove(&sid);
         }
     }
@@ -168,7 +188,7 @@ where
                 self.on_payload(sid, flag, input).await;
             }
             Body::Keepalive(v) => {
-                if flag & frame::FLAG_RESPOND != 0 {
+                if flag & Frame::FLAG_RESPOND != 0 {
                     debug!("got keepalive: {:?}", v);
                     self.on_keepalive(v).await;
                 }
@@ -197,6 +217,7 @@ where
         }
     }
 
+    #[inline]
     async fn join_frame(&self, input: Frame) -> Option<Frame> {
         let (is_follow, is_payload) = input.is_followable_or_payload();
         if !is_follow {
@@ -205,7 +226,7 @@ where
         let sid = input.get_stream_id();
         let mut joiners = self.joiners.lock().await;
 
-        if input.get_flag() & frame::FLAG_FOLLOW != 0 {
+        if input.get_flag() & Frame::FLAG_FOLLOW != 0 {
             // TODO: check conflict
             (*joiners)
                 .entry(sid)
@@ -277,9 +298,10 @@ where
             (*joiners).remove(&sid);
         }
         // pick handler
-        let mut handlers = self.handlers.lock().await;
+        let mut handlers = self.get_handler(sid).lock().await;
         if let Some(handler) = (*handlers).remove(&sid) {
-            let kind = ErrorKind::Internal(input.get_code(), input.get_data_utf8());
+            let kind =
+                ErrorKind::Internal(input.get_code(), input.get_data_utf8().unwrap().to_owned());
             let e = Err(RSocketError::from(kind));
             match handler {
                 Handler::ReqRR(tx) => tx.send(e).expect("Send RR failed"),
@@ -296,7 +318,7 @@ where
             let mut joiners = self.joiners.lock().await;
             (*joiners).remove(&sid);
         }
-        let mut handlers = self.handlers.lock().await;
+        let mut handlers = self.get_handler(sid).lock().await;
         if let Some(handler) = (*handlers).remove(&sid) {
             let e = Err(RSocketError::from(ErrorKind::Cancelled()));
             match handler {
@@ -320,7 +342,7 @@ where
 
     #[inline]
     async fn on_payload(&self, sid: u32, flag: u16, input: Payload) {
-        let mut handlers = self.handlers.lock().await;
+        let mut handlers = self.get_handler(sid).lock().await;
         // fire event!
         match (*handlers).entry(sid) {
             Entry::Occupied(o) => {
@@ -333,23 +355,23 @@ where
                     },
                     Handler::ResRR(c) => unreachable!(),
                     Handler::ReqRS(sender) => {
-                        if flag & frame::FLAG_NEXT != 0 {
+                        if flag & Frame::FLAG_NEXT != 0 {
                             sender
                                 .unbounded_send(Ok(input))
                                 .expect("Send payload response failed.");
                         }
-                        if flag & frame::FLAG_COMPLETE != 0 {
+                        if flag & Frame::FLAG_COMPLETE != 0 {
                             o.remove();
                         }
                     }
                     Handler::ReqRC(sender) => {
                         // TODO: support channel
-                        if flag & frame::FLAG_NEXT != 0 {
+                        if flag & Frame::FLAG_NEXT != 0 {
                             sender
                                 .unbounded_send(Ok(input))
                                 .expect("Send payload response failed");
                         }
-                        if flag & frame::FLAG_COMPLETE != 0 {
+                        if flag & Frame::FLAG_COMPLETE != 0 {
                             o.remove();
                         }
                     }
@@ -420,7 +442,7 @@ where
                         &tx,
                         sid,
                         res,
-                        frame::FLAG_NEXT | frame::FLAG_COMPLETE,
+                        Frame::FLAG_NEXT | Frame::FLAG_COMPLETE,
                     );
                 }
                 Err(e) => {
@@ -447,7 +469,7 @@ where
             while let Some(next) = payloads.next().await {
                 match next {
                     Ok(it) => {
-                        Self::try_send_payload(&splitter, &tx, sid, it, frame::FLAG_NEXT);
+                        Self::try_send_payload(&splitter, &tx, sid, it, Frame::FLAG_NEXT);
                     }
                     Err(e) => {
                         let sending = frame::Error::builder(sid, 0)
@@ -459,7 +481,7 @@ where
                     }
                 };
             }
-            let complete = frame::Payload::builder(sid, frame::FLAG_COMPLETE).build();
+            let complete = frame::Payload::builder(sid, Frame::FLAG_COMPLETE).build();
             tx.unbounded_send(complete)
                 .expect("Send stream complete response failed");
         });
@@ -486,7 +508,7 @@ where
                 let sending = match next {
                     Ok(v) => {
                         let (d, m) = v.split();
-                        let mut bu = frame::Payload::builder(sid, frame::FLAG_NEXT);
+                        let mut bu = frame::Payload::builder(sid, Frame::FLAG_NEXT);
                         if let Some(b) = d {
                             bu = bu.set_data(b);
                         }
@@ -502,7 +524,7 @@ where
                 };
                 tx.unbounded_send(sending).unwrap();
             }
-            let complete = frame::Payload::builder(sid, frame::FLAG_COMPLETE).build();
+            let complete = frame::Payload::builder(sid, Frame::FLAG_COMPLETE).build();
             if let Err(e) = tx.unbounded_send(complete) {
                 error!("complete REQUEST_CHANNEL failed: {}", e);
             }
@@ -543,11 +565,11 @@ where
                 for next in sp.cut(res, 4) {
                     if let Some(cur) = prev.take() {
                         let sending = if cuts == 1 {
-                            frame::RequestChannel::builder(sid, flag | frame::FLAG_FOLLOW)
+                            frame::RequestChannel::builder(sid, flag | Frame::FLAG_FOLLOW)
                                 .set_all(cur.split())
                                 .build()
                         } else {
-                            frame::Payload::builder(sid, frame::FLAG_FOLLOW)
+                            frame::Payload::builder(sid, Frame::FLAG_FOLLOW)
                                 .set_all(cur.split())
                                 .build()
                         };
@@ -603,11 +625,11 @@ where
                 for next in sp.cut(res, 0) {
                     if let Some(cur) = prev.take() {
                         let sending = if cuts == 1 {
-                            frame::Payload::builder(sid, flag | frame::FLAG_FOLLOW)
+                            frame::Payload::builder(sid, flag | Frame::FLAG_FOLLOW)
                                 .set_all(cur.split())
                                 .build()
                         } else {
-                            frame::Payload::builder(sid, frame::FLAG_FOLLOW)
+                            frame::Payload::builder(sid, Frame::FLAG_FOLLOW)
                                 .set_all(cur.split())
                                 .build()
                         };
@@ -647,7 +669,7 @@ where
 
 impl<R> RSocket for DuplexSocket<R>
 where
-    R: Send + Sync + Clone + Spawner + 'static,
+    R: Send + Sync + Copy + Spawner + 'static,
 {
     fn metadata_push(&self, req: Payload) -> Mono<()> {
         let sid = self.seq.next();
@@ -676,12 +698,12 @@ where
                         if let Some(cur) = prev.take() {
                             let sending = if cuts == 1 {
                                 // make first frame as request_fnf.
-                                frame::RequestFNF::builder(sid, frame::FLAG_FOLLOW)
+                                frame::RequestFNF::builder(sid, Frame::FLAG_FOLLOW)
                                     .set_all(cur.split())
                                     .build()
                             } else {
                                 // make other frames as payload.
-                                frame::Payload::builder(sid, frame::FLAG_FOLLOW)
+                                frame::Payload::builder(sid, Frame::FLAG_FOLLOW)
                                     .set_all(cur.split())
                                     .build()
                             };
@@ -726,7 +748,7 @@ where
     fn request_response(&self, req: Payload) -> Mono<Result<Payload, RSocketError>> {
         let (tx, rx) = new_tx_rx_once::<Result<Payload, RSocketError>>();
         let sid = self.seq.next();
-        let handlers = Arc::clone(&self.handlers);
+        let handlers = Arc::clone(&self.get_handler(sid));
         let sender = self.tx.clone();
 
         let splitter = self.splitter.clone();
@@ -746,12 +768,12 @@ where
                         if let Some(cur) = prev.take() {
                             let sending = if cuts == 1 {
                                 // make first frame as request_response.
-                                frame::RequestResponse::builder(sid, frame::FLAG_FOLLOW)
+                                frame::RequestResponse::builder(sid, Frame::FLAG_FOLLOW)
                                     .set_all(cur.split())
                                     .build()
                             } else {
                                 // make other frames as payload.
-                                frame::Payload::builder(sid, frame::FLAG_FOLLOW)
+                                frame::Payload::builder(sid, Frame::FLAG_FOLLOW)
                                     .set_all(cur.split())
                                     .build()
                             };
@@ -806,7 +828,7 @@ where
         let tx = self.tx.clone();
         // register handler
         let (sender, receiver) = new_tx_rx::<Result<Payload, RSocketError>>();
-        let handlers = Arc::clone(&self.handlers);
+        let handlers = Arc::clone(&self.get_handler(sid));
         let splitter = self.splitter.clone();
         self.rt.spawn(async move {
             {
@@ -822,12 +844,12 @@ where
                         if let Some(cur) = prev.take() {
                             let sending: Frame = if cuts == 1 {
                                 // make first frame as request_stream.
-                                frame::RequestStream::builder(sid, frame::FLAG_FOLLOW)
+                                frame::RequestStream::builder(sid, Frame::FLAG_FOLLOW)
                                     .set_all(cur.split())
                                     .build()
                             } else {
                                 // make other frames as payload.
-                                frame::Payload::builder(sid, frame::FLAG_FOLLOW)
+                                frame::Payload::builder(sid, Frame::FLAG_FOLLOW)
                                     .set_all(cur.split())
                                     .build()
                             };
@@ -878,7 +900,7 @@ where
         let tx = self.tx.clone();
         // register handler
         let (sender, receiver) = new_tx_rx::<Result<Payload, RSocketError>>();
-        let handlers = Arc::clone(&self.handlers);
+        let handlers = Arc::clone(&self.get_handler(sid));
         let splitter = self.splitter.clone();
         self.rt.spawn(async move {
             {
@@ -891,9 +913,9 @@ where
                     Ok(it) => {
                         if first {
                             first = false;
-                            Self::try_send_channel(&splitter, &tx, sid, it, frame::FLAG_NEXT)
+                            Self::try_send_channel(&splitter, &tx, sid, it, Frame::FLAG_NEXT)
                         } else {
-                            Self::try_send_payload(&splitter, &tx, sid, it, frame::FLAG_NEXT)
+                            Self::try_send_payload(&splitter, &tx, sid, it, Frame::FLAG_NEXT)
                         }
                     }
                     Err(e) => {
@@ -907,7 +929,7 @@ where
                     }
                 };
             }
-            let sending = frame::Payload::builder(sid, frame::FLAG_COMPLETE).build();
+            let sending = frame::Payload::builder(sid, Frame::FLAG_COMPLETE).build();
             if let Err(e) = tx.unbounded_send(sending) {
                 error!("complete REQUEST_CHANNEL failed: {}", e);
             }
@@ -933,8 +955,7 @@ impl Responder {
     }
 
     fn set(&self, rs: Box<dyn RSocket>) {
-        let inner = self.inner.clone();
-        let mut v = inner.write().unwrap();
+        let mut v = self.inner.write().unwrap();
         *v = rs;
     }
 }

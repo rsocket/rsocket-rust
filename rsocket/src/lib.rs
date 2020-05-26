@@ -102,7 +102,6 @@ pub mod frame;
 #[cfg(not(feature = "frame"))]
 mod frame;
 
-pub mod mime;
 mod payload;
 pub mod prelude;
 pub mod runtime;

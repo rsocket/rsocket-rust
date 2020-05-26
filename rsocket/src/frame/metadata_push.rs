@@ -33,7 +33,7 @@ impl MetadataPushBuiler {
 }
 
 impl MetadataPush {
-    pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<MetadataPush> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<MetadataPush> {
         let m = Bytes::from(bf.to_vec());
         Ok(MetadataPush { metadata: Some(m) })
     }
@@ -42,8 +42,11 @@ impl MetadataPush {
         MetadataPushBuiler::new(stream_id, flag)
     }
 
-    pub fn get_metadata(&self) -> &Option<Bytes> {
-        &self.metadata
+    pub fn get_metadata(&self) -> Option<&Bytes> {
+        match &self.metadata {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
     pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {

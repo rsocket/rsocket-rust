@@ -1,4 +1,4 @@
-use crate::error::RSocketError;
+use crate::error::{ErrorKind, RSocketError};
 use crate::utils::{RSocketResult, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -33,32 +33,7 @@ pub use request_stream::RequestStream;
 pub use resume::Resume;
 pub use resume_ok::ResumeOK;
 pub use setup::{Setup, SetupBuilder};
-pub use utils::*;
 pub use version::Version;
-
-pub const FLAG_NEXT: u16 = 0x01 << 5;
-pub const FLAG_COMPLETE: u16 = 0x01 << 6;
-pub const FLAG_FOLLOW: u16 = 0x01 << 7;
-pub const FLAG_METADATA: u16 = 0x01 << 8;
-pub const FLAG_IGNORE: u16 = 0x01 << 9;
-pub const FLAG_LEASE: u16 = FLAG_COMPLETE;
-pub const FLAG_RESUME: u16 = FLAG_FOLLOW;
-pub const FLAG_RESPOND: u16 = FLAG_FOLLOW;
-
-pub const TYPE_SETUP: u16 = 0x01;
-pub const TYPE_LEASE: u16 = 0x02;
-pub const TYPE_KEEPALIVE: u16 = 0x03;
-pub const TYPE_REQUEST_RESPONSE: u16 = 0x04;
-pub const TYPE_REQUEST_FNF: u16 = 0x05;
-pub const TYPE_REQUEST_STREAM: u16 = 0x06;
-pub const TYPE_REQUEST_CHANNEL: u16 = 0x07;
-pub const TYPE_REQUEST_N: u16 = 0x08;
-pub const TYPE_CANCEL: u16 = 0x09;
-pub const TYPE_PAYLOAD: u16 = 0x0A;
-pub const TYPE_ERROR: u16 = 0x0B;
-pub const TYPE_METADATA_PUSH: u16 = 0x0C;
-pub const TYPE_RESUME: u16 = 0x0D;
-pub const TYPE_RESUME_OK: u16 = 0x0E;
 
 pub const REQUEST_MAX: u32 = 0x7FFF_FFFF; // 2147483647
 
@@ -87,6 +62,32 @@ pub struct Frame {
     pub(crate) stream_id: u32,
     pub(crate) body: Body,
     pub(crate) flag: u16,
+}
+
+impl Frame {
+    pub const FLAG_NEXT: u16 = 0x01 << 5;
+    pub const FLAG_COMPLETE: u16 = 0x01 << 6;
+    pub const FLAG_FOLLOW: u16 = 0x01 << 7;
+    pub const FLAG_METADATA: u16 = 0x01 << 8;
+    pub const FLAG_IGNORE: u16 = 0x01 << 9;
+    pub const FLAG_LEASE: u16 = Self::FLAG_COMPLETE;
+    pub const FLAG_RESUME: u16 = Self::FLAG_FOLLOW;
+    pub const FLAG_RESPOND: u16 = Self::FLAG_FOLLOW;
+
+    pub const TYPE_SETUP: u16 = 0x01;
+    pub const TYPE_LEASE: u16 = 0x02;
+    pub const TYPE_KEEPALIVE: u16 = 0x03;
+    pub const TYPE_REQUEST_RESPONSE: u16 = 0x04;
+    pub const TYPE_REQUEST_FNF: u16 = 0x05;
+    pub const TYPE_REQUEST_STREAM: u16 = 0x06;
+    pub const TYPE_REQUEST_CHANNEL: u16 = 0x07;
+    pub const TYPE_REQUEST_N: u16 = 0x08;
+    pub const TYPE_CANCEL: u16 = 0x09;
+    pub const TYPE_PAYLOAD: u16 = 0x0A;
+    pub const TYPE_ERROR: u16 = 0x0B;
+    pub const TYPE_METADATA_PUSH: u16 = 0x0C;
+    pub const TYPE_RESUME: u16 = 0x0D;
+    pub const TYPE_RESUME_OK: u16 = 0x0E;
 }
 
 impl Writeable for Frame {
@@ -143,25 +144,29 @@ impl Frame {
     }
 
     pub fn decode(b: &mut BytesMut) -> RSocketResult<Frame> {
-        // TODO: check size
+        if b.len() < LEN_HEADER {
+            return Err(ErrorKind::LengthTooShort(LEN_HEADER).into());
+        }
         let sid = b.get_u32();
         let n = b.get_u16();
         let (flag, kind) = (n & 0x03FF, (n & 0xFC00) >> 10);
         let body = match kind {
-            TYPE_SETUP => Setup::decode(flag, b).map(Body::Setup),
-            TYPE_REQUEST_RESPONSE => RequestResponse::decode(flag, b).map(Body::RequestResponse),
-            TYPE_REQUEST_STREAM => RequestStream::decode(flag, b).map(Body::RequestStream),
-            TYPE_REQUEST_CHANNEL => RequestChannel::decode(flag, b).map(Body::RequestChannel),
-            TYPE_REQUEST_FNF => RequestFNF::decode(flag, b).map(Body::RequestFNF),
-            TYPE_REQUEST_N => RequestN::decode(flag, b).map(Body::RequestN),
-            TYPE_METADATA_PUSH => MetadataPush::decode(flag, b).map(Body::MetadataPush),
-            TYPE_KEEPALIVE => Keepalive::decode(flag, b).map(Body::Keepalive),
-            TYPE_PAYLOAD => Payload::decode(flag, b).map(Body::Payload),
-            TYPE_LEASE => Lease::decode(flag, b).map(Body::Lease),
-            TYPE_CANCEL => Ok(Body::Cancel()),
-            TYPE_ERROR => Error::decode(flag, b).map(Body::Error),
-            TYPE_RESUME_OK => ResumeOK::decode(flag, b).map(Body::ResumeOK),
-            TYPE_RESUME => Resume::decode(flag, b).map(Body::Resume),
+            Self::TYPE_SETUP => Setup::decode(flag, b).map(Body::Setup),
+            Self::TYPE_REQUEST_RESPONSE => {
+                RequestResponse::decode(flag, b).map(Body::RequestResponse)
+            }
+            Self::TYPE_REQUEST_STREAM => RequestStream::decode(flag, b).map(Body::RequestStream),
+            Self::TYPE_REQUEST_CHANNEL => RequestChannel::decode(flag, b).map(Body::RequestChannel),
+            Self::TYPE_REQUEST_FNF => RequestFNF::decode(flag, b).map(Body::RequestFNF),
+            Self::TYPE_REQUEST_N => RequestN::decode(flag, b).map(Body::RequestN),
+            Self::TYPE_METADATA_PUSH => MetadataPush::decode(flag, b).map(Body::MetadataPush),
+            Self::TYPE_KEEPALIVE => Keepalive::decode(flag, b).map(Body::Keepalive),
+            Self::TYPE_PAYLOAD => Payload::decode(flag, b).map(Body::Payload),
+            Self::TYPE_LEASE => Lease::decode(flag, b).map(Body::Lease),
+            Self::TYPE_CANCEL => Ok(Body::Cancel()),
+            Self::TYPE_ERROR => Error::decode(flag, b).map(Body::Error),
+            Self::TYPE_RESUME_OK => ResumeOK::decode(flag, b).map(Body::ResumeOK),
+            Self::TYPE_RESUME => Resume::decode(flag, b).map(Body::Resume),
             _ => Err(RSocketError::from(format!("illegal frame type: {}", kind))),
         };
         body.map(|it| Frame::new(sid, it, flag))
@@ -182,10 +187,6 @@ impl Frame {
         self.body
     }
 
-    pub fn get_frame_type(&self) -> u16 {
-        to_frame_type(&self.body)
-    }
-
     pub fn get_flag(&self) -> u16 {
         self.flag
     }
@@ -195,30 +196,30 @@ impl Frame {
     }
 
     pub fn has_next(&self) -> bool {
-        self.flag & FLAG_NEXT != 0
+        self.flag & Self::FLAG_NEXT != 0
     }
 
     pub fn has_complete(&self) -> bool {
-        self.flag & FLAG_COMPLETE != 0
+        self.flag & Self::FLAG_COMPLETE != 0
     }
 }
 
 #[inline]
 fn to_frame_type(body: &Body) -> u16 {
     match body {
-        Body::Setup(_) => TYPE_SETUP,
-        Body::Lease(_) => TYPE_LEASE,
-        Body::Keepalive(_) => TYPE_KEEPALIVE,
-        Body::RequestResponse(_) => TYPE_REQUEST_RESPONSE,
-        Body::RequestFNF(_) => TYPE_REQUEST_FNF,
-        Body::RequestStream(_) => TYPE_REQUEST_STREAM,
-        Body::RequestChannel(_) => TYPE_REQUEST_CHANNEL,
-        Body::RequestN(_) => TYPE_REQUEST_N,
-        Body::Cancel() => TYPE_CANCEL,
-        Body::Payload(_) => TYPE_PAYLOAD,
-        Body::Error(_) => TYPE_ERROR,
-        Body::MetadataPush(_) => TYPE_METADATA_PUSH,
-        Body::Resume(_) => TYPE_RESUME,
-        Body::ResumeOK(_) => TYPE_RESUME_OK,
+        Body::Setup(_) => Frame::TYPE_SETUP,
+        Body::Lease(_) => Frame::TYPE_LEASE,
+        Body::Keepalive(_) => Frame::TYPE_KEEPALIVE,
+        Body::RequestResponse(_) => Frame::TYPE_REQUEST_RESPONSE,
+        Body::RequestFNF(_) => Frame::TYPE_REQUEST_FNF,
+        Body::RequestStream(_) => Frame::TYPE_REQUEST_STREAM,
+        Body::RequestChannel(_) => Frame::TYPE_REQUEST_CHANNEL,
+        Body::RequestN(_) => Frame::TYPE_REQUEST_N,
+        Body::Cancel() => Frame::TYPE_CANCEL,
+        Body::Payload(_) => Frame::TYPE_PAYLOAD,
+        Body::Error(_) => Frame::TYPE_ERROR,
+        Body::MetadataPush(_) => Frame::TYPE_METADATA_PUSH,
+        Body::Resume(_) => Frame::TYPE_RESUME,
+        Body::ResumeOK(_) => Frame::TYPE_RESUME_OK,
     }
 }

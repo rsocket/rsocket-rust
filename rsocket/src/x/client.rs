@@ -18,7 +18,7 @@ use std::time::Duration;
 #[derive(Clone)]
 pub struct Client<R>
 where
-    R: Send + Sync + Clone + Spawner + 'static,
+    R: Send + Sync + Copy + Spawner + 'static,
 {
     socket: DuplexSocket<R>,
 }
@@ -115,10 +115,9 @@ where
         rt: R,
     ) -> Result<Client<R>, Box<dyn Error + Send + Sync>>
     where
-        R: Send + Sync + Clone + Spawner + 'static,
+        R: Send + Sync + Copy + Spawner + 'static,
     {
         let tp = self.transport.take().expect("missint transport");
-        let cloned_rt = rt.clone();
         let (rcv_tx, rcv_rx) = mpsc::unbounded::<Frame>();
         let (snd_tx, snd_rx) = mpsc::unbounded::<Frame>();
         let (connected_tx, connected_rx) = oneshot::channel::<Result<(), RSocketError>>();
@@ -136,7 +135,7 @@ where
             None => None,
         };
         let closer = self.closer.take();
-        cloned_rt.spawn(async move {
+        rt.spawn(async move {
             cloned_duplex_socket.event_loop(acceptor, rcv_rx).await;
             if let Some(mut invoke) = closer {
                 invoke();
@@ -150,7 +149,7 @@ where
 
 impl<R> Client<R>
 where
-    R: Send + Sync + Clone + Spawner + 'static,
+    R: Send + Sync + Copy + Spawner + 'static,
 {
     fn new(socket: DuplexSocket<R>) -> Client<R> {
         Client { socket }
@@ -163,7 +162,7 @@ where
 
 impl<R> RSocket for Client<R>
 where
-    R: Send + Sync + Clone + Spawner + 'static,
+    R: Send + Sync + Copy + Spawner + 'static,
 {
     fn metadata_push(&self, req: Payload) -> Mono<()> {
         self.socket.metadata_push(req)

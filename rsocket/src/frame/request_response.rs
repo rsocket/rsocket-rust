@@ -1,5 +1,5 @@
-use super::{Body, Frame, PayloadSupport, FLAG_METADATA};
-use crate::utils::{RSocketResult, Writeable, U24};
+use super::{utils, Body, Frame};
+use crate::utils::{RSocketResult, Writeable};
 use bytes::{BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
@@ -31,11 +31,11 @@ impl RequestResponseBuilder {
         match data_and_metadata.1 {
             Some(m) => {
                 self.value.metadata = Some(m);
-                self.flag |= FLAG_METADATA;
+                self.flag |= Frame::FLAG_METADATA;
             }
             None => {
                 self.value.metadata = None;
-                self.flag &= !FLAG_METADATA;
+                self.flag &= !Frame::FLAG_METADATA;
             }
         }
         self
@@ -43,7 +43,7 @@ impl RequestResponseBuilder {
 
     pub fn set_metadata(mut self, metadata: Bytes) -> Self {
         self.value.metadata = Some(metadata);
-        self.flag |= FLAG_METADATA;
+        self.flag |= Frame::FLAG_METADATA;
         self
     }
 
@@ -58,9 +58,8 @@ impl RequestResponseBuilder {
 }
 
 impl RequestResponse {
-    pub fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestResponse> {
-        let (m, d) = PayloadSupport::read(flag, bf);
-        Ok(RequestResponse {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestResponse> {
+        utils::read_payload(flag, bf).map(|(m, d)| RequestResponse {
             metadata: m,
             data: d,
         })
@@ -70,12 +69,18 @@ impl RequestResponse {
         RequestResponseBuilder::new(stream_id, flag)
     }
 
-    pub fn get_metadata(&self) -> &Option<Bytes> {
-        &self.metadata
+    pub fn get_metadata(&self) -> Option<&Bytes> {
+        match &self.metadata {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
-    pub fn get_data(&self) -> &Option<Bytes> {
-        &self.data
+    pub fn get_data(&self) -> Option<&Bytes> {
+        match &self.data {
+            Some(b) => Some(b),
+            None => None,
+        }
     }
 
     pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
@@ -85,10 +90,10 @@ impl RequestResponse {
 
 impl Writeable for RequestResponse {
     fn write_to(&self, bf: &mut BytesMut) {
-        PayloadSupport::write(bf, self.get_metadata(), self.get_data())
+        utils::write_payload(bf, self.get_metadata(), self.get_data())
     }
 
     fn len(&self) -> usize {
-        PayloadSupport::len(self.get_metadata(), self.get_data())
+        utils::calculate_payload_length(self.get_metadata(), self.get_data())
     }
 }
