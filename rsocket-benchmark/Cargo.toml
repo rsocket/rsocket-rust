@@ -12,22 +12,22 @@ env_logger = "0.7.1"
 bytes = "0.5.4"
 hex = "0.4.2"
 rand = "0.7.3"
-serde = "1.0.110"
-serde_derive = "1.0.110"
+serde = "1.0.111"
+serde_derive = "1.0.111"
 criterion = "0.3.2"
 
 [dev-dependencies.rsocket_rust]
-version = "0.5.2"
+path = "../rsocket"
 features = ["frame"]
 
 [dev-dependencies.rsocket_rust_transport_tcp]
-version = "0.5.2"
+path = "../rsocket-transport-tcp"
 
 [dev-dependencies.rsocket_rust_transport_websocket]
-version = "0.5.2"
+path = "../rsocket-transport-websocket"
 
 [dev-dependencies.rsocket_rust_messaging]
-version = "0.5.2"
+path = "../rsocket-messaging"
 
 [dev-dependencies.tokio]
 version = "0.2.21"

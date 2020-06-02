@@ -10,15 +10,18 @@ log = "0.4.8"
 env_logger = "0.7.1"
 futures = "0.3.5"
 clap = "2.33.1"
+postgres = "0.17.3"
+r2d2_postgres = "0.16.0"
 
 [dev-dependencies.rsocket_rust]
-version = "0.5.2"
+path = "../rsocket"
 
 [dev-dependencies.rsocket_rust_transport_tcp]
-version = "0.5.2"
+path = "../rsocket-transport-tcp"
 
 [dev-dependencies.rsocket_rust_transport_websocket]
 version = "0.5.2"
+path = "../rsocket-transport-websocket"
 
 [dev-dependencies.tokio]
 version = "0.2.21"
@@ -40,3 +43,7 @@ path = "cli.rs"
 [[example]]
 name = "qps"
 path = "qps.rs"
+
+[[example]]
+name = "postgres"
+path = "postgres.rs"

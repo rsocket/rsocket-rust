@@ -1,6 +1,6 @@
 [package]
 name = "rsocket_rust_transport_websocket"
-version = "0.5.2"
+version = "0.5.3"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -17,7 +17,7 @@ url = "2.1.1"
 tokio-tungstenite = "0.10.1"
 
 [dependencies.rsocket_rust]
-version = "0.5.2"
+path = "../rsocket"
 features = ["frame"]
 
 [dependencies.tokio]
