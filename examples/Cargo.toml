@@ -10,8 +10,7 @@ log = "0.4.8"
 env_logger = "0.7.1"
 futures = "0.3.5"
 clap = "2.33.1"
-postgres = "0.17.3"
-r2d2_postgres = "0.16.0"
+tokio-postgres = "0.5.4"
 
 [dev-dependencies.rsocket_rust]
 path = "../rsocket"
