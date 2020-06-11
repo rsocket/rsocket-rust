@@ -56,9 +56,9 @@ name = "redis"
 path = "redis.rs"
 
 [[example]]
-name = "echo-uds"
-path = "echo-uds.rs"
+name = "echo_uds"
+path = "echo_uds.rs"
 
 [[example]]
-name = "echo-uds-client"
-path = "echo-uds-client.rs"
+name = "echo_uds_client"
+path = "echo_uds_client.rs"
