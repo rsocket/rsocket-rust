@@ -22,6 +22,9 @@ features = ["frame"]
 [dev-dependencies.rsocket_rust_transport_tcp]
 path = "../rsocket-transport-tcp"
 
+[dev-dependencies.rsocket_rust_transport_unix]
+path = "../rsocket-transport-unix"
+
 [dev-dependencies.rsocket_rust_transport_websocket]
 path = "../rsocket-transport-websocket"
 

@@ -5,6 +5,7 @@ members = [
 "rsocket",
 # transports
 "rsocket-transport-tcp",
+"rsocket-transport-unix",
 "rsocket-transport-websocket",
 "rsocket-transport-wasm",
 # extra

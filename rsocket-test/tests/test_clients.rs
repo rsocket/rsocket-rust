@@ -4,6 +4,7 @@ extern crate log;
 use futures::stream;
 use rsocket_rust::prelude::*;
 use rsocket_rust_transport_tcp::{TcpClientTransport, TcpServerTransport};
+use rsocket_rust_transport_unix::{UnixClientTransport, UnixServerTransport};
 use rsocket_rust_transport_websocket::{WebsocketClientTransport, WebsocketServerTransport};
 use std::thread::sleep;
 use std::time::Duration;
@@ -105,6 +106,52 @@ fn test_tcp() {
         let cli = RSocketFactory::connect()
             .acceptor(Box::new(|| Box::new(EchoRSocket)))
             .transport(TcpClientTransport::from(addr))
+            .setup(Payload::from("READY!"))
+            .mime_type("text/plain", "text/plain")
+            .start()
+            .await
+            .unwrap();
+
+        exec_metadata_push(&cli).await;
+        exec_fire_and_forget(&cli).await;
+        exec_request_response(&cli).await;
+        exec_request_stream(&cli).await;
+        exec_request_channel(&cli).await;
+        cli.close();
+    });
+}
+
+#[test]
+fn test_unix() {
+    init();
+
+    let addr = "/tmp/rsocket-uds.sock";
+
+    let server_runtime = Runtime::new().unwrap();
+
+    // spawn a server
+    server_runtime.spawn(async move {
+        RSocketFactory::receive()
+            .transport(UnixServerTransport::from(addr))
+            .acceptor(Box::new(|setup, _socket| {
+                info!("accept setup: {:?}", setup);
+                Ok(Box::new(EchoRSocket))
+            }))
+            .on_start(Box::new(|| {
+                info!("+++++++ unix echo server started! +++++++")
+            }))
+            .serve()
+            .await
+    });
+
+    sleep(Duration::from_millis(500));
+
+    let mut client_runtime = Runtime::new().unwrap();
+
+    client_runtime.block_on(async {
+        let cli = RSocketFactory::connect()
+            .acceptor(Box::new(|| Box::new(EchoRSocket)))
+            .transport(UnixClientTransport::from(addr))
             .setup(Payload::from("READY!"))
             .mime_type("text/plain", "text/plain")
             .start()

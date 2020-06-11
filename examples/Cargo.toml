@@ -19,6 +19,9 @@ path = "../rsocket"
 [dev-dependencies.rsocket_rust_transport_tcp]
 path = "../rsocket-transport-tcp"
 
+[dev-dependencies.rsocket_rust_transport_unix]
+path = "../rsocket-transport-unix"
+
 [dev-dependencies.rsocket_rust_transport_websocket]
 version = "0.5.2"
 path = "../rsocket-transport-websocket"
@@ -51,3 +54,11 @@ path = "postgres.rs"
 [[example]]
 name = "redis"
 path = "redis.rs"
+
+[[example]]
+name = "echo-uds"
+path = "echo-uds.rs"
+
+[[example]]
+name = "echo-uds-client"
+path = "echo-uds-client.rs"
