@@ -18,8 +18,8 @@ pub type ServerResponder = Box<
         + Fn(SetupPayload, Box<dyn RSocket>) -> Result<Box<dyn RSocket>, Box<dyn Error>>,
 >;
 
-pub type Mono<T> = Pin<Box<dyn Send + Sync + Future<Output = T>>>;
-pub type Flux<T> = Pin<Box<dyn Send + Sync + Stream<Item = T>>>;
+pub type Mono<T> = Pin<Box<dyn Send + Future<Output = T>>>;
+pub type Flux<T> = Pin<Box<dyn Send + Stream<Item = T>>>;
 
 pub trait RSocket: Sync + Send {
     fn metadata_push(&self, req: Payload) -> Mono<()>;
