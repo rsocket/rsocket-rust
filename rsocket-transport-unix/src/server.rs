@@ -51,11 +51,6 @@ impl Drop for UnixServerTransport {
         std::fs::remove_file(&self.addr.as_str()).unwrap();
     }
 }
-// impl From<SocketAddr> for UnixServerTransport {
-//     fn from(addr: SocketAddr) -> UnixServerTransport {
-//         UnixServerTransport::new(addr)
-//     }
-// }
 
 impl From<String> for UnixServerTransport {
     fn from(addr: String) -> UnixServerTransport {

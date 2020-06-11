@@ -97,8 +97,8 @@ impl From<String> for UnixClientTransport {
 
 impl From<&str> for UnixClientTransport {
     fn from(addr: &str) -> UnixClientTransport {
-        let socket_addr: String = if addr.starts_with("tcp://") || addr.starts_with("TCP://") {
-            addr.chars().skip(6).collect::<String>()
+        let socket_addr: String = if addr.starts_with("unix://") || addr.starts_with("UNIX://") {
+            addr.chars().skip(7).collect::<String>()
         } else {
             addr.to_string()
         };
