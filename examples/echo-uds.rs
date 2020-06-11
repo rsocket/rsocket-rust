@@ -5,7 +5,6 @@ use std::error::Error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-
     let transport: UnixServerTransport = UnixServerTransport::from("/tmp/rsocket-uds.sock");
 
     let responder: ServerResponder = Box::new(|setup, _socket| {

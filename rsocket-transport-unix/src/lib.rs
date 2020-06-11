@@ -4,8 +4,8 @@
 extern crate log;
 
 mod client;
-mod server;
 mod codec;
+mod server;
 
 pub use client::UnixClientTransport;
 pub use server::UnixServerTransport;

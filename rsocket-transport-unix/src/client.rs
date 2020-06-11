@@ -1,14 +1,14 @@
 use super::codec::LengthBasedFrameCodec;
 use futures::{SinkExt, StreamExt};
-use std::os::unix::net::UnixStream as StdUnixStream;
-use std::str::FromStr;
-use std::io;
-use tokio::net::UnixStream;
-use tokio_util::codec::Framed;
 use rsocket_rust::error::RSocketError;
 use rsocket_rust::frame::Frame;
 use rsocket_rust::runtime::{DefaultSpawner, Spawner};
 use rsocket_rust::transport::{ClientTransport, Rx, Tx, TxOnce};
+use std::io;
+use std::os::unix::net::UnixStream as StdUnixStream;
+use std::str::FromStr;
+use tokio::net::UnixStream;
+use tokio_util::codec::Framed;
 
 enum Connector {
     Direct(UnixStream),
@@ -20,10 +20,9 @@ pub struct UnixClientTransport {
 }
 
 impl UnixClientTransport {
-
     #[inline]
     fn new(connector: Connector) -> UnixClientTransport {
-        UnixClientTransport{ connector }
+        UnixClientTransport { connector }
     }
 
     #[inline]
