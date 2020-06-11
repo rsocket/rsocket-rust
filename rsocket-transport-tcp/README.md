@@ -7,8 +7,8 @@ Add dependencies in your `Cargo.toml`.
 ```toml
 [dependencies]
 tokio = "0.2.21"
-rsocket_rust = "0.5.2"
-rsocket_rust_transport_tcp = "0.5.2"
+rsocket_rust = "0.5.3"
+rsocket_rust_transport_tcp = "0.5.3"
 ```
 
 ### Server

@@ -14,17 +14,16 @@ tokio-postgres = "0.5.4"
 redis = "0.16.0"
 
 [dev-dependencies.rsocket_rust]
-path = "../rsocket"
+version = "0.5.3"
 
 [dev-dependencies.rsocket_rust_transport_tcp]
-path = "../rsocket-transport-tcp"
+version = "0.5.3"
 
 [dev-dependencies.rsocket_rust_transport_unix]
-path = "../rsocket-transport-unix"
+version = "0.5.3"
 
 [dev-dependencies.rsocket_rust_transport_websocket]
-version = "0.5.2"
-path = "../rsocket-transport-websocket"
+version = "0.5.3"
 
 [dev-dependencies.tokio]
 version = "0.2.21"

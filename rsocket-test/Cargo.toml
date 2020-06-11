@@ -20,16 +20,16 @@ path = "../rsocket"
 features = ["frame"]
 
 [dev-dependencies.rsocket_rust_transport_tcp]
-path = "../rsocket-transport-tcp"
+version = "0.5.3"
 
 [dev-dependencies.rsocket_rust_transport_unix]
-path = "../rsocket-transport-unix"
+version = "0.5.3"
 
 [dev-dependencies.rsocket_rust_transport_websocket]
-path = "../rsocket-transport-websocket"
+version = "0.5.3"
 
 [dev-dependencies.rsocket_rust_messaging]
-path = "../rsocket-messaging"
+version = "0.5.3"
 
 [dev-dependencies.tokio]
 version = "0.2.21"

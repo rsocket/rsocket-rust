@@ -17,17 +17,17 @@ serde_derive = "1.0.111"
 criterion = "0.3.2"
 
 [dev-dependencies.rsocket_rust]
-path = "../rsocket"
+version = "0.5.3"
 features = ["frame"]
 
 [dev-dependencies.rsocket_rust_transport_tcp]
-path = "../rsocket-transport-tcp"
+version = "0.5.3"
 
 [dev-dependencies.rsocket_rust_transport_websocket]
-path = "../rsocket-transport-websocket"
+version = "0.5.3"
 
 [dev-dependencies.rsocket_rust_messaging]
-path = "../rsocket-messaging"
+version = "0.5.3"
 
 [dev-dependencies.tokio]
 version = "0.2.21"
