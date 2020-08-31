@@ -1,6 +1,6 @@
 use super::utils::{self, too_short};
 use super::{Body, Frame, Version};
-use crate::utils::{RSocketResult, Writeable, DEFAULT_MIME_TYPE};
+use crate::utils::{Writeable, DEFAULT_MIME_TYPE};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::time::Duration;
 
@@ -23,7 +23,7 @@ pub struct SetupBuilder {
 }
 
 impl Setup {
-    pub(crate) fn decode(flag: u16, b: &mut BytesMut) -> RSocketResult<Setup> {
+    pub(crate) fn decode(flag: u16, b: &mut BytesMut) -> crate::Result<Setup> {
         // Check minimal length: version(4bytes) + keepalive(4bytes) + lifetime(4bytes)
         if b.len() < 12 {
             return too_short(12);

@@ -1,6 +1,6 @@
 use super::utils::too_short;
 use super::{Body, Frame};
-use crate::utils::{RSocketResult, Writeable};
+use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
@@ -33,7 +33,7 @@ impl ResumeOKBuilder {
 }
 
 impl ResumeOK {
-    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<ResumeOK> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> crate::Result<ResumeOK> {
         if bf.len() < 8 {
             too_short(8)
         } else {

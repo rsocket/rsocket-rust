@@ -1,6 +1,7 @@
 use super::utils;
 use super::{Body, Frame};
-use crate::utils::{RSocketResult, Writeable};
+use crate::utils::Writeable;
+use crate::Result;
 use bytes::{BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
@@ -59,7 +60,7 @@ impl PayloadBuilder {
 }
 
 impl Payload {
-    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Payload> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> Result<Payload> {
         utils::read_payload(flag, bf).map(|(metadata, data)| Payload { metadata, data })
     }
 

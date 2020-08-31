@@ -1,6 +1,6 @@
 [package]
 name = "rsocket_rust_transport_websocket"
-version = "0.5.3"
+version = "0.6.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -10,17 +10,18 @@ homepage = "https://github.com/rsocket/rsocket-rust"
 description = "Websocket RSocket transport implementation."
 
 [dependencies]
-log = "0.4.8"
+log = "0.4.11"
 futures = "0.3.5"
-bytes = "0.5.4"
+bytes = "0.5.6"
 url = "2.1.1"
-tokio-tungstenite = "0.10.1"
+tokio-tungstenite = "0.11.0"
+async-trait = "0.1.40"
 
 [dependencies.rsocket_rust]
-version = "0.5.3"
+path = "../rsocket"
 features = ["frame"]
 
 [dependencies.tokio]
-version = "0.2.21"
+version = "0.2.22"
 default-features = false
 features = [ "rt-core", "rt-threaded", "tcp", "sync", "stream" ]

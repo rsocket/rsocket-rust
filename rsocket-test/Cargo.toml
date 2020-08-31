@@ -9,29 +9,26 @@ publish = false
 log = "0.4"
 futures = "0.3.5"
 env_logger = "0.7.1"
-bytes = "0.5.4"
+bytes = "0.5.6"
 hex = "0.4.2"
 rand = "0.7.3"
-serde = "1.0.111"
-serde_derive = "1.0.111"
+serde = "1.0.116"
+serde_derive = "1.0.116"
 
 [dev-dependencies.rsocket_rust]
-version = "0.5.3"
+path = "../rsocket"
 features = ["frame"]
 
 [dev-dependencies.rsocket_rust_transport_tcp]
-version = "0.5.3"
-
-[dev-dependencies.rsocket_rust_transport_unix]
-version = "0.5.3"
+path = "../rsocket-transport-tcp"
 
 [dev-dependencies.rsocket_rust_transport_websocket]
-version = "0.5.3"
+path = "../rsocket-transport-websocket"
 
 [dev-dependencies.rsocket_rust_messaging]
-version = "0.5.3"
+path = "../rsocket-messaging"
 
 [dev-dependencies.tokio]
-version = "0.2.21"
+version = "0.2.22"
 default-features = false
 features = ["full"]

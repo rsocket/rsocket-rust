@@ -1,5 +1,5 @@
 use crate::error::{ErrorKind, RSocketError};
-use crate::utils::{RSocketResult, Writeable};
+use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 const MAX_ROUTING_TAG_LEN: usize = 0xFF;
@@ -37,7 +37,7 @@ impl RoutingMetadata {
         }
     }
 
-    pub fn decode(bf: &mut BytesMut) -> RSocketResult<RoutingMetadata> {
+    pub fn decode(bf: &mut BytesMut) -> crate::Result<RoutingMetadata> {
         let mut bu = RoutingMetadata::builder();
         loop {
             match Self::decode_once(bf) {
@@ -55,13 +55,13 @@ impl RoutingMetadata {
         &self.tags
     }
 
-    fn decode_once(bf: &mut BytesMut) -> RSocketResult<Option<String>> {
+    fn decode_once(bf: &mut BytesMut) -> crate::Result<Option<String>> {
         if bf.is_empty() {
             return Ok(None);
         }
         let size = bf.get_u8() as usize;
         if bf.len() < size {
-            return Err(RSocketError::from("require more bytes!"));
+            return Err("require more bytes!".into());
         }
         let tag = String::from_utf8(bf.split_to(size).to_vec()).unwrap();
         Ok(Some(tag))

@@ -1,31 +1,29 @@
 use crate::error::RSocketError;
 use crate::frame::{self, Frame};
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
-use crate::runtime::{DefaultSpawner, Spawner};
+use crate::runtime;
 use crate::spi::{ClientResponder, Flux, Mono, RSocket};
 use crate::transport::{
-    self, Acceptor, ClientTransport, DuplexSocket, Rx, RxOnce, Splitter, Tx, TxOnce,
+    self, Acceptor, Connection, DuplexSocket, Reader, Splitter, Transport, Writer,
 };
-use futures::channel::{mpsc, oneshot};
-use futures::{Future, Stream};
+use crate::Result;
+use futures::{future, FutureExt, SinkExt, StreamExt};
 use std::error::Error;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::result::Result;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::{mpsc, Mutex, Notify};
 
 #[derive(Clone)]
-pub struct Client<R>
-where
-    R: Send + Sync + Copy + Spawner + 'static,
-{
-    socket: DuplexSocket<R>,
+pub struct Client {
+    socket: DuplexSocket,
 }
 
-pub struct ClientBuilder<T>
+pub struct ClientBuilder<T, C>
 where
-    T: Send + Sync + ClientTransport + 'static,
+    T: Send + Sync + Transport<Conn = C> + 'static,
+    C: Send + Sync + Connection + 'static,
 {
     transport: Option<T>,
     setup: SetupPayloadBuilder,
@@ -34,11 +32,12 @@ where
     mtu: usize,
 }
 
-impl<T> ClientBuilder<T>
+impl<T, C> ClientBuilder<T, C>
 where
-    T: Send + Sync + ClientTransport + 'static,
+    T: Send + Sync + Transport<Conn = C> + 'static,
+    C: Send + Sync + Connection + 'static,
 {
-    pub(crate) fn new() -> ClientBuilder<T> {
+    pub(crate) fn new() -> ClientBuilder<T, C> {
         ClientBuilder {
             transport: None,
             responder: None,
@@ -106,64 +105,75 @@ where
         self
     }
 
-    pub async fn start(self) -> Result<Client<DefaultSpawner>, Box<dyn Error + Send + Sync>> {
-        self.start_with_runtime(DefaultSpawner).await
-    }
+    pub async fn start(mut self) -> Result<Client> {
+        let tp: T = self.transport.take().expect("missint transport");
 
-    pub async fn start_with_runtime<R>(
-        mut self,
-        rt: R,
-    ) -> Result<Client<R>, Box<dyn Error + Send + Sync>>
-    where
-        R: Send + Sync + Copy + Spawner + 'static,
-    {
-        let tp = self.transport.take().expect("missint transport");
-        let (rcv_tx, rcv_rx) = mpsc::unbounded::<Frame>();
-        let (snd_tx, snd_rx) = mpsc::unbounded::<Frame>();
-        let (connected_tx, connected_rx) = oneshot::channel::<Result<(), RSocketError>>();
-        tp.attach(rcv_tx, snd_rx, Some(connected_tx));
-        connected_rx.await??;
         let splitter = if self.mtu == 0 {
             None
         } else {
             Some(Splitter::new(self.mtu))
         };
-        let duplex_socket = DuplexSocket::new(rt, 1, snd_tx.clone(), splitter).await;
-        let cloned_duplex_socket = duplex_socket.clone();
+
+        let (snd_tx, mut snd_rx) = mpsc::channel::<Frame>(super::CHANNEL_SIZE);
+        let mut socket = DuplexSocket::new(1, snd_tx, splitter).await;
+
+        let mut cloned_socket = socket.clone();
         let acceptor: Option<Acceptor> = match self.responder {
             Some(it) => Some(Acceptor::Simple(Arc::new(it))),
             None => None,
         };
+
+        let conn = tp.connect().await?;
+        let (mut sink, mut stream) = conn.split();
+
+        runtime::spawn(async move {
+            while let Some(frame) = snd_rx.next().await {
+                if let Err(e) = (&mut sink).write(frame).await {
+                    error!("write frame failed: {}", e);
+                    break;
+                }
+            }
+        });
+
         let closer = self.closer.take();
-        rt.spawn(async move {
-            cloned_duplex_socket.event_loop(acceptor, rcv_rx).await;
+        runtime::spawn(async move {
+            while let Some(next) = stream.read().await {
+                match next {
+                    Ok(frame) => {
+                        if let Err(e) = cloned_socket.dispatch(frame, &acceptor).await {
+                            error!("dispatch frame failed: {}", e);
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        error!("read next frame failed: {}", e);
+                        break;
+                    }
+                }
+            }
             if let Some(mut invoke) = closer {
                 invoke();
             }
         });
-        let setup = self.setup.build();
-        duplex_socket.setup(setup).await;
-        Ok(Client::new(duplex_socket))
+
+        socket.setup(self.setup.build()).await;
+        Ok(Client::from(socket))
     }
 }
 
-impl<R> Client<R>
-where
-    R: Send + Sync + Copy + Spawner + 'static,
-{
-    fn new(socket: DuplexSocket<R>) -> Client<R> {
+impl From<DuplexSocket> for Client {
+    fn from(socket: DuplexSocket) -> Client {
         Client { socket }
     }
+}
 
+impl Client {
     pub fn close(self) {
-        self.socket.close();
+        // TODO: support close
     }
 }
 
-impl<R> RSocket for Client<R>
-where
-    R: Send + Sync + Copy + Spawner + 'static,
-{
+impl RSocket for Client {
     fn metadata_push(&self, req: Payload) -> Mono<()> {
         self.socket.metadata_push(req)
     }
@@ -172,18 +182,15 @@ where
         self.socket.fire_and_forget(req)
     }
 
-    fn request_response(&self, req: Payload) -> Mono<Result<Payload, RSocketError>> {
+    fn request_response(&self, req: Payload) -> Mono<Result<Payload>> {
         self.socket.request_response(req)
     }
 
-    fn request_stream(&self, req: Payload) -> Flux<Result<Payload, RSocketError>> {
+    fn request_stream(&self, req: Payload) -> Flux<Result<Payload>> {
         self.socket.request_stream(req)
     }
 
-    fn request_channel(
-        &self,
-        reqs: Flux<Result<Payload, RSocketError>>,
-    ) -> Flux<Result<Payload, RSocketError>> {
+    fn request_channel(&self, reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>> {
         self.socket.request_channel(reqs)
     }
 }

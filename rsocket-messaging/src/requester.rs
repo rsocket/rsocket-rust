@@ -1,26 +1,22 @@
 use super::misc::{self, marshal, unmarshal};
 use bytes::{Bytes, BytesMut};
-use rsocket_rust::error::RSocketError;
 use rsocket_rust::extension::{CompositeMetadata, MimeType, RoutingMetadata};
 use rsocket_rust::prelude::*;
 use rsocket_rust::utils::Writeable;
+use rsocket_rust::Result;
 use rsocket_rust_transport_tcp::TcpClientTransport;
 use rsocket_rust_transport_websocket::WebsocketClientTransport;
 use serde::{de::DeserializeOwned, Serialize};
 use std::collections::LinkedList;
-use std::error::Error;
 use std::net::SocketAddr;
-use std::result::Result;
 use std::sync::Arc;
 use url::Url;
 
-type FnMetadata = Box<dyn FnMut() -> Result<(MimeType, Vec<u8>), Box<dyn Error + Sync + Send>>>;
-type FnData = Box<dyn FnMut(&MimeType) -> Result<Vec<u8>, Box<dyn Error + Sync + Send>>>;
-type PreflightResult =
-    Result<(Payload, MimeType, Arc<Box<dyn RSocket>>), Box<dyn Error + Sync + Send>>;
-type UnpackerResult = Result<(MimeType, Payload), Box<dyn Error + Sync + Send>>;
-type UnpackersResult =
-    Result<(MimeType, Flux<Result<Payload, RSocketError>>), Box<dyn Error + Sync + Send>>;
+type FnMetadata = Box<dyn FnMut() -> Result<(MimeType, Vec<u8>)>>;
+type FnData = Box<dyn FnMut(&MimeType) -> Result<Vec<u8>>>;
+type PreflightResult = Result<(Payload, MimeType, Arc<Box<dyn RSocket>>)>;
+type UnpackerResult = Result<(MimeType, Payload)>;
+type UnpackersResult = Result<(MimeType, Flux<Result<Payload>>)>;
 
 enum TransportKind {
     TCP(String, u16),
@@ -122,7 +118,7 @@ impl RequesterBuilder {
         self
     }
 
-    pub async fn build(self) -> Result<Requester, Box<dyn Error + Send + Sync>> {
+    pub async fn build(self) -> Result<Requester> {
         let data_mime_type = self.data_mime_type.unwrap_or(MimeType::APPLICATION_JSON);
 
         let mut added = 0usize;
@@ -261,14 +257,10 @@ impl RequestSpec {
         self
     }
 
-    pub async fn retrieve(self) -> Result<(), Box<dyn Error>> {
-        match self.preflight() {
-            Ok((req, _mime_type, rsocket)) => {
-                rsocket.fire_and_forget(req).await;
-                Ok(())
-            }
-            Err(e) => Err(e),
-        }
+    pub async fn retrieve(self) -> Result<()> {
+        let (req, _mime_type, rsocket) = self.preflight()?;
+        rsocket.fire_and_forget(req).await;
+        Ok(())
     }
 
     pub async fn retrieve_mono(self) -> Unpacker {
@@ -279,9 +271,7 @@ impl RequestSpec {
                     Ok(v) => Unpacker {
                         inner: Ok((mime_type, v)),
                     },
-                    Err(e) => Unpacker {
-                        inner: Err(e.into()),
-                    },
+                    Err(e) => Unpacker { inner: Err(e) },
                 }
             }
             Err(e) => Unpacker { inner: Err(e) },
@@ -321,44 +311,36 @@ impl RequestSpec {
 }
 
 impl Unpackers {
-    pub async fn block<T>(self) -> Result<Vec<T>, Box<dyn Error + Sync + Send>>
+    pub async fn block<T>(self) -> Result<Vec<T>>
     where
         T: Sized + DeserializeOwned,
     {
         let (mime_type, mut results) = self.inner?;
         let mut res = Vec::new();
         while let Some(next) = results.next().await {
-            match next {
-                Ok(v) => {
-                    if let Some(data) = v.data() {
-                        let t = do_unmarshal::<T>(&mime_type, data)?;
-                        if let Some(t) = t {
-                            res.push(t);
-                        }
-                    }
+            let v = next?;
+            if let Some(data) = v.data() {
+                let t = do_unmarshal::<T>(&mime_type, data)?;
+                if let Some(t) = t {
+                    res.push(t);
                 }
-                Err(e) => return Err(e.into()),
             }
         }
         Ok(res)
     }
 
-    pub async fn foreach<T>(self, callback: impl Fn(T)) -> Result<(), Box<dyn Error + Send + Sync>>
+    pub async fn foreach<T>(self, callback: impl Fn(T)) -> Result<()>
     where
         T: Sized + DeserializeOwned,
     {
         let (mime_type, mut results) = self.inner?;
         while let Some(next) = results.next().await {
-            match next {
-                Ok(v) => {
-                    if let Some(data) = v.data() {
-                        let t = do_unmarshal::<T>(&mime_type, data)?;
-                        if let Some(t) = t {
-                            callback(t);
-                        }
-                    }
+            let v = next?;
+            if let Some(data) = v.data() {
+                let t = do_unmarshal::<T>(&mime_type, data)?;
+                if let Some(t) = t {
+                    callback(t);
                 }
-                Err(e) => return Err(format!("{}", e).into()),
             }
         }
         Ok(())
@@ -366,7 +348,7 @@ impl Unpackers {
 }
 
 impl Unpacker {
-    pub fn block<T>(self) -> Result<Option<T>, Box<dyn Error + Send + Sync>>
+    pub fn block<T>(self) -> Result<Option<T>>
     where
         T: Sized + DeserializeOwned,
     {
@@ -378,10 +360,7 @@ impl Unpacker {
     }
 }
 
-fn do_unmarshal<T>(
-    mime_type: &MimeType,
-    raw: &Bytes,
-) -> Result<Option<T>, Box<dyn Error + Send + Sync>>
+fn do_unmarshal<T>(mime_type: &MimeType, raw: &Bytes) -> Result<Option<T>>
 where
     T: Sized + DeserializeOwned,
 {
@@ -393,7 +372,7 @@ where
     }
 }
 
-fn do_marshal<T>(mime_type: &MimeType, data: &T) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>>
+fn do_marshal<T>(mime_type: &MimeType, data: &T) -> Result<Vec<u8>>
 where
     T: Sized + Serialize,
 {

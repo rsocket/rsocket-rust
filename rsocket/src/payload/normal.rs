@@ -51,7 +51,7 @@ impl PayloadBuilder {
 }
 
 impl Payload {
-    pub(crate) fn new(data: Option<Bytes>, metadata: Option<Bytes>) -> Payload {
+    pub fn new(data: Option<Bytes>, metadata: Option<Bytes>) -> Payload {
         Payload {
             d: data,
             m: metadata,

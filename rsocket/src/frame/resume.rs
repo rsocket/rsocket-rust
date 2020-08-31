@@ -1,6 +1,6 @@
 use super::utils::too_short;
 use super::{Body, Frame, Version};
-use crate::utils::{RSocketResult, Writeable};
+use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
@@ -27,7 +27,7 @@ impl Resume {
         }
     }
 
-    pub(crate) fn decode(flag: u16, b: &mut BytesMut) -> RSocketResult<Resume> {
+    pub(crate) fn decode(flag: u16, b: &mut BytesMut) -> crate::Result<Resume> {
         if b.len() < 6 {
             return too_short(6);
         }

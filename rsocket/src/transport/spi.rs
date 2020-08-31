@@ -1,51 +1,67 @@
-use crate::error::RSocketError;
 use crate::frame::Frame;
 use crate::payload::SetupPayload;
 use crate::spi::{ClientResponder, RSocket, ServerResponder};
+use crate::{Error, Result};
+use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
-use std::error::Error;
+use futures::sink::Sink;
+use futures::stream::Stream;
 use std::future::Future;
+use std::marker::Unpin;
 use std::pin::Pin;
-use std::result::Result;
 use std::sync::Arc;
-
-pub type Tx<T> = mpsc::UnboundedSender<T>;
-pub type Rx<T> = mpsc::UnboundedReceiver<T>;
-
-pub type TxOnce<T> = oneshot::Sender<T>;
-pub type RxOnce<T> = oneshot::Receiver<T>;
-
-pub(crate) fn new_tx_rx_once<T>() -> (TxOnce<T>, RxOnce<T>) {
-    oneshot::channel()
-}
-
-pub(crate) fn new_tx_rx<T>() -> (Tx<T>, Rx<T>) {
-    mpsc::unbounded()
-}
-
-pub trait ClientTransport {
-    fn attach(
-        self,
-        incoming: Tx<Frame>,
-        sending: Rx<Frame>,
-        connected: Option<TxOnce<Result<(), RSocketError>>>,
-    );
-}
-
-pub trait ServerTransport {
-    type Item;
-
-    fn start(
-        self,
-        starter: Option<Box<dyn FnMut() + Send + Sync>>,
-        acceptor: impl Fn(Self::Item) + Send + Sync + 'static,
-    ) -> Pin<Box<dyn Send + Future<Output = Result<(), Box<dyn Send + Sync + Error>>>>>
-    where
-        Self::Item: ClientTransport + Sized;
-}
+use tokio::sync::Notify;
 
 #[derive(Clone)]
 pub(crate) enum Acceptor {
     Simple(Arc<ClientResponder>),
     Generate(Arc<ServerResponder>),
+}
+
+#[async_trait]
+pub trait Reader {
+    async fn read(&mut self) -> Option<Result<Frame>>;
+}
+
+#[async_trait]
+pub trait Writer {
+    async fn write(&mut self, frame: Frame) -> Result<()>;
+}
+
+pub trait Connection {
+    fn split(
+        self,
+    ) -> (
+        Box<dyn Writer + Send + Unpin>,
+        Box<dyn Reader + Send + Unpin>,
+    );
+}
+
+#[async_trait]
+pub trait Transport {
+    type Conn: Connection + Send;
+
+    async fn connect(self) -> Result<Self::Conn>;
+}
+
+#[async_trait]
+pub trait ServerTransportOld {
+    type Item;
+
+    async fn start(
+        self,
+        starter: Option<Box<dyn FnMut() + Send + Sync>>,
+        acceptor: Box<dyn Fn(Self::Item) -> Result<()> + Send + Sync>,
+    ) -> Result<()>
+    where
+        Self::Item: Transport + Sized;
+}
+
+#[async_trait]
+pub trait ServerTransport {
+    type Item: Transport;
+
+    async fn start(&mut self) -> Result<()>;
+
+    async fn next(&mut self) -> Option<Result<Self::Item>>;
 }

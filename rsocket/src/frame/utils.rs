@@ -1,12 +1,12 @@
 use super::Frame;
 use crate::error::{ErrorKind, RSocketError};
-use crate::utils::{u24, RSocketResult, Writeable};
+use crate::utils::{u24, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 pub(crate) fn read_payload(
     flag: u16,
     bf: &mut BytesMut,
-) -> RSocketResult<(Option<Bytes>, Option<Bytes>)> {
+) -> crate::Result<(Option<Bytes>, Option<Bytes>)> {
     let m: Option<Bytes> = if flag & Frame::FLAG_METADATA != 0 {
         if bf.len() < 3 {
             return too_short(3);
@@ -38,6 +38,6 @@ pub(crate) fn write_payload(bf: &mut BytesMut, metadata: Option<&Bytes>, data: O
     }
 }
 
-pub(crate) fn too_short<T>(n: usize) -> RSocketResult<T> {
-    Err(ErrorKind::LengthTooShort(n).into())
+pub(crate) fn too_short<T>(n: usize) -> crate::Result<T> {
+    Err(Box::new(RSocketError::from(ErrorKind::LengthTooShort(n))))
 }

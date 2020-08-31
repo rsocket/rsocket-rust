@@ -1,6 +1,6 @@
 use super::mime::MimeType;
 use crate::error::{ErrorKind, RSocketError};
-use crate::utils::{u24, RSocketResult, Writeable};
+use crate::utils::{u24, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::collections::LinkedList;
 use std::convert::TryFrom;
@@ -92,7 +92,7 @@ impl CompositeMetadata {
         }
     }
 
-    pub fn decode(b: &mut BytesMut) -> RSocketResult<CompositeMetadata> {
+    pub fn decode(b: &mut BytesMut) -> crate::Result<CompositeMetadata> {
         let mut metadatas = LinkedList::new();
         loop {
             match Self::decode_once(b) {
@@ -109,7 +109,7 @@ impl CompositeMetadata {
     }
 
     #[inline]
-    fn decode_once(bs: &mut BytesMut) -> RSocketResult<Option<CompositeMetadataEntry>> {
+    fn decode_once(bs: &mut BytesMut) -> crate::Result<Option<CompositeMetadataEntry>> {
         if bs.is_empty() {
             return Ok(None);
         }
@@ -121,32 +121,27 @@ impl CompositeMetadata {
                 Some(well) => well,
                 None => {
                     let err_str = format!("invalid Well-Known MIME type: identifier={:x}", n);
-                    return Err(RSocketError::from(err_str));
+                    return Err(err_str.into());
                 }
             }
         } else {
             // Bad
             let mime_len = (first as usize) + 1;
             if bs.len() < mime_len {
-                return Err(RSocketError::from(
-                    "broken composite metadata: empty MIME type!",
-                ));
+                return Err("broken composite metadata: empty MIME type!".into());
             }
             let front = bs.split_to(mime_len);
             MimeType::Normal(String::from_utf8(front.to_vec()).unwrap())
         };
 
         if bs.len() < 3 {
-            return Err(RSocketError::from(
-                "broken composite metadata: not enough bytes!",
-            ));
+            return Err("broken composite metadata: not enough bytes!".into());
         }
         let payload_size = u24::read_advance(bs).into();
         if bs.len() < payload_size {
-            return Err(RSocketError::from(format!(
-                "broken composite metadata: require {} bytes!",
-                payload_size
-            )));
+            return Err(
+                format!("broken composite metadata: require {} bytes!", payload_size).into(),
+            );
         }
         let metadata = bs.split_to(payload_size).freeze();
         Ok(Some(CompositeMetadataEntry::new(mime_type, metadata)))

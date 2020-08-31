@@ -1,5 +1,5 @@
 use super::{utils, Body, Frame};
-use crate::utils::{RSocketResult, Writeable};
+use crate::utils::Writeable;
 use bytes::{BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
@@ -58,7 +58,7 @@ impl RequestFNFBuilder {
 }
 
 impl RequestFNF {
-    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestFNF> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> crate::Result<RequestFNF> {
         utils::read_payload(flag, bf).map(|(m, d)| RequestFNF {
             metadata: m,
             data: d,

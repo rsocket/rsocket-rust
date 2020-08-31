@@ -7,8 +7,6 @@ use std::result::Result;
 
 pub const DEFAULT_MIME_TYPE: &str = "application/binary";
 
-pub type RSocketResult<T> = Result<T, RSocketError>;
-
 pub trait Writeable {
     fn write_to(&self, bf: &mut BytesMut);
     fn len(&self) -> usize;

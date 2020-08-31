@@ -3,8 +3,10 @@ extern crate log;
 
 use futures::stream;
 use rsocket_rust::prelude::*;
-use rsocket_rust_transport_tcp::{TcpClientTransport, TcpServerTransport};
-use rsocket_rust_transport_unix::{UnixClientTransport, UnixServerTransport};
+use rsocket_rust::Client;
+use rsocket_rust_transport_tcp::{
+    TcpClientTransport, TcpServerTransport, UnixClientTransport, UnixServerTransport,
+};
 use rsocket_rust_transport_websocket::{WebsocketClientTransport, WebsocketServerTransport};
 use std::thread::sleep;
 use std::time::Duration;
@@ -131,7 +133,7 @@ fn test_unix() {
 
     // spawn a server
     server_runtime.spawn(async move {
-        RSocketFactory::receive()
+        if let Err(e) = RSocketFactory::receive()
             .transport(UnixServerTransport::from(addr))
             .acceptor(Box::new(|setup, _socket| {
                 info!("accept setup: {:?}", setup);
@@ -142,6 +144,16 @@ fn test_unix() {
             }))
             .serve()
             .await
+        {
+            error!("server stopped with error: {}", e)
+        }
+
+        // Watch signal
+        tokio::signal::ctrl_c().await.unwrap();
+        info!("ctrl-c received!");
+        if let Err(e) = std::fs::remove_file(addr) {
+            error!("remove unix sock file failed: {}", e);
+        }
     });
 
     sleep(Duration::from_millis(500));
@@ -191,10 +203,7 @@ async fn test_request_response_err() {
     };
 }
 
-async fn exec_request_response<R>(socket: &Client<R>)
-where
-    R: Send + Sync + Copy + Spawner + 'static,
-{
+async fn exec_request_response(socket: &Client) {
     // request response
     let sending = Payload::builder()
         .set_data_utf8("Hello World!")
@@ -204,28 +213,19 @@ where
     info!("REQUEST_RESPONSE: {:?}", result);
 }
 
-async fn exec_metadata_push<R>(socket: &Client<R>)
-where
-    R: Send + Sync + Copy + Spawner + 'static,
-{
+async fn exec_metadata_push(socket: &Client) {
     let pa = Payload::builder().set_metadata_utf8("Hello World!").build();
     // metadata push
     socket.metadata_push(pa).await;
 }
 
-async fn exec_fire_and_forget<R>(socket: &Client<R>)
-where
-    R: Send + Sync + Copy + Spawner + 'static,
-{
+async fn exec_fire_and_forget(socket: &Client) {
     // request fnf
     let fnf = Payload::from("Hello World!");
     socket.fire_and_forget(fnf).await;
 }
 
-async fn exec_request_stream<R>(socket: &Client<R>)
-where
-    R: Send + Sync + Copy + Spawner + 'static,
-{
+async fn exec_request_stream(socket: &Client) {
     // request stream
     let sending = Payload::builder()
         .set_data_utf8("Hello Rust!")
@@ -242,10 +242,7 @@ where
     }
 }
 
-async fn exec_request_channel<R>(socket: &Client<R>)
-where
-    R: Send + Sync + Copy + Spawner + 'static,
-{
+async fn exec_request_channel(socket: &Client) {
     let sends: Vec<_> = (0..10)
         .map(|n| {
             let p = Payload::builder()

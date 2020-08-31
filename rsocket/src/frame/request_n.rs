@@ -1,5 +1,5 @@
 use super::{utils, Body, Frame, REQUEST_MAX};
-use crate::utils::{RSocketResult, Writeable};
+use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
@@ -33,7 +33,7 @@ impl RequestNBuilder {
 }
 
 impl RequestN {
-    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestN> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> crate::Result<RequestN> {
         if bf.len() < 4 {
             utils::too_short(4)
         } else {

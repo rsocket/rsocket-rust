@@ -1,5 +1,5 @@
 use super::{Body, Frame};
-use crate::utils::{RSocketResult, Writeable};
+use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
@@ -33,7 +33,7 @@ impl MetadataPushBuiler {
 }
 
 impl MetadataPush {
-    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<MetadataPush> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> crate::Result<MetadataPush> {
         let m = Bytes::from(bf.to_vec());
         Ok(MetadataPush { metadata: Some(m) })
     }
