@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::error::Error;
 use std::fmt;
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]

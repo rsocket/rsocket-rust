@@ -1,22 +1,16 @@
 use crate::error::{self, ErrorKind, RSocketError};
-use crate::frame;
 use crate::payload::{Payload, SetupPayload};
-use crate::utils::RSocketResult;
+use crate::{runtime, Error, Result};
 use futures::future;
-use futures::{Sink, SinkExt, Stream, StreamExt};
-use std::error::Error;
+use futures::{pin_mut, FutureExt, Sink, SinkExt, Stream, StreamExt};
 use std::future::Future;
 use std::pin::Pin;
-use std::result::Result;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
 pub type ClientResponder = Box<dyn Send + Sync + Fn() -> Box<dyn RSocket>>;
-pub type ServerResponder = Box<
-    dyn Send
-        + Sync
-        + Fn(SetupPayload, Box<dyn RSocket>) -> Result<Box<dyn RSocket>, Box<dyn Error>>,
->;
+pub type ServerResponder =
+    Box<dyn Send + Sync + Fn(SetupPayload, Box<dyn RSocket>) -> Result<Box<dyn RSocket>>>;
 
 pub type Mono<T> = Pin<Box<dyn Send + Future<Output = T>>>;
 pub type Flux<T> = Pin<Box<dyn Send + Stream<Item = T>>>;
@@ -24,12 +18,9 @@ pub type Flux<T> = Pin<Box<dyn Send + Stream<Item = T>>>;
 pub trait RSocket: Sync + Send {
     fn metadata_push(&self, req: Payload) -> Mono<()>;
     fn fire_and_forget(&self, req: Payload) -> Mono<()>;
-    fn request_response(&self, req: Payload) -> Mono<Result<Payload, RSocketError>>;
-    fn request_stream(&self, req: Payload) -> Flux<Result<Payload, RSocketError>>;
-    fn request_channel(
-        &self,
-        reqs: Flux<Result<Payload, RSocketError>>,
-    ) -> Flux<Result<Payload, RSocketError>>;
+    fn request_response(&self, req: Payload) -> Mono<Result<Payload>>;
+    fn request_stream(&self, req: Payload) -> Flux<Result<Payload>>;
+    fn request_channel(&self, reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>>;
 }
 
 pub struct EchoRSocket;
@@ -45,12 +36,12 @@ impl RSocket for EchoRSocket {
         Box::pin(async {})
     }
 
-    fn request_response(&self, req: Payload) -> Mono<Result<Payload, RSocketError>> {
+    fn request_response(&self, req: Payload) -> Mono<Result<Payload>> {
         info!("{:?}", req);
         Box::pin(async move { Ok(req) })
     }
 
-    fn request_stream(&self, req: Payload) -> Flux<Result<Payload, RSocketError>> {
+    fn request_stream(&self, req: Payload) -> Flux<Result<Payload>> {
         info!("{:?}", req);
         // repeat 3 times.
         Box::pin(futures::stream::iter(vec![
@@ -60,10 +51,7 @@ impl RSocket for EchoRSocket {
         ]))
     }
 
-    fn request_channel(
-        &self,
-        mut reqs: Flux<Result<Payload, RSocketError>>,
-    ) -> Flux<Result<Payload, RSocketError>> {
+    fn request_channel(&self, mut reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>> {
         let (sender, receiver) = mpsc::unbounded_channel();
         tokio::spawn(async move {
             while let Some(it) = reqs.next().await {
@@ -80,9 +68,10 @@ impl RSocket for EchoRSocket {
 pub(crate) struct EmptyRSocket;
 
 impl EmptyRSocket {
-    fn must_failed(&self) -> RSocketError {
+    #[inline]
+    fn must_failed(&self) -> Error {
         let kind = ErrorKind::Internal(error::ERR_APPLICATION, String::from("NOT_IMPLEMENT"));
-        RSocketError::from(kind)
+        Box::new(RSocketError::from(kind))
     }
 }
 
@@ -95,18 +84,15 @@ impl RSocket for EmptyRSocket {
         Box::pin(async {})
     }
 
-    fn request_response(&self, _req: Payload) -> Mono<Result<Payload, RSocketError>> {
+    fn request_response(&self, _req: Payload) -> Mono<Result<Payload>> {
         Box::pin(future::err(self.must_failed()))
     }
 
-    fn request_stream(&self, _req: Payload) -> Flux<Result<Payload, RSocketError>> {
+    fn request_stream(&self, _req: Payload) -> Flux<Result<Payload>> {
         Box::pin(futures::stream::empty())
     }
 
-    fn request_channel(
-        &self,
-        _reqs: Flux<Result<Payload, RSocketError>>,
-    ) -> Flux<Result<Payload, RSocketError>> {
+    fn request_channel(&self, _reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>> {
         Box::pin(futures::stream::empty())
     }
 }

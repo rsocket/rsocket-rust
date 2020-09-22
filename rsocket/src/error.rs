@@ -20,6 +20,7 @@ pub enum ErrorKind {
     IO(io::Error),
     Cancelled(),
     LengthTooShort(usize),
+    InComplete,
 }
 
 #[derive(Debug)]
@@ -37,6 +38,7 @@ impl fmt::Display for RSocketError {
             ErrorKind::IO(e) => write!(f, "{}", e),
             ErrorKind::Cancelled() => write!(f, "ERROR(CANCELLED)"),
             ErrorKind::LengthTooShort(n) => write!(f, "ERROR(MINIMAL LENGTH {})", n),
+            ErrorKind::InComplete => write!(f, "INCOMPLETE"),
         }
     }
 }

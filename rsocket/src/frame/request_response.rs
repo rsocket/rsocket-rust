@@ -1,5 +1,5 @@
 use super::{utils, Body, Frame};
-use crate::utils::{RSocketResult, Writeable};
+use crate::utils::Writeable;
 use bytes::{BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
@@ -58,7 +58,7 @@ impl RequestResponseBuilder {
 }
 
 impl RequestResponse {
-    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<RequestResponse> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> crate::Result<RequestResponse> {
         utils::read_payload(flag, bf).map(|(m, d)| RequestResponse {
             metadata: m,
             data: d,

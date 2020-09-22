@@ -3,9 +3,14 @@ extern crate log;
 
 use clap::{App, Arg, SubCommand};
 use rsocket_rust::prelude::*;
-use rsocket_rust_transport_tcp::{TcpClientTransport, TcpServerTransport};
-use std::error::Error;
+use rsocket_rust::transport::Connection;
+use rsocket_rust_transport_tcp::{
+    TcpClientTransport, TcpServerTransport, UnixClientTransport, UnixServerTransport,
+};
+use rsocket_rust_transport_websocket::{WebsocketClientTransport, WebsocketServerTransport};
 use std::fs;
+
+type Result<T> = rsocket_rust::Result<T>;
 
 enum RequestMode {
     FNF,
@@ -14,8 +19,76 @@ enum RequestMode {
     CHANNEL,
 }
 
+async fn serve<A, B>(transport: A, mtu: usize) -> Result<()>
+where
+    A: Send + Sync + ServerTransport<Item = B> + 'static,
+    B: Send + Sync + Transport + 'static,
+{
+    RSocketFactory::receive()
+        .transport(transport)
+        .fragment(mtu)
+        .acceptor(Box::new(|setup, _socket| {
+            info!("accept setup: {:?}", setup);
+            Ok(Box::new(EchoRSocket))
+            // Or you can reject setup
+            // Err(From::from("SETUP_NOT_ALLOW"))
+        }))
+        .on_start(Box::new(|| info!("+++++++ echo server started! +++++++")))
+        .serve()
+        .await
+}
+
+async fn connect<A, B>(transport: A, mtu: usize, req: Payload, mode: RequestMode) -> Result<()>
+where
+    A: Send + Sync + Transport<Conn = B> + 'static,
+    B: Send + Sync + Connection + 'static,
+{
+    let cli = RSocketFactory::connect()
+        .fragment(mtu)
+        .transport(transport)
+        .start()
+        .await?;
+
+    match mode {
+        RequestMode::FNF => {
+            cli.fire_and_forget(req).await;
+        }
+        RequestMode::STREAM => {
+            let mut results = cli.request_stream(req);
+            loop {
+                match results.next().await {
+                    Some(Ok(v)) => info!("{:?}", v),
+                    Some(Err(e)) => {
+                        error!("STREAM_RESPONSE FAILED: {:?}", e);
+                        break;
+                    }
+                    None => break,
+                }
+            }
+        }
+        RequestMode::CHANNEL => {
+            let mut results = cli.request_channel(Box::pin(futures::stream::iter(vec![Ok(req)])));
+            loop {
+                match results.next().await {
+                    Some(Ok(v)) => info!("{:?}", v),
+                    Some(Err(e)) => {
+                        error!("CHANNEL_RESPONSE FAILED: {:?}", e);
+                        break;
+                    }
+                    None => break,
+                }
+            }
+        }
+        RequestMode::REQUEST => {
+            let res = cli.request_response(req).await.expect("Request failed!");
+            info!("{:?}", res);
+        }
+    }
+    Ok(())
+}
+
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn main() -> Result<()> {
     env_logger::builder().format_timestamp_millis().init();
 
     let cli = App::new("echo")
@@ -106,18 +179,25 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                 .value_of("mtu")
                 .map(|it| it.parse().expect("Invalid mtu string!"))
                 .unwrap_or(0);
-            RSocketFactory::receive()
-                .transport(TcpServerTransport::from(addr))
-                .fragment(mtu)
-                .acceptor(Box::new(|setup, _socket| {
-                    info!("accept setup: {:?}", setup);
-                    Ok(Box::new(EchoRSocket))
-                    // Or you can reject setup
-                    // Err(From::from("SETUP_NOT_ALLOW"))
-                }))
-                .on_start(Box::new(|| info!("+++++++ echo server started! +++++++")))
-                .serve()
-                .await
+
+            if addr.starts_with("ws://") {
+                serve(WebsocketServerTransport::from(addr), mtu).await
+            } else if addr.starts_with("unix://") {
+                let addr_owned = addr.to_owned();
+                tokio::spawn(async move {
+                    let _ = serve(UnixServerTransport::from(addr_owned), mtu).await;
+                });
+                let sockfile = addr.chars().skip(7).collect::<String>();
+                // Watch signal
+                tokio::signal::ctrl_c().await?;
+                info!("ctrl-c received!");
+                if let Err(e) = std::fs::remove_file(&sockfile) {
+                    error!("remove unix sock file failed: {}", e);
+                }
+                Ok(())
+            } else {
+                serve(TcpServerTransport::from(addr), mtu).await
+            }
         }
         ("connect", Some(flags)) => {
             let mut modes: Vec<RequestMode> = vec![];
@@ -147,12 +227,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                 .unwrap_or(0);
 
             let addr = flags.value_of("URL").expect("Missing URL");
-            let cli = RSocketFactory::connect()
-                .fragment(mtu)
-                .transport(TcpClientTransport::from(addr))
-                .start()
-                .await
-                .expect("Connect failed!");
             let mut bu = Payload::builder();
             if let Some(data) = flags.value_of("input") {
                 if data.starts_with("@") {
@@ -164,45 +238,14 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
                 }
             }
             let req = bu.build();
-
-            match modes.pop().unwrap_or(RequestMode::REQUEST) {
-                RequestMode::FNF => {
-                    cli.fire_and_forget(req).await;
-                }
-                RequestMode::STREAM => {
-                    let mut results = cli.request_stream(req);
-                    loop {
-                        match results.next().await {
-                            Some(Ok(v)) => info!("{:?}", v),
-                            Some(Err(e)) => {
-                                error!("STREAM_RESPONSE FAILED: {:?}", e);
-                                break;
-                            }
-                            None => break,
-                        }
-                    }
-                }
-                RequestMode::CHANNEL => {
-                    let mut results =
-                        cli.request_channel(Box::pin(futures::stream::iter(vec![Ok(req)])));
-                    loop {
-                        match results.next().await {
-                            Some(Ok(v)) => info!("{:?}", v),
-                            Some(Err(e)) => {
-                                error!("CHANNEL_RESPONSE FAILED: {:?}", e);
-                                break;
-                            }
-                            None => break,
-                        }
-                    }
-                }
-                RequestMode::REQUEST => {
-                    let res = cli.request_response(req).await.expect("Request failed!");
-                    info!("{:?}", res);
-                }
+            let mode = modes.pop().unwrap_or(RequestMode::REQUEST);
+            if addr.starts_with("ws://") {
+                connect(WebsocketClientTransport::from(addr), mtu, req, mode).await
+            } else if addr.starts_with("unix://") {
+                connect(UnixClientTransport::from(addr), mtu, req, mode).await
+            } else {
+                connect(TcpClientTransport::from(addr), mtu, req, mode).await
             }
-
-            Ok(())
         }
         _ => Ok(()),
     }

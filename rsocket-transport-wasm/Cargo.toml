@@ -1,6 +1,6 @@
 [package]
 name = "rsocket_rust_transport_wasm"
-version = "0.5.3"
+version = "0.6.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -10,24 +10,25 @@ homepage = "https://github.com/rsocket/rsocket-rust"
 description = "WASM Websocket RSocket transport implementation."
 
 [dependencies]
-bytes = "0.5.4"
-wasm-bindgen-futures = "0.4.13"
+bytes = "0.5.6"
+wasm-bindgen-futures = "0.4.18"
 futures-channel = "0.3.5"
 futures-util = "0.3.5"
-js-sys = "0.3.40"
-serde = "1.0.111"
-serde_derive = "1.0.111"
+js-sys = "0.3.45"
+serde = "1.0.116"
+serde_derive = "1.0.116"
+async-trait = "0.1.40"
 
 [dependencies.rsocket_rust]
-version = "0.5.3"
+path = "../rsocket"
 features = ["frame"]
 
 [dependencies.wasm-bindgen]
-version = "0.2.63"
+version = "0.2.68"
 features = ["serde-serialize"]
 
 [dependencies.web-sys]
-version = "0.3.40"
+version = "0.3.45"
 features = [
   "FileReader",
   "ProgressEvent",

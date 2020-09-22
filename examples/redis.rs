@@ -1,7 +1,7 @@
 use redis::Client as RedisClient;
-use rsocket_rust::{error::RSocketError, prelude::*};
+use rsocket_rust::prelude::*;
+use rsocket_rust::Result;
 use rsocket_rust_transport_tcp::TcpServerTransport;
-use std::error::Error;
 use std::str::FromStr;
 
 #[derive(Clone)]
@@ -10,7 +10,7 @@ struct RedisDao {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn main() -> Result<()> {
     let dao = RedisDao::from_str("redis://127.0.0.1").expect("Connect redis failed!");
     RSocketFactory::receive()
         .acceptor(Box::new(move |_setup, _socket| Ok(Box::new(dao.clone()))))
@@ -22,14 +22,14 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 impl FromStr for RedisDao {
     type Err = redis::RedisError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         let client = redis::Client::open(s)?;
         Ok(RedisDao { inner: client })
     }
 }
 
 impl RSocket for RedisDao {
-    fn request_response(&self, req: Payload) -> Mono<Result<Payload, RSocketError>> {
+    fn request_response(&self, req: Payload) -> Mono<Result<Payload>> {
         let client = self.inner.clone();
 
         Box::pin(async move {
@@ -52,13 +52,10 @@ impl RSocket for RedisDao {
     fn fire_and_forget(&self, _req: Payload) -> Mono<()> {
         unimplemented!()
     }
-    fn request_stream(&self, _req: Payload) -> Flux<Result<Payload, RSocketError>> {
+    fn request_stream(&self, _req: Payload) -> Flux<Result<Payload>> {
         unimplemented!()
     }
-    fn request_channel(
-        &self,
-        _reqs: Flux<Result<Payload, RSocketError>>,
-    ) -> Flux<Result<Payload, RSocketError>> {
+    fn request_channel(&self, _reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>> {
         unimplemented!()
     }
 }

@@ -1,5 +1,5 @@
 use crate::error::{ErrorKind, RSocketError};
-use crate::utils::{RSocketResult, Writeable};
+use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 mod cancel;
@@ -143,9 +143,9 @@ impl Frame {
         }
     }
 
-    pub fn decode(b: &mut BytesMut) -> RSocketResult<Frame> {
+    pub fn decode(b: &mut BytesMut) -> crate::Result<Frame> {
         if b.len() < LEN_HEADER {
-            return Err(ErrorKind::LengthTooShort(LEN_HEADER).into());
+            return Err(Box::new(RSocketError::from(ErrorKind::InComplete)));
         }
         let sid = b.get_u32();
         let n = b.get_u16();
@@ -167,7 +167,7 @@ impl Frame {
             Self::TYPE_ERROR => Error::decode(flag, b).map(Body::Error),
             Self::TYPE_RESUME_OK => ResumeOK::decode(flag, b).map(Body::ResumeOK),
             Self::TYPE_RESUME => Resume::decode(flag, b).map(Body::Resume),
-            _ => Err(RSocketError::from(format!("illegal frame type: {}", kind))),
+            _ => Err(format!("illegal frame type: {}", kind).into()),
         };
         body.map(|it| Frame::new(sid, it, flag))
     }

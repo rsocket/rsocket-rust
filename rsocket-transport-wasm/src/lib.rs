@@ -4,9 +4,9 @@
 extern crate serde_derive;
 
 mod client;
+mod connection;
 mod misc;
-mod runtime;
 
 pub use client::WebsocketClientTransport;
+pub use connection::WebsocketConnection;
 pub use misc::{connect, new_payload, JsClient, JsPayload};
-pub use runtime::WASMSpawner;

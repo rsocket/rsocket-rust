@@ -1,6 +1,6 @@
 use super::utils::too_short;
 use super::{Body, Frame};
-use crate::utils::{RSocketResult, Writeable};
+use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::fmt;
 
@@ -44,7 +44,7 @@ impl ErrorBuilder {
 }
 
 impl Error {
-    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Error> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> crate::Result<Error> {
         if bf.len() < 4 {
             too_short(4)
         } else {

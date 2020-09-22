@@ -1,7 +1,7 @@
 use super::client::WebsocketClientTransport;
-use super::runtime::WASMSpawner;
 use js_sys::{Promise, Uint8Array};
 use rsocket_rust::prelude::*;
+use rsocket_rust::Client;
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 use wasm_bindgen_futures::future_to_promise;
 
@@ -13,7 +13,7 @@ pub struct JsPayload {
 
 #[wasm_bindgen]
 pub struct JsClient {
-    inner: Client<WASMSpawner>,
+    inner: Client,
 }
 
 impl Into<JsValue> for &JsPayload {
@@ -58,7 +58,7 @@ pub fn new_payload(data: JsValue, metadata: JsValue) -> JsValue {
 pub async fn connect(url: String) -> Result<JsClient, JsValue> {
     match RSocketFactory::connect()
         .transport(WebsocketClientTransport::from(url))
-        .start_with_runtime(WASMSpawner)
+        .start()
         .await
     {
         Ok(inner) => Ok(JsClient { inner }),

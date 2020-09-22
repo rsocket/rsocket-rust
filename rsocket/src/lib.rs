@@ -102,10 +102,16 @@ pub mod frame;
 #[cfg(not(feature = "frame"))]
 mod frame;
 
+mod core;
 mod payload;
 pub mod prelude;
 pub mod runtime;
 mod spi;
 pub mod transport;
 pub mod utils;
-mod x;
+
+pub type Error = Box<dyn std::error::Error + Sync + Send>;
+pub type Result<T> = std::result::Result<T, Error>;
+pub type PinBoxFuture<T> = std::pin::Pin<Box<dyn std::future::Future<Output = T>>>;
+
+pub use crate::core::{Client, ClientBuilder, ServerBuilder};

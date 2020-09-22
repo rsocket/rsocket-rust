@@ -1,57 +1,83 @@
 use super::client::WebsocketClientTransport;
-use rsocket_rust::transport::ServerTransport;
-use std::error::Error;
-use std::future::Future;
+use async_trait::async_trait;
+use rsocket_rust::{transport::ServerTransport, Result};
 use std::net::SocketAddr;
-use std::pin::Pin;
 use tokio::net::TcpListener;
 
+const WS_PROTO: &str = "ws://";
+
+#[derive(Debug)]
 pub struct WebsocketServerTransport {
     addr: SocketAddr,
+    listener: Option<TcpListener>,
+}
+
+#[async_trait]
+impl ServerTransport for WebsocketServerTransport {
+    type Item = WebsocketClientTransport;
+
+    async fn start(&mut self) -> Result<()> {
+        if self.listener.is_some() {
+            warn!("websocket server transport started already!");
+            return Ok(());
+        }
+        match TcpListener::bind(self.addr).await {
+            Ok(listener) => {
+                self.listener = Some(listener);
+                Ok(())
+            }
+            Err(e) => Err(Box::new(e)),
+        }
+    }
+
+    async fn next(&mut self) -> Option<Result<WebsocketClientTransport>> {
+        match self.listener.as_mut() {
+            Some(listener) => match listener.accept().await {
+                Ok((socket, _)) => Some(Ok(WebsocketClientTransport::from(socket))),
+                Err(e) => Some(Err(Box::new(e))),
+            },
+            None => None,
+        }
+    }
+}
+
+#[inline]
+fn parse_socket_addr(addr: impl AsRef<str>) -> SocketAddr {
+    let addr = addr.as_ref();
+    if addr.starts_with(WS_PROTO) {
+        addr.chars()
+            .skip(WS_PROTO.len())
+            .collect::<String>()
+            .parse()
+    } else {
+        addr.parse()
+    }
+    .expect("Invalid transport string!")
 }
 
 impl From<SocketAddr> for WebsocketServerTransport {
     fn from(addr: SocketAddr) -> WebsocketServerTransport {
-        WebsocketServerTransport { addr }
+        WebsocketServerTransport {
+            addr,
+            listener: None,
+        }
     }
 }
 
 impl From<String> for WebsocketServerTransport {
     fn from(addr: String) -> WebsocketServerTransport {
-        let socket_addr = addr.parse().unwrap();
-        WebsocketServerTransport { addr: socket_addr }
+        WebsocketServerTransport {
+            addr: parse_socket_addr(addr),
+            listener: None,
+        }
     }
 }
 
 impl From<&str> for WebsocketServerTransport {
     fn from(addr: &str) -> WebsocketServerTransport {
-        let socket_addr = addr.parse().unwrap();
-        WebsocketServerTransport { addr: socket_addr }
-    }
-}
-
-impl ServerTransport for WebsocketServerTransport {
-    type Item = WebsocketClientTransport;
-
-    fn start(
-        self,
-        starter: Option<Box<dyn FnMut() + Send + Sync>>,
-        acceptor: impl Fn(WebsocketClientTransport) + Send + Sync + 'static,
-    ) -> Pin<Box<dyn Send + Future<Output = Result<(), Box<dyn Send + Sync + Error>>>>> {
-        Box::pin(async move {
-            match TcpListener::bind(self.addr).await {
-                Ok(mut listener) => {
-                    if let Some(mut bingo) = starter {
-                        bingo();
-                    }
-                    while let Ok((socket, _)) = listener.accept().await {
-                        let tp = WebsocketClientTransport::from(socket);
-                        acceptor(tp);
-                    }
-                    Ok(())
-                }
-                Err(e) => Err(e.into_inner().unwrap()),
-            }
-        })
+        WebsocketServerTransport {
+            addr: parse_socket_addr(addr),
+            listener: None,
+        }
     }
 }

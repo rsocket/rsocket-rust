@@ -4,6 +4,7 @@
 extern crate log;
 
 mod client;
+mod connection;
 mod server;
 
 pub use client::WebsocketClientTransport;

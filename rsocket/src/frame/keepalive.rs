@@ -1,6 +1,6 @@
 use super::utils::too_short;
 use super::{Body, Frame};
-use crate::utils::{RSocketResult, Writeable};
+use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
@@ -43,7 +43,7 @@ impl KeepaliveBuilder {
 }
 
 impl Keepalive {
-    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> RSocketResult<Keepalive> {
+    pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> crate::Result<Keepalive> {
         if bf.len() < 8 {
             return too_short(8);
         }
