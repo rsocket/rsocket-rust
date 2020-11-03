@@ -1,6 +1,6 @@
 use super::client::WebsocketClientTransport;
 use async_trait::async_trait;
-use rsocket_rust::{transport::ServerTransport, Result};
+use rsocket_rust::{error::RSocketError, transport::ServerTransport, Result};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
@@ -26,7 +26,7 @@ impl ServerTransport for WebsocketServerTransport {
                 self.listener = Some(listener);
                 Ok(())
             }
-            Err(e) => Err(Box::new(e)),
+            Err(e) => Err(RSocketError::IO(e).into()),
         }
     }
 
@@ -34,7 +34,7 @@ impl ServerTransport for WebsocketServerTransport {
         match self.listener.as_mut() {
             Some(listener) => match listener.accept().await {
                 Ok((socket, _)) => Some(Ok(WebsocketClientTransport::from(socket))),
-                Err(e) => Some(Err(Box::new(e))),
+                Err(e) => Some(Err(RSocketError::Other(e.into()).into())),
             },
             None => None,
         }

@@ -7,13 +7,12 @@ use js_sys::{ArrayBuffer, Uint8Array};
 use rsocket_rust::frame::Frame;
 use rsocket_rust::transport::Transport;
 use rsocket_rust::utils::Writeable;
-use rsocket_rust::Result;
+use rsocket_rust::{error::RSocketError, Result};
 use std::cell::RefCell;
 use std::future::Future;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use wasm_bindgen_futures;
 use web_sys::{ErrorEvent, Event, FileReader, MessageEvent, ProgressEvent, WebSocket};
 
 macro_rules! console_log {
@@ -129,10 +128,12 @@ impl Transport for WebsocketClientTransport {
                         ws.send_with_u8_array(&raw[..])
                             .expect("write data into websocket failed.");
                     }
-                    console_log!("***** attch end *****");
                 }
                 Err(e) => {
-                    connected.send(Err(e.as_string().unwrap().into())).unwrap();
+                    let msg = e.as_string().unwrap();
+                    connected
+                        .send(Err(RSocketError::WithDescription(msg).into()))
+                        .unwrap();
                 }
             }
         });

@@ -3,6 +3,7 @@ use bytes::{BufMut, BytesMut};
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use rsocket_rust::{
+    error::RSocketError,
     frame::Frame,
     transport::{Connection, Reader, Writer},
     utils::Writeable,
@@ -53,7 +54,7 @@ impl Writer for InnerWriter {
         let msg = Message::binary(bf.to_vec());
         match self.sink.send(msg).await {
             Ok(()) => Ok(()),
-            Err(e) => Err(Box::new(e)),
+            Err(e) => Err(RSocketError::Other(e.into()).into()),
         }
     }
 }
@@ -71,7 +72,7 @@ impl Reader for InnerReader {
                     Err(e) => Some(Err(e)),
                 }
             }
-            Some(Err(e)) => Some(Err(Box::new(e))),
+            Some(Err(e)) => Some(Err(RSocketError::Other(e.into()).into())),
             None => None,
         }
     }

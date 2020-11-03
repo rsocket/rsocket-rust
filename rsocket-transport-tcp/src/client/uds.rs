@@ -1,7 +1,7 @@
 use crate::connection::UnixConnection;
 use crate::misc::parse_uds_addr;
 use async_trait::async_trait;
-use rsocket_rust::{transport::Transport, Result};
+use rsocket_rust::{error::RSocketError, transport::Transport, Result};
 use tokio::net::UnixStream;
 
 #[derive(Debug)]
@@ -24,7 +24,7 @@ impl Transport for UnixClientTransport {
             Connector::Direct(socket) => Ok(UnixConnection::from(socket)),
             Connector::Lazy(addr) => match UnixStream::connect(addr).await {
                 Ok(stream) => Ok(UnixConnection::from(stream)),
-                Err(e) => Err(Box::new(e)),
+                Err(e) => Err(RSocketError::IO(e).into()),
             },
         }
     }

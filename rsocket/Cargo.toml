@@ -16,6 +16,8 @@ futures = "0.3.5"
 lazy_static = "1.4.0"
 async-trait = "0.1.40"
 dashmap = "3.11.10"
+thiserror = "1.0.20"
+anyhow = "1.0.32"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4.18"
@@ -28,4 +30,3 @@ features = [ "rt-core", "rt-threaded", "sync", "stream" ]
 [features]
 default = []
 frame = []
-wasm = []

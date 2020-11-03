@@ -1,4 +1,4 @@
-use crate::error::{self, ErrorKind, RSocketError};
+use crate::error::{self, RSocketError};
 use crate::payload::{Payload, SetupPayload};
 use crate::{runtime, Error, Result};
 use futures::future;
@@ -67,14 +67,6 @@ impl RSocket for EchoRSocket {
 
 pub(crate) struct EmptyRSocket;
 
-impl EmptyRSocket {
-    #[inline]
-    fn must_failed(&self) -> Error {
-        let kind = ErrorKind::Internal(error::ERR_APPLICATION, String::from("NOT_IMPLEMENT"));
-        Box::new(RSocketError::from(kind))
-    }
-}
-
 impl RSocket for EmptyRSocket {
     fn metadata_push(&self, _req: Payload) -> Mono<()> {
         Box::pin(async {})
@@ -85,7 +77,9 @@ impl RSocket for EmptyRSocket {
     }
 
     fn request_response(&self, _req: Payload) -> Mono<Result<Payload>> {
-        Box::pin(future::err(self.must_failed()))
+        Box::pin(future::err(
+            RSocketError::ApplicationException("NOT_IMPLEMENT".into()).into(),
+        ))
     }
 
     fn request_stream(&self, _req: Payload) -> Flux<Result<Payload>> {

@@ -1,5 +1,5 @@
 use super::mime::MimeType;
-use crate::error::{ErrorKind, RSocketError};
+use crate::error::RSocketError;
 use crate::utils::{u24, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::collections::LinkedList;
@@ -121,27 +121,32 @@ impl CompositeMetadata {
                 Some(well) => well,
                 None => {
                     let err_str = format!("invalid Well-Known MIME type: identifier={:x}", n);
-                    return Err(err_str.into());
+                    return Err(RSocketError::WithDescription(err_str).into());
                 }
             }
         } else {
             // Bad
             let mime_len = (first as usize) + 1;
             if bs.len() < mime_len {
-                return Err("broken composite metadata: empty MIME type!".into());
+                return Err(RSocketError::WithDescription(
+                    "broken composite metadata: empty MIME type!".into(),
+                )
+                .into());
             }
             let front = bs.split_to(mime_len);
             MimeType::Normal(String::from_utf8(front.to_vec()).unwrap())
         };
 
         if bs.len() < 3 {
-            return Err("broken composite metadata: not enough bytes!".into());
+            return Err(RSocketError::WithDescription(
+                "broken composite metadata: not enough bytes!".into(),
+            )
+            .into());
         }
         let payload_size = u24::read_advance(bs).into();
         if bs.len() < payload_size {
-            return Err(
-                format!("broken composite metadata: require {} bytes!", payload_size).into(),
-            );
+            let desc = format!("broken composite metadata: require {} bytes!", payload_size);
+            return Err(RSocketError::WithDescription(desc).into());
         }
         let metadata = bs.split_to(payload_size).freeze();
         Ok(Some(CompositeMetadataEntry::new(mime_type, metadata)))

@@ -1,4 +1,4 @@
-use crate::error::{ErrorKind, RSocketError};
+use crate::error::RSocketError;
 use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -61,7 +61,7 @@ impl RoutingMetadata {
         }
         let size = bf.get_u8() as usize;
         if bf.len() < size {
-            return Err("require more bytes!".into());
+            return Err(RSocketError::WithDescription("require more bytes!".into()).into());
         }
         let tag = String::from_utf8(bf.split_to(size).to_vec()).unwrap();
         Ok(Some(tag))

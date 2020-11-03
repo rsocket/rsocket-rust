@@ -3,7 +3,7 @@ use bytes::{Bytes, BytesMut};
 use rsocket_rust::extension::{CompositeMetadata, MimeType, RoutingMetadata};
 use rsocket_rust::prelude::*;
 use rsocket_rust::utils::Writeable;
-use rsocket_rust::Result;
+use rsocket_rust::{error::RSocketError, Result};
 use rsocket_rust_transport_tcp::TcpClientTransport;
 use rsocket_rust_transport_websocket::WebsocketClientTransport;
 use serde::{de::DeserializeOwned, Serialize};
@@ -176,7 +176,7 @@ impl RequesterBuilder {
                 let requester = Requester::from(rsocket);
                 Ok(requester)
             }
-            None => Err("Missing transport!".into()),
+            None => Err(RSocketError::WithDescription("Missing transport!".into()).into()),
         }
     }
 }
@@ -368,7 +368,7 @@ where
     match *mime_type {
         MimeType::APPLICATION_JSON => Ok(Some(unmarshal(misc::json(), &raw.as_ref())?)),
         MimeType::APPLICATION_CBOR => Ok(Some(unmarshal(misc::cbor(), &raw.as_ref())?)),
-        _ => Err("unsupported mime type!".into()),
+        _ => Err(RSocketError::WithDescription("unsupported mime type!".into()).into()),
     }
 }
 
@@ -380,6 +380,6 @@ where
     match *mime_type {
         MimeType::APPLICATION_JSON => marshal(misc::json(), data),
         MimeType::APPLICATION_CBOR => marshal(misc::cbor(), data),
-        _ => Err("unsupported mime type!".into()),
+        _ => Err(RSocketError::WithDescription("unsupported mime type!".into()).into()),
     }
 }

@@ -1,6 +1,6 @@
 use crate::{client::TcpClientTransport, misc::parse_tcp_addr};
 use async_trait::async_trait;
-use rsocket_rust::{transport::ServerTransport, Result};
+use rsocket_rust::{error::RSocketError, transport::ServerTransport, Result};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
@@ -33,7 +33,7 @@ impl ServerTransport for TcpServerTransport {
                 debug!("listening on: {}", &self.addr);
                 Ok(())
             }
-            Err(e) => Err(Box::new(e)),
+            Err(e) => Err(RSocketError::IO(e).into()),
         }
     }
 
@@ -44,9 +44,9 @@ impl ServerTransport for TcpServerTransport {
                     let tp = TcpClientTransport::from(socket);
                     Some(Ok(tp))
                 }
-                Err(e) => Some(Err(Box::new(e))),
+                Err(e) => Some(Err(RSocketError::IO(e).into())),
             },
-            None => Some(Err("err".into())),
+            None => None,
         }
     }
 }
