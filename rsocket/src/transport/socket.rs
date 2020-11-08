@@ -259,8 +259,8 @@ impl DuplexSocket {
             match handler {
                 Handler::ReqRR(tx) => tx.send(e).expect("Send RR failed"),
                 Handler::ResRR(_) => unreachable!(),
-                Handler::ReqRS(mut tx) => tx.send(e).await.expect("Send RS failed"),
-                Handler::ReqRC(mut tx) => tx.send(e).await.expect("Send RC failed"),
+                Handler::ReqRS(tx) => tx.send(e).await.expect("Send RS failed"),
+                Handler::ReqRC(tx) => tx.send(e).await.expect("Send RC failed"),
             }
         }
     }
@@ -368,7 +368,7 @@ impl DuplexSocket {
     #[inline]
     async fn on_request_response(&mut self, sid: u32, _flag: u16, input: Payload) {
         let responder = self.responder.clone();
-        let mut canceller = self.canceller.clone();
+        let canceller = self.canceller.clone();
         let mut tx = self.tx.clone();
         let splitter = self.splitter.clone();
         let counter = Counter::new(2);
@@ -441,8 +441,8 @@ impl DuplexSocket {
     #[inline]
     async fn on_request_channel(&self, sid: u32, flag: u16, first: Payload) {
         let responder = self.responder.clone();
-        let mut tx = self.tx.clone();
-        let (mut sender, receiver) = mpsc::channel::<Result<Payload>>(32);
+        let tx = self.tx.clone();
+        let (sender, receiver) = mpsc::channel::<Result<Payload>>(32);
         sender.send(Ok(first)).await.expect("Send failed!");
         self.register_handler(sid, Handler::ReqRC(sender)).await;
         runtime::spawn(async move {
@@ -620,7 +620,7 @@ impl DuplexSocket {
 impl RSocket for DuplexSocket {
     fn metadata_push(&self, req: Payload) -> Mono<()> {
         let sid = self.seq.next();
-        let mut tx = self.tx.clone();
+        let tx = self.tx.clone();
         Box::pin(async move {
             let (_d, m) = req.split();
             let mut bu = frame::MetadataPush::builder(sid, 0);
@@ -634,7 +634,7 @@ impl RSocket for DuplexSocket {
     }
     fn fire_and_forget(&self, req: Payload) -> Mono<()> {
         let sid = self.seq.next();
-        let mut tx = self.tx.clone();
+        let tx = self.tx.clone();
         let splitter = self.splitter.clone();
         Box::pin(async move {
             match splitter {
@@ -696,7 +696,7 @@ impl RSocket for DuplexSocket {
         let (tx, rx) = oneshot::channel::<Result<Payload>>();
         let sid = self.seq.next();
         let handlers = self.handlers.clone();
-        let mut sender = self.tx.clone();
+        let sender = self.tx.clone();
 
         let splitter = self.splitter.clone();
 
@@ -770,7 +770,7 @@ impl RSocket for DuplexSocket {
 
     fn request_stream(&self, input: Payload) -> Flux<Result<Payload>> {
         let sid = self.seq.next();
-        let mut tx = self.tx.clone();
+        let tx = self.tx.clone();
         // register handler
         let (sender, receiver) = mpsc::channel::<Result<Payload>>(32);
         let handlers = self.handlers.clone();

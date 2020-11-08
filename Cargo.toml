@@ -8,7 +8,7 @@ members = [
 "rsocket-transport-websocket",
 "rsocket-transport-wasm",
 # extra
-"rsocket-messaging",
+# "rsocket-messaging",
 # internal
 "examples",
 "rsocket-test",

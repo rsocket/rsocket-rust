@@ -1,5 +1,6 @@
 # rsocket-rust
 
+![GitHub Workflow Status](https://github.com/rsocket/rsocket-rust/workflows/Rust/badge.svg)
 [![Build Status](https://travis-ci.com/rsocket/rsocket-rust.svg?branch=master)](https://travis-ci.com/rsocket/rsocket-rust)
 [![Crates.io](https://img.shields.io/crates/v/rsocket_rust)](https://crates.io/crates/rsocket_rust)
 [![Crates.io](https://img.shields.io/crates/d/rsocket_rust)](https://crates.io/crates/rsocket_rust)

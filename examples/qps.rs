@@ -48,7 +48,7 @@ where
             }
             let current = counter.fetch_add(1, Ordering::SeqCst) + 1;
             if current >= count {
-                notify.notify();
+                notify.notify_one();
             }
         });
     }
