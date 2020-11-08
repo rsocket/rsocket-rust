@@ -1,13 +1,13 @@
+use rsocket_rust::Result;
 use serde::{de::DeserializeOwned, Serialize};
-use std::error::Error;
 
 pub trait SerDe {
-    fn marshal<T>(&self, data: &T) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>>
+    fn marshal<T>(&self, data: &T) -> Result<Vec<u8>>
     where
         Self: Sized,
         T: Sized + Serialize;
 
-    fn unmarshal<T>(&self, raw: &[u8]) -> Result<T, Box<dyn Error + Send + Sync>>
+    fn unmarshal<T>(&self, raw: &[u8]) -> Result<T>
     where
         Self: Sized,
         T: Sized + DeserializeOwned;
@@ -17,14 +17,14 @@ pub trait SerDe {
 struct JsonSerDe {}
 
 impl SerDe for JsonSerDe {
-    fn marshal<T>(&self, data: &T) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>>
+    fn marshal<T>(&self, data: &T) -> Result<Vec<u8>>
     where
         T: Sized + Serialize,
     {
         Ok(serde_json::to_vec(data)?)
     }
 
-    fn unmarshal<T>(&self, raw: &[u8]) -> Result<T, Box<dyn Error + Send + Sync>>
+    fn unmarshal<T>(&self, raw: &[u8]) -> Result<T>
     where
         T: Sized + DeserializeOwned,
     {
@@ -43,14 +43,14 @@ pub fn cbor() -> impl SerDe {
 struct CborSerDe {}
 
 impl SerDe for CborSerDe {
-    fn marshal<T>(&self, data: &T) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>>
+    fn marshal<T>(&self, data: &T) -> Result<Vec<u8>>
     where
         T: Sized + Serialize,
     {
         Ok(serde_cbor::to_vec(data)?)
     }
 
-    fn unmarshal<T>(&self, raw: &[u8]) -> Result<T, Box<dyn Error + Send + Sync>>
+    fn unmarshal<T>(&self, raw: &[u8]) -> Result<T>
     where
         T: Sized + DeserializeOwned,
     {
@@ -58,14 +58,14 @@ impl SerDe for CborSerDe {
     }
 }
 
-pub(crate) fn marshal<T>(ser: impl SerDe, data: &T) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>>
+pub(crate) fn marshal<T>(ser: impl SerDe, data: &T) -> Result<Vec<u8>>
 where
     T: Sized + Serialize,
 {
     ser.marshal(data)
 }
 
-pub(crate) fn unmarshal<T>(de: impl SerDe, raw: &[u8]) -> Result<T, Box<dyn Error + Send + Sync>>
+pub(crate) fn unmarshal<T>(de: impl SerDe, raw: &[u8]) -> Result<T>
 where
     T: Sized + DeserializeOwned,
 {

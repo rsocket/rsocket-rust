@@ -1,6 +1,6 @@
-use std::error::Error as StdError;
 use std::fmt;
 use std::io;
+use thiserror::Error;
 
 pub const ERR_INVALID_SETUP: u32 = 0x0000_0001;
 pub const ERR_UNSUPPORTED_SETUP: u32 = 0x0000_0002;
@@ -13,78 +13,58 @@ pub const ERR_REJECTED: u32 = 0x0000_0202;
 pub const ERR_CANCELED: u32 = 0x0000_0203;
 pub const ERR_INVALID: u32 = 0x0000_0204;
 
-#[derive(Debug)]
-pub enum ErrorKind {
-    Internal(u32, String),
+#[derive(Error, Debug)]
+pub enum RSocketError {
+    // Protocol errors:
+    #[error("INVALID_SETUP: {0}")]
+    InvalidSetup(String),
+    #[error("UNSUPPORTED_SETUP: {0}")]
+    UnsupportedSetup(String),
+    #[error("REJECTED_SETUP: {0}")]
+    RejectedSetup(String),
+    #[error("REJECTED_SETUP: {0}")]
+    RejectedResume(String),
+    #[error("CONNECTION_ERROR: {0}")]
+    ConnectionException(String),
+    #[error("CONNECTION_CLOSE: {0}")]
+    ConnectionClosed(String),
+    #[error("APPLICATION_ERROR: {0}")]
+    ApplicationException(String),
+    #[error("REJECTED: {0}")]
+    RequestRejected(String),
+    #[error("CANCELLED: {0}")]
+    RequestCancelled(String),
+    #[error("INVALID: {0}")]
+    RequestInvalid(String),
+    #[error("RESERVED({0}): {1}")]
+    Reserved(u32, String),
+
+    // Codec errors:
+    #[error("this frame is incomplete")]
+    InCompleteFrame,
+    // Custom errors:
+    #[error("{0}")]
     WithDescription(String),
-    IO(io::Error),
-    Cancelled(),
-    LengthTooShort(usize),
-    InComplete,
+    #[error(transparent)]
+    IO(#[from] io::Error),
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
 }
 
-#[derive(Debug)]
-pub struct RSocketError {
-    kind: ErrorKind,
-}
-
-impl StdError for RSocketError {}
-
-impl fmt::Display for RSocketError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.kind {
-            ErrorKind::Internal(c, s) => write!(f, "ERROR({}): {}", translate(c), s),
-            ErrorKind::WithDescription(s) => write!(f, "{}", s),
-            ErrorKind::IO(e) => write!(f, "{}", e),
-            ErrorKind::Cancelled() => write!(f, "ERROR(CANCELLED)"),
-            ErrorKind::LengthTooShort(n) => write!(f, "ERROR(MINIMAL LENGTH {})", n),
-            ErrorKind::InComplete => write!(f, "INCOMPLETE"),
+impl RSocketError {
+    pub(crate) fn must_new_from_code(code: u32, desc: String) -> Self {
+        match code {
+            ERR_APPLICATION => RSocketError::ApplicationException(desc),
+            ERR_INVALID_SETUP => RSocketError::InvalidSetup(desc),
+            ERR_UNSUPPORTED_SETUP => RSocketError::UnsupportedSetup(desc),
+            ERR_REJECT_SETUP => RSocketError::RejectedSetup(desc),
+            ERR_REJECT_RESUME => RSocketError::RejectedResume(desc),
+            ERR_CONN_FAILED => RSocketError::ConnectionException(desc),
+            ERR_CONN_CLOSED => RSocketError::ConnectionClosed(desc),
+            ERR_REJECTED => RSocketError::RequestRejected(desc),
+            ERR_CANCELED => RSocketError::RequestCancelled(desc),
+            ERR_INVALID => RSocketError::RequestInvalid(desc),
+            _ => RSocketError::Reserved(code, desc),
         }
-    }
-}
-
-impl From<io::Error> for RSocketError {
-    fn from(e: io::Error) -> RSocketError {
-        RSocketError {
-            kind: ErrorKind::IO(e),
-        }
-    }
-}
-
-impl From<ErrorKind> for RSocketError {
-    fn from(kind: ErrorKind) -> RSocketError {
-        RSocketError { kind }
-    }
-}
-impl From<String> for RSocketError {
-    fn from(e: String) -> RSocketError {
-        RSocketError {
-            kind: ErrorKind::WithDescription(e),
-        }
-    }
-}
-
-impl From<&'static str> for RSocketError {
-    fn from(e: &'static str) -> RSocketError {
-        RSocketError {
-            kind: ErrorKind::WithDescription(String::from(e)),
-        }
-    }
-}
-
-#[inline]
-fn translate(code: &u32) -> &str {
-    match *code {
-        ERR_APPLICATION => "APPLICATION",
-        ERR_INVALID_SETUP => "INVALID_SETUP",
-        ERR_UNSUPPORTED_SETUP => "UNSUPPORTED_SETUP",
-        ERR_REJECT_SETUP => "REJECT_SETUP",
-        ERR_REJECT_RESUME => "REJECT_RESUME",
-        ERR_CONN_FAILED => "CONN_FAILED",
-        ERR_CONN_CLOSED => "CONN_CLOSED",
-        ERR_REJECTED => "REJECTED",
-        ERR_CANCELED => "CANCELED",
-        ERR_INVALID => "INVALID",
-        _ => "UNKNOWN",
     }
 }

@@ -1,5 +1,5 @@
-use crate::error::{ErrorKind, RSocketError};
-use crate::frame::{self};
+use crate::error::RSocketError;
+use crate::frame::Frame;
 use crate::payload::{Payload, SetupPayload};
 use crate::spi::RSocket;
 use futures::future;
@@ -50,7 +50,7 @@ impl Counter {
 }
 
 #[inline]
-pub(crate) fn debug_frame(snd: bool, f: &frame::Frame) {
+pub(crate) fn debug_frame(snd: bool, f: &Frame) {
     if snd {
         debug!("===> SND: {:?}", f);
     } else {

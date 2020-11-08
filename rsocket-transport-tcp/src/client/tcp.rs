@@ -1,6 +1,6 @@
 use crate::{connection::TcpConnection, misc::parse_tcp_addr};
 use async_trait::async_trait;
-use rsocket_rust::{transport::Transport, Result};
+use rsocket_rust::{error::RSocketError, transport::Transport, Result};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 
@@ -24,7 +24,7 @@ impl Transport for TcpClientTransport {
             Connector::Direct(socket) => Ok(TcpConnection::from(socket)),
             Connector::Lazy(addr) => match TcpStream::connect(addr).await {
                 Ok(stream) => Ok(TcpConnection::from(stream)),
-                Err(e) => Err(Box::new(e)),
+                Err(e) => Err(RSocketError::IO(e).into()),
             },
         }
     }

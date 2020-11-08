@@ -1,7 +1,7 @@
 use crate::client::UnixClientTransport;
 use crate::misc::parse_uds_addr;
 use async_trait::async_trait;
-use rsocket_rust::{transport::ServerTransport, Result};
+use rsocket_rust::{error::RSocketError, transport::ServerTransport, Result};
 use tokio::net::UnixListener;
 
 #[derive(Debug)]
@@ -33,7 +33,7 @@ impl ServerTransport for UnixServerTransport {
                 debug!("listening on: {}", &self.addr);
                 Ok(())
             }
-            Err(e) => Err(Box::new(e)),
+            Err(e) => Err(RSocketError::IO(e).into()),
         }
     }
 
@@ -41,7 +41,7 @@ impl ServerTransport for UnixServerTransport {
         match self.listener.as_mut() {
             Some(listener) => match listener.accept().await {
                 Ok((socket, _)) => Some(Ok(UnixClientTransport::from(socket))),
-                Err(e) => Some(Err(Box::new(e))),
+                Err(e) => Some(Err(RSocketError::IO(e).into())),
             },
             None => None,
         }

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use futures_channel::mpsc;
 use futures_util::{SinkExt, StreamExt};
 use rsocket_rust::transport::{Connection, Reader, Writer};
-use rsocket_rust::{frame::Frame, Result};
+use rsocket_rust::{error::RSocketError, frame::Frame, Result};
 
 #[derive(Debug)]
 pub struct WebsocketConnection {
@@ -29,7 +29,7 @@ impl Writer for InnerWriter {
     async fn write(&mut self, frame: Frame) -> Result<()> {
         match self.tx.send(frame).await {
             Ok(()) => Ok(()),
-            Err(e) => Err(Box::new(e)),
+            Err(e) => Err(RSocketError::Other(e.into()).into()),
         }
     }
 }

@@ -1,7 +1,7 @@
 use super::fragmentation::{Joiner, Splitter};
 use super::misc::{debug_frame, Counter, StreamID};
 use super::spi::*;
-use crate::error::{self, ErrorKind, RSocketError};
+use crate::error::{self, RSocketError};
 use crate::frame::{self, Body, Frame};
 use crate::payload::{Payload, SetupPayload};
 use crate::spi::{EmptyRSocket, Flux, Mono, RSocket};
@@ -254,9 +254,8 @@ impl DuplexSocket {
         self.joiners.remove(&sid);
         // pick handler
         if let Some((_, handler)) = self.handlers.remove(&sid) {
-            let kind =
-                ErrorKind::Internal(input.get_code(), input.get_data_utf8().unwrap().to_owned());
-            let e: Result<_> = Err(Box::new(RSocketError::from(kind)));
+            let desc = input.get_data_utf8().unwrap().to_owned();
+            let e: Result<_> = Err(RSocketError::must_new_from_code(input.get_code(), desc).into());
             match handler {
                 Handler::ReqRR(tx) => tx.send(e).expect("Send RR failed"),
                 Handler::ResRR(_) => unreachable!(),
@@ -270,7 +269,8 @@ impl DuplexSocket {
     async fn on_cancel(&mut self, sid: u32, _flag: u16) {
         self.joiners.remove(&sid);
         if let Some((_, handler)) = self.handlers.remove(&sid) {
-            let e: Result<_> = Err(Box::new(RSocketError::from(ErrorKind::Cancelled())));
+            let e: Result<_> =
+                Err(RSocketError::RequestCancelled("request has been cancelled".into()).into());
             match handler {
                 Handler::ReqRR(sender) => {
                     info!("REQUEST_RESPONSE {} cancelled!", sid);
@@ -761,7 +761,9 @@ impl RSocket for DuplexSocket {
         Box::pin(async move {
             match rx.await {
                 Ok(v) => v,
-                Err(_e) => Err("request_response failed".into()),
+                Err(_e) => {
+                    Err(RSocketError::WithDescription("request_response failed".into()).into())
+                }
             }
         })
     }

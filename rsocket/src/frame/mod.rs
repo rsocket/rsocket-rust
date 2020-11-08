@@ -1,4 +1,4 @@
-use crate::error::{ErrorKind, RSocketError};
+use crate::error::RSocketError;
 use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -145,7 +145,7 @@ impl Frame {
 
     pub fn decode(b: &mut BytesMut) -> crate::Result<Frame> {
         if b.len() < LEN_HEADER {
-            return Err(Box::new(RSocketError::from(ErrorKind::InComplete)));
+            return Err(RSocketError::InCompleteFrame.into());
         }
         let sid = b.get_u32();
         let n = b.get_u16();
@@ -167,7 +167,7 @@ impl Frame {
             Self::TYPE_ERROR => Error::decode(flag, b).map(Body::Error),
             Self::TYPE_RESUME_OK => ResumeOK::decode(flag, b).map(Body::ResumeOK),
             Self::TYPE_RESUME => Resume::decode(flag, b).map(Body::Resume),
-            _ => Err(format!("illegal frame type: {}", kind).into()),
+            typ => unreachable!("invalid frame type {}!", typ),
         };
         body.map(|it| Frame::new(sid, it, flag))
     }

@@ -1,6 +1,6 @@
 use super::connection::WebsocketConnection;
 use async_trait::async_trait;
-use rsocket_rust::{transport::Transport, Result};
+use rsocket_rust::{error::RSocketError, transport::Transport, Result};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{accept_async, connect_async};
@@ -31,11 +31,11 @@ impl Transport for WebsocketClientTransport {
         match self.connector {
             Connector::Direct(stream) => match accept_async(stream).await {
                 Ok(ws) => Ok(WebsocketConnection::new(ws)),
-                Err(e) => Err(Box::new(e)),
+                Err(e) => Err(RSocketError::Other(e.into()).into()),
             },
             Connector::Lazy(u) => match connect_async(u).await {
                 Ok((stream, _)) => Ok(WebsocketConnection::new(stream)),
-                Err(e) => Err(Box::new(e)),
+                Err(e) => Err(RSocketError::Other(e.into()).into()),
             },
         }
     }
