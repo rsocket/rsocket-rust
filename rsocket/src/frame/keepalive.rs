@@ -51,7 +51,7 @@ impl Keepalive {
         let data = if bf.is_empty() {
             None
         } else {
-            Some(bf.to_bytes())
+            Some(Bytes::from(bf.to_vec()))
         };
         Ok(Keepalive {
             last_received_position: position,

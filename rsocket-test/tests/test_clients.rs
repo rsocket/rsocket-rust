@@ -54,7 +54,7 @@ fn test_websocket() {
 
     sleep(Duration::from_millis(500));
 
-    let mut client_runtime = Runtime::new().unwrap();
+    let client_runtime = Runtime::new().unwrap();
 
     client_runtime.block_on(async {
         let cli = RSocketFactory::connect()
@@ -102,7 +102,7 @@ fn test_tcp() {
 
     sleep(Duration::from_millis(500));
 
-    let mut client_runtime = Runtime::new().unwrap();
+    let client_runtime = Runtime::new().unwrap();
 
     client_runtime.block_on(async {
         let cli = RSocketFactory::connect()
@@ -158,7 +158,7 @@ fn test_unix() {
 
     sleep(Duration::from_millis(500));
 
-    let mut client_runtime = Runtime::new().unwrap();
+    let client_runtime = Runtime::new().unwrap();
 
     client_runtime.block_on(async {
         let cli = RSocketFactory::connect()

@@ -50,7 +50,7 @@ impl Error {
         } else {
             let code = bf.get_u32();
             let data: Option<Bytes> = if !bf.is_empty() {
-                Some(bf.to_bytes())
+                Some(Bytes::from(bf.to_vec()))
             } else {
                 None
             };

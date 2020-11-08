@@ -58,7 +58,7 @@ impl Lease {
         let ttl = bf.get_u32();
         let n = bf.get_u32();
         let m = if flag & Frame::FLAG_METADATA != 0 {
-            Some(bf.to_bytes())
+            Some(Bytes::from(bf.to_vec()))
         } else {
             None
         };
