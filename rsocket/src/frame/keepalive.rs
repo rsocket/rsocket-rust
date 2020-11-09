@@ -1,5 +1,5 @@
-use super::utils::too_short;
 use super::{Body, Frame};
+use crate::error::RSocketError;
 use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -45,13 +45,13 @@ impl KeepaliveBuilder {
 impl Keepalive {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> crate::Result<Keepalive> {
         if bf.len() < 8 {
-            return too_short(8);
+            return Err(RSocketError::InCompleteFrame.into());
         }
         let position = bf.get_u64();
         let data = if bf.is_empty() {
             None
         } else {
-            Some(Bytes::from(bf.to_vec()))
+            Some(bf.split().freeze())
         };
         Ok(Keepalive {
             last_received_position: position,
@@ -83,7 +83,7 @@ impl Writeable for Keepalive {
     fn write_to(&self, bf: &mut BytesMut) {
         bf.put_u64(self.last_received_position);
         match &self.data {
-            Some(v) => bf.put(v.bytes()),
+            Some(v) => bf.extend_from_slice(v),
             None => (),
         }
     }

@@ -1,5 +1,5 @@
-use super::utils::too_short;
 use super::{Body, Frame, Version};
+use crate::error::RSocketError;
 use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -29,21 +29,21 @@ impl Resume {
 
     pub(crate) fn decode(flag: u16, b: &mut BytesMut) -> crate::Result<Resume> {
         if b.len() < 6 {
-            return too_short(6);
+            return Err(RSocketError::InCompleteFrame.into());
         }
         let major = b.get_u16();
         let minor = b.get_u16();
         let token_size = b.get_u16() as usize;
         let token = if token_size > 0 {
             if b.len() < token_size {
-                return too_short(token_size);
+                return Err(RSocketError::InCompleteFrame.into());
             }
             Some(b.split_to(token_size).freeze())
         } else {
             None
         };
         if b.len() < 16 {
-            return too_short(16);
+            return Err(RSocketError::InCompleteFrame.into());
         }
         let last_received_server_position = b.get_u64();
         let first_available_client_position = b.get_u64();
@@ -114,7 +114,7 @@ impl Writeable for Resume {
         self.version.write_to(bf);
         if let Some(b) = self.get_token() {
             bf.put_u16(b.len() as u16);
-            bf.put(b.bytes());
+            bf.extend_from_slice(b);
         }
         bf.put_u64(self.get_last_received_server_position());
         bf.put_u64(self.get_first_available_client_position());

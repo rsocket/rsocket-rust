@@ -1,5 +1,5 @@
-use super::utils::too_short;
 use super::{Body, Frame};
+use crate::error::RSocketError;
 use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -53,12 +53,12 @@ impl LeaseBuilder {
 impl Lease {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> crate::Result<Lease> {
         if bf.len() < 8 {
-            return too_short(8);
+            return Err(RSocketError::InCompleteFrame.into());
         }
         let ttl = bf.get_u32();
         let n = bf.get_u32();
         let m = if flag & Frame::FLAG_METADATA != 0 {
-            Some(Bytes::from(bf.to_vec()))
+            Some(bf.split().freeze())
         } else {
             None
         };
@@ -94,7 +94,7 @@ impl Writeable for Lease {
         bf.put_u32(self.ttl);
         bf.put_u32(self.number_of_requests);
         match &self.metadata {
-            Some(v) => bf.put(v.bytes()),
+            Some(v) => bf.extend_from_slice(v),
             None => (),
         }
     }

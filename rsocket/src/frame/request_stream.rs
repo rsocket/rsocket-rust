@@ -1,4 +1,5 @@
 use super::{utils, Body, Frame, REQUEST_MAX};
+use crate::error::RSocketError;
 use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -55,7 +56,7 @@ impl RequestStreamBuilder {
 impl RequestStream {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> crate::Result<RequestStream> {
         if bf.len() < 4 {
-            utils::too_short(4)
+            Err(RSocketError::InCompleteFrame.into())
         } else {
             let initial_request_n = bf.get_u32();
             utils::read_payload(flag, bf).map(move |(metadata, data)| RequestStream {

@@ -3,13 +3,14 @@ use crate::error::RSocketError;
 use crate::utils::{u24, Writeable};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
+#[inline]
 pub(crate) fn read_payload(
     flag: u16,
     bf: &mut BytesMut,
 ) -> crate::Result<(Option<Bytes>, Option<Bytes>)> {
     let m: Option<Bytes> = if flag & Frame::FLAG_METADATA != 0 {
         if bf.len() < 3 {
-            return too_short(3);
+            return Err(RSocketError::InCompleteFrame.into());
         }
         let n = u24::read_advance(bf);
         Some(bf.split_to(n.into()).freeze())
@@ -19,7 +20,7 @@ pub(crate) fn read_payload(
     let d: Option<Bytes> = if bf.is_empty() {
         None
     } else {
-        Some(Bytes::from(bf.to_vec()))
+        Some(bf.split().freeze())
     };
     Ok((m, d))
 }
@@ -28,16 +29,13 @@ pub(crate) fn calculate_payload_length(metadata: Option<&Bytes>, data: Option<&B
     metadata.map(|v| 3 + v.len()).unwrap_or(0) + data.map(|v| v.len()).unwrap_or(0)
 }
 
+#[inline]
 pub(crate) fn write_payload(bf: &mut BytesMut, metadata: Option<&Bytes>, data: Option<&Bytes>) {
     if let Some(v) = metadata {
         u24::from(v.len()).write_to(bf);
-        bf.put(v.clone());
+        bf.extend_from_slice(v);
     }
     if let Some(v) = data {
-        bf.put(v.clone())
+        bf.extend_from_slice(v);
     }
-}
-
-pub(crate) fn too_short<T>(n: usize) -> crate::Result<T> {
-    Err(RSocketError::InCompleteFrame.into())
 }

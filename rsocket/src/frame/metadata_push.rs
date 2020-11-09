@@ -34,8 +34,9 @@ impl MetadataPushBuiler {
 
 impl MetadataPush {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> crate::Result<MetadataPush> {
-        let m = Bytes::from(bf.to_vec());
-        Ok(MetadataPush { metadata: Some(m) })
+        Ok(MetadataPush {
+            metadata: Some(bf.split().freeze()),
+        })
     }
 
     pub fn builder(stream_id: u32, flag: u16) -> MetadataPushBuiler {
@@ -57,7 +58,7 @@ impl MetadataPush {
 impl Writeable for MetadataPush {
     fn write_to(&self, bf: &mut BytesMut) {
         match &self.metadata {
-            Some(v) => bf.put(v.bytes()),
+            Some(v) => bf.extend_from_slice(v),
             None => (),
         }
     }

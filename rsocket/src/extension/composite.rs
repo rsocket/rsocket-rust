@@ -191,13 +191,13 @@ impl Writeable for CompositeMetadataEntry {
                 let mime_type_len = s.len() as u8;
                 assert!(mime_type_len > 0, "invalid length of MimeType!");
                 bf.put_u8(mime_type_len - 1);
-                bf.put_slice(s.as_ref());
+                bf.extend_from_slice(s.as_ref());
             }
         };
         let metadata_len = self.metadata.len();
         u24::from(metadata_len).write_to(bf);
         if metadata_len > 0 {
-            bf.put(self.metadata.bytes());
+            bf.extend_from_slice(&self.metadata);
         }
     }
 
