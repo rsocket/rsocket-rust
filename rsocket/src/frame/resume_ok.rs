@@ -1,5 +1,5 @@
-use super::utils::too_short;
 use super::{Body, Frame};
+use crate::error::RSocketError;
 use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
@@ -35,7 +35,7 @@ impl ResumeOKBuilder {
 impl ResumeOK {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> crate::Result<ResumeOK> {
         if bf.len() < 8 {
-            too_short(8)
+            Err(RSocketError::InCompleteFrame.into())
         } else {
             Ok(ResumeOK {
                 position: bf.get_u64(),

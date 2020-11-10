@@ -1,5 +1,5 @@
-use super::utils::too_short;
 use super::{Body, Frame};
+use crate::error::RSocketError;
 use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::fmt;
@@ -46,11 +46,11 @@ impl ErrorBuilder {
 impl Error {
     pub(crate) fn decode(flag: u16, bf: &mut BytesMut) -> crate::Result<Error> {
         if bf.len() < 4 {
-            too_short(4)
+            Err(RSocketError::InCompleteFrame.into())
         } else {
             let code = bf.get_u32();
             let data: Option<Bytes> = if !bf.is_empty() {
-                Some(Bytes::from(bf.to_vec()))
+                Some(bf.split().freeze())
             } else {
                 None
             };
@@ -85,7 +85,7 @@ impl Writeable for Error {
     fn write_to(&self, bf: &mut BytesMut) {
         bf.put_u32(self.code);
         match &self.data {
-            Some(v) => bf.put(v.bytes()),
+            Some(v) => bf.extend_from_slice(v),
             None => (),
         }
     }

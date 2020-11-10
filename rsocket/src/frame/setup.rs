@@ -1,5 +1,6 @@
-use super::utils::{self, too_short};
+use super::utils;
 use super::{Body, Frame, Version};
+use crate::error::RSocketError;
 use crate::utils::{Writeable, DEFAULT_MIME_TYPE};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::time::Duration;
@@ -26,7 +27,7 @@ impl Setup {
     pub(crate) fn decode(flag: u16, b: &mut BytesMut) -> crate::Result<Setup> {
         // Check minimal length: version(4bytes) + keepalive(4bytes) + lifetime(4bytes)
         if b.len() < 12 {
-            return too_short(12);
+            return Err(RSocketError::InCompleteFrame.into());
         }
         let major = b.get_u16();
         let minor = b.get_u16();
@@ -34,32 +35,32 @@ impl Setup {
         let lifetime = b.get_u32();
         let token: Option<Bytes> = if flag & Frame::FLAG_RESUME != 0 {
             if b.len() < 2 {
-                return too_short(2);
+                return Err(RSocketError::InCompleteFrame.into());
             }
             let token_length = b.get_u16() as usize;
             if b.len() < token_length {
-                return too_short(token_length);
+                return Err(RSocketError::InCompleteFrame.into());
             }
             Some(b.split_to(token_length).freeze())
         } else {
             None
         };
         if b.is_empty() {
-            return too_short(1);
+            return Err(RSocketError::InCompleteFrame.into());
         }
         let mut mime_type_length: usize = b[0] as usize;
         b.advance(1);
         if b.len() < mime_type_length {
-            return too_short(mime_type_length);
+            return Err(RSocketError::InCompleteFrame.into());
         }
         let mime_metadata = b.split_to(mime_type_length).freeze();
         if b.is_empty() {
-            return too_short(1);
+            return Err(RSocketError::InCompleteFrame.into());
         }
         mime_type_length = b[0] as usize;
         b.advance(1);
         if b.len() < mime_type_length {
-            return too_short(mime_type_length);
+            return Err(RSocketError::InCompleteFrame.into());
         }
         let mime_data = b.split_to(mime_type_length).freeze();
         let (metadata, data) = utils::read_payload(flag, b)?;
@@ -143,12 +144,12 @@ impl Writeable for Setup {
         bf.put_u32(self.lifetime);
         if let Some(b) = &self.token {
             bf.put_u16(b.len() as u16);
-            bf.put(b.bytes());
+            bf.extend_from_slice(b);
         }
         bf.put_u8(self.mime_metadata.len() as u8);
-        bf.put(self.mime_metadata.clone());
+        bf.extend_from_slice(&self.mime_metadata);
         bf.put_u8(self.mime_data.len() as u8);
-        bf.put(self.mime_data.clone());
+        bf.extend_from_slice(&self.mime_data);
         utils::write_payload(bf, self.get_metadata(), self.get_data());
     }
 }
