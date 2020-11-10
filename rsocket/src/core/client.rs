@@ -1,4 +1,4 @@
-use crate::error::RSocketError;
+use crate::error::{RSocketError, ERR_CONN_CLOSED};
 use crate::frame::{self, Frame};
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::runtime;
@@ -7,7 +7,7 @@ use crate::transport::{
     self, Acceptor, Connection, DuplexSocket, Reader, Splitter, Transport, Writer,
 };
 use crate::Result;
-use futures::{future, FutureExt, SinkExt, StreamExt};
+use futures::{future, select, FutureExt, SinkExt, StreamExt};
 use std::error::Error;
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -115,6 +115,7 @@ where
         };
 
         let (snd_tx, mut snd_rx) = mpsc::channel::<Frame>(super::CHANNEL_SIZE);
+        let cloned_snd_tx = snd_tx.clone();
         let mut socket = DuplexSocket::new(1, snd_tx, splitter).await;
 
         let mut cloned_socket = socket.clone();
@@ -126,15 +127,40 @@ where
         let conn = tp.connect().await?;
         let (mut sink, mut stream) = conn.split();
 
+        let setup = self.setup.build();
+
+        // begin write loop
+        let tick_period = setup.keepalive_interval();
         runtime::spawn(async move {
-            while let Some(frame) = snd_rx.next().await {
-                if let Err(e) = (&mut sink).write(frame).await {
-                    error!("write frame failed: {}", e);
-                    break;
+            loop {
+                // send keepalive if timeout
+                match tokio::time::timeout(tick_period, snd_rx.next()).await {
+                    Ok(Some(frame)) => {
+                        if let frame::Body::Error(e) = frame.get_body_ref() {
+                            if e.get_code() == ERR_CONN_CLOSED {
+                                break;
+                            }
+                        }
+                        if let Err(e) = (&mut sink).write(frame).await {
+                            error!("write frame failed: {}", e);
+                            break;
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(_) => {
+                        // keepalive
+                        let keepalive_frame =
+                            frame::Keepalive::builder(0, Frame::FLAG_RESPOND).build();
+                        if let Err(e) = (&mut sink).write(keepalive_frame).await {
+                            error!("write frame failed: {}", e);
+                            break;
+                        }
+                    }
                 }
             }
         });
 
+        // begin read loop
         let closer = self.closer.take();
         runtime::spawn(async move {
             while let Some(next) = stream.read().await {
@@ -151,12 +177,22 @@ where
                     }
                 }
             }
+
+            // workaround: send a notify frame that the connection has been closed.
+            let close_frame = frame::Error::builder(0, 0)
+                .set_code(ERR_CONN_CLOSED)
+                .build();
+            if let Err(_) = cloned_snd_tx.send(close_frame).await {
+                debug!("send close notify frame failed!");
+            }
+
+            // invoke on_close handler
             if let Some(mut invoke) = closer {
                 invoke();
             }
         });
 
-        socket.setup(self.setup.build()).await;
+        socket.setup(setup).await;
         Ok(Client::from(socket))
     }
 }

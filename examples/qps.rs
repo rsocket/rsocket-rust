@@ -4,9 +4,9 @@ extern crate log;
 use clap::{App, Arg};
 use rsocket_rust::prelude::*;
 use rsocket_rust::transport::{Connection, Transport};
+use rsocket_rust::Result;
 use rsocket_rust_transport_tcp::{TcpClientTransport, UnixClientTransport};
 use rsocket_rust_transport_websocket::WebsocketClientTransport;
-use std::error::Error;
 use std::sync::{
     atomic::{AtomicU32, Ordering},
     Arc,
@@ -20,7 +20,7 @@ async fn connect<A, B>(
     count: u32,
     payload_size: usize,
     notify: Arc<Notify>,
-) -> Result<(), Box<dyn Error + Send + Sync>>
+) -> Result<()>
 where
     A: Send + Sync + Transport<Conn = B> + 'static,
     B: Send + Sync + Connection + 'static,
@@ -57,7 +57,7 @@ where
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn main() -> Result<()> {
     env_logger::builder().format_timestamp_millis().init();
 
     let cli = App::new("echo")
