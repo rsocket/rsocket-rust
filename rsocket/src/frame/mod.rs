@@ -187,6 +187,10 @@ impl Frame {
         self.body
     }
 
+    pub fn get_body_ref(&self) -> &Body {
+        &self.body
+    }
+
     pub fn get_flag(&self) -> u16 {
         self.flag
     }

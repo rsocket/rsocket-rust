@@ -4,13 +4,12 @@ extern crate log;
 use clap::{App, Arg, SubCommand};
 use rsocket_rust::prelude::*;
 use rsocket_rust::transport::Connection;
+use rsocket_rust::Result;
 use rsocket_rust_transport_tcp::{
     TcpClientTransport, TcpServerTransport, UnixClientTransport, UnixServerTransport,
 };
 use rsocket_rust_transport_websocket::{WebsocketClientTransport, WebsocketServerTransport};
 use std::fs;
-
-type Result<T> = rsocket_rust::Result<T>;
 
 enum RequestMode {
     FNF,

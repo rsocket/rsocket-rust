@@ -3,9 +3,8 @@ extern crate log;
 
 use futures::executor::block_on;
 use rsocket_rust::prelude::*;
+use rsocket_rust::Result;
 use rsocket_rust_transport_tcp::*;
-
-type Result<T> = rsocket_rust::Result<T>;
 
 #[tokio::main]
 async fn main() -> Result<()> {
