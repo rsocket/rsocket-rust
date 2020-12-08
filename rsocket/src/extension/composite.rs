@@ -134,7 +134,7 @@ impl CompositeMetadata {
                 .into());
             }
             let front = bs.split_to(mime_len);
-            MimeType::Normal(String::from_utf8(front.to_vec()).unwrap())
+            MimeType::Normal(String::from_utf8(front.to_vec())?)
         };
 
         if bs.len() < 3 {
@@ -174,8 +174,8 @@ impl CompositeMetadataEntry {
         &self.metadata
     }
 
-    pub fn get_metadata_utf8(&self) -> &str {
-        std::str::from_utf8(self.metadata.as_ref()).expect("Invalid UTF-8 bytes.")
+    pub fn get_metadata_utf8(&self) -> Option<&str> {
+        std::str::from_utf8(&self.metadata).ok()
     }
 }
 

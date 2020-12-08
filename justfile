@@ -1,5 +1,6 @@
 alias b := bench
 alias e := echo
+alias t := test
 
 build:
     @cargo build

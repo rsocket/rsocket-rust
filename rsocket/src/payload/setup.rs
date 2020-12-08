@@ -1,3 +1,4 @@
+use super::misc::bytes_to_utf8;
 use crate::frame::Setup;
 use crate::utils::DEFAULT_MIME_TYPE;
 use bytes::Bytes;
@@ -125,17 +126,11 @@ impl SetupPayload {
     }
 
     pub fn metadata_mime_type(&self) -> Option<&str> {
-        match &self.mime_m {
-            Some(b) => Some(std::str::from_utf8(b.as_ref()).expect("Invalid UTF-8 bytes.")),
-            None => None,
-        }
+        bytes_to_utf8(&self.mime_m)
     }
 
     pub fn data_mime_type(&self) -> Option<&str> {
-        match &self.mime_d {
-            Some(b) => Some(std::str::from_utf8(b.as_ref()).expect("Invalid UTF-8 bytes.")),
-            None => None,
-        }
+        bytes_to_utf8(&self.mime_d)
     }
 }
 
@@ -143,14 +138,18 @@ impl From<Setup> for SetupPayload {
     fn from(input: Setup) -> SetupPayload {
         let mut bu = SetupPayload::builder();
         // TODO: fill other properties.
-        bu = bu.set_data_mime_type(input.get_mime_data());
-        bu = bu.set_metadata_mime_type(input.get_mime_metadata());
-        let ka = (input.get_keepalive(), input.get_lifetime());
+        if let Some(m) = input.get_mime_data() {
+            bu = bu.set_data_mime_type(m);
+        }
+        if let Some(m) = input.get_mime_metadata() {
+            bu = bu.set_metadata_mime_type(m);
+        }
+        let keepalive = (input.get_keepalive(), input.get_lifetime());
         let (d, m) = input.split();
         bu.inner.d = d;
         bu.inner.m = m;
         let mut pa = bu.build();
-        pa.keepalive = ka;
+        pa.keepalive = keepalive;
         pa
     }
 }
