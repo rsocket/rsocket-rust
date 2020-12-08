@@ -63,7 +63,7 @@ impl RoutingMetadata {
         if bf.len() < size {
             return Err(RSocketError::WithDescription("require more bytes!".into()).into());
         }
-        let tag = String::from_utf8(bf.split_to(size).to_vec()).unwrap();
+        let tag = String::from_utf8(bf.split_to(size).to_vec())?;
         Ok(Some(tag))
     }
 }

@@ -64,7 +64,7 @@ impl Error {
 
     pub fn get_data_utf8(&self) -> Option<&str> {
         match &self.data {
-            Some(b) => Some(std::str::from_utf8(b.as_ref()).expect("Invalid UTF-8 bytes.")),
+            Some(b) => std::str::from_utf8(b).ok(),
             None => None,
         }
     }

@@ -10,7 +10,7 @@ fn test_encode_and_decode() {
             extension::MimeType::TEXT_PLAIN,
             *metadatas[0].get_mime_type()
         );
-        assert_eq!("Hello World!", metadatas[0].get_metadata_utf8());
+        assert_eq!("Hello World!", metadatas[0].get_metadata_utf8().unwrap());
         assert_eq!(
             MimeType::from("application/not_well"),
             *metadatas[1].get_mime_type()

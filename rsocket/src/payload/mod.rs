@@ -1,3 +1,4 @@
+mod misc;
 mod normal;
 mod setup;
 

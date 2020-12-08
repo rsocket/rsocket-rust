@@ -99,12 +99,12 @@ impl Setup {
         }
     }
 
-    pub fn get_mime_metadata(&self) -> &str {
-        std::str::from_utf8(self.mime_metadata.as_ref()).expect("Invalid UTF-8 bytes.")
+    pub fn get_mime_metadata(&self) -> Option<&str> {
+        std::str::from_utf8(&self.mime_metadata).ok()
     }
 
-    pub fn get_mime_data(&self) -> &str {
-        std::str::from_utf8(self.mime_data.as_ref()).expect("Invalid UTF-8 bytes.")
+    pub fn get_mime_data(&self) -> Option<&str> {
+        std::str::from_utf8(&self.mime_data).ok()
     }
 
     pub fn get_metadata(&self) -> Option<&Bytes> {

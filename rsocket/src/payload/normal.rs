@@ -1,3 +1,4 @@
+use super::misc::bytes_to_utf8;
 use crate::frame;
 use bytes::Bytes;
 
@@ -77,17 +78,11 @@ impl Payload {
     }
 
     pub fn data_utf8(&self) -> Option<&str> {
-        match &self.d {
-            Some(b) => Some(std::str::from_utf8(b.as_ref()).expect("Invalid UTF-8 bytes.")),
-            None => None,
-        }
+        bytes_to_utf8(&self.d)
     }
 
     pub fn metadata_utf8(&self) -> Option<&str> {
-        match &self.m {
-            Some(b) => Some(std::str::from_utf8(b.as_ref()).expect("Invalid UTF-8 bytes.")),
-            None => None,
-        }
+        bytes_to_utf8(&self.m)
     }
 
     pub fn is_empty(&self) -> bool {
