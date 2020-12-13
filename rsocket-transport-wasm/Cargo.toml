@@ -11,24 +11,24 @@ description = "WASM Websocket RSocket transport implementation."
 
 [dependencies]
 bytes = "0.6.0"
-wasm-bindgen-futures = "0.4.18"
-futures-channel = "0.3.7"
-futures-util = "0.3.7"
-js-sys = "0.3.45"
-serde = "1.0.117"
-serde_derive = "1.0.117"
-async-trait = "0.1.41"
+wasm-bindgen-futures = "0.4.19"
+futures-channel = "0.3.8"
+futures-util = "0.3.8"
+js-sys = "0.3.46"
+serde = "1.0.118"
+serde_derive = "1.0.118"
+async-trait = "0.1.42"
 
 [dependencies.rsocket_rust]
-path = "../rsocket"
+version = "0.6.0"
 features = ["frame"]
 
 [dependencies.wasm-bindgen]
-version = "0.2.68"
+version = "0.2.69"
 features = ["serde-serialize"]
 
 [dependencies.web-sys]
-version = "0.3.45"
+version = "0.3.46"
 features = [
   "FileReader",
   "ProgressEvent",
