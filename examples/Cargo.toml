@@ -14,16 +14,16 @@ tokio-postgres = "0.6.0"
 redis = "0.17.0"
 
 [dev-dependencies.rsocket_rust]
-version = "0.6.0"
+path = "../rsocket"
 
 [dev-dependencies.rsocket_rust_transport_tcp]
-version = "0.6.0"
+path = "../rsocket-transport-tcp"
 
 [dev-dependencies.rsocket_rust_transport_websocket]
-version = "0.6.0"
+path = "../rsocket-transport-websocket"
 
 [dev-dependencies.tokio]
-version = "0.3.5"
+version = "0.3.6"
 default-features = false
 features = ["full"]
 
