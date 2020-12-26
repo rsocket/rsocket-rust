@@ -3,6 +3,7 @@ extern crate log;
 
 use futures::stream;
 use rsocket_rust::prelude::*;
+use rsocket_rust::utils::EchoRSocket;
 use rsocket_rust::Client;
 use rsocket_rust_transport_tcp::{
     TcpClientTransport, TcpServerTransport, UnixClientTransport, UnixServerTransport,
@@ -216,13 +217,13 @@ async fn exec_request_response(socket: &Client) {
 async fn exec_metadata_push(socket: &Client) {
     let pa = Payload::builder().set_metadata_utf8("Hello World!").build();
     // metadata push
-    socket.metadata_push(pa).await;
+    let _ = socket.metadata_push(pa).await;
 }
 
 async fn exec_fire_and_forget(socket: &Client) {
     // request fnf
     let fnf = Payload::from("Hello World!");
-    socket.fire_and_forget(fnf).await;
+    let _ = socket.fire_and_forget(fnf).await;
 }
 
 async fn exec_request_stream(socket: &Client) {

@@ -2,11 +2,12 @@ use crate::error::{RSocketError, ERR_CONN_CLOSED};
 use crate::frame::{self, Frame};
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::runtime;
-use crate::spi::{ClientResponder, Flux, Mono, RSocket};
+use crate::spi::{ClientResponder, Flux, RSocket};
 use crate::transport::{
     self, Acceptor, Connection, DuplexSocket, Reader, Splitter, Transport, Writer,
 };
 use crate::Result;
+use async_trait::async_trait;
 use futures::{future, select, FutureExt, SinkExt, StreamExt};
 use std::error::Error;
 use std::net::SocketAddr;
@@ -209,17 +210,18 @@ impl Client {
     }
 }
 
+#[async_trait]
 impl RSocket for Client {
-    fn metadata_push(&self, req: Payload) -> Mono<()> {
-        self.socket.metadata_push(req)
+    async fn metadata_push(&self, req: Payload) -> Result<()> {
+        self.socket.metadata_push(req).await
     }
 
-    fn fire_and_forget(&self, req: Payload) -> Mono<()> {
-        self.socket.fire_and_forget(req)
+    async fn fire_and_forget(&self, req: Payload) -> Result<()> {
+        self.socket.fire_and_forget(req).await
     }
 
-    fn request_response(&self, req: Payload) -> Mono<Result<Payload>> {
-        self.socket.request_response(req)
+    async fn request_response(&self, req: Payload) -> Result<Payload> {
+        self.socket.request_response(req).await
     }
 
     fn request_stream(&self, req: Payload) -> Flux<Result<Payload>> {

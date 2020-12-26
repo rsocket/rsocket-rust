@@ -3,6 +3,7 @@ extern crate log;
 
 use futures::executor::block_on;
 use rsocket_rust::prelude::*;
+use rsocket_rust::utils::EchoRSocket;
 use rsocket_rust::Result;
 use rsocket_rust_transport_tcp::*;
 

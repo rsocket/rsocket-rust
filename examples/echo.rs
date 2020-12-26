@@ -4,6 +4,7 @@ extern crate log;
 use clap::{App, Arg, SubCommand};
 use rsocket_rust::prelude::*;
 use rsocket_rust::transport::Connection;
+use rsocket_rust::utils::EchoRSocket;
 use rsocket_rust::Result;
 use rsocket_rust_transport_tcp::{
     TcpClientTransport, TcpServerTransport, UnixClientTransport, UnixServerTransport,
@@ -50,7 +51,7 @@ where
 
     match mode {
         RequestMode::FNF => {
-            cli.fire_and_forget(req).await;
+            cli.fire_and_forget(req).await?;
         }
         RequestMode::STREAM => {
             let mut results = cli.request_stream(req);
@@ -79,7 +80,7 @@ where
             }
         }
         RequestMode::REQUEST => {
-            let res = cli.request_response(req).await.expect("Request failed!");
+            let res = cli.request_response(req).await?;
             info!("{:?}", res);
         }
     }

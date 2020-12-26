@@ -87,7 +87,7 @@ impl JsClient {
         let request: JsPayload = request.into_serde().unwrap();
 
         future_to_promise(async move {
-            inner.fire_and_forget(request.into()).await;
+            let _ = inner.fire_and_forget(request.into()).await;
             Ok(JsValue::NULL)
         })
     }

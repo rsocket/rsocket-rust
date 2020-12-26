@@ -259,8 +259,7 @@ impl RequestSpec {
 
     pub async fn retrieve(self) -> Result<()> {
         let (req, _mime_type, rsocket) = self.preflight()?;
-        rsocket.fire_and_forget(req).await;
-        Ok(())
+        rsocket.fire_and_forget(req).await
     }
 
     pub async fn retrieve_mono(self) -> Unpacker {
@@ -364,10 +363,16 @@ fn do_unmarshal<T>(mime_type: &MimeType, raw: &Bytes) -> Result<Option<T>>
 where
     T: Sized + DeserializeOwned,
 {
-    // TODO: support more mime types
-    match *mime_type {
-        MimeType::APPLICATION_JSON => Ok(Some(unmarshal(misc::json(), &raw.as_ref())?)),
-        MimeType::APPLICATION_CBOR => Ok(Some(unmarshal(misc::cbor(), &raw.as_ref())?)),
+    match mime_type.as_u8() {
+        Some(code) => {
+            if code == MimeType::APPLICATION_JSON.as_u8().unwrap() {
+                Ok(Some(unmarshal(misc::json(), &raw.as_ref())?))
+            } else if code == MimeType::APPLICATION_CBOR.as_u8().unwrap() {
+                Ok(Some(unmarshal(misc::cbor(), &raw.as_ref())?))
+            } else {
+                Err(RSocketError::WithDescription("unsupported mime type!".into()).into())
+            }
+        }
         _ => Err(RSocketError::WithDescription("unsupported mime type!".into()).into()),
     }
 }
@@ -376,10 +381,16 @@ fn do_marshal<T>(mime_type: &MimeType, data: &T) -> Result<Vec<u8>>
 where
     T: Sized + Serialize,
 {
-    // TODO: support more mime types
-    match *mime_type {
-        MimeType::APPLICATION_JSON => marshal(misc::json(), data),
-        MimeType::APPLICATION_CBOR => marshal(misc::cbor(), data),
+    match mime_type.as_u8() {
+        Some(code) => {
+            if code == MimeType::APPLICATION_JSON.as_u8().unwrap() {
+                marshal(misc::json(), data)
+            } else if code == MimeType::APPLICATION_CBOR.as_u8().unwrap() {
+                marshal(misc::cbor(), data)
+            } else {
+                Err(RSocketError::WithDescription("unsupported mime type!".into()).into())
+            }
+        }
         _ => Err(RSocketError::WithDescription("unsupported mime type!".into()).into()),
     }
 }

@@ -1,11 +1,84 @@
+use super::spi::{Flux, RSocket};
 use crate::error::RSocketError;
+use crate::payload::Payload;
+use crate::Result;
+use async_trait::async_trait;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+use futures::{pin_mut, FutureExt, Sink, SinkExt, Stream, StreamExt};
 use std::error::Error;
 use std::future::Future;
 use std::pin::Pin;
-use std::result::Result;
+use tokio::sync::mpsc;
 
 pub const DEFAULT_MIME_TYPE: &str = "application/binary";
+
+pub struct EchoRSocket;
+
+#[async_trait]
+impl RSocket for EchoRSocket {
+    async fn metadata_push(&self, req: Payload) -> Result<()> {
+        info!("{:?}", req);
+        Ok(())
+    }
+
+    async fn fire_and_forget(&self, req: Payload) -> Result<()> {
+        info!("{:?}", req);
+        Ok(())
+    }
+
+    async fn request_response(&self, req: Payload) -> Result<Payload> {
+        info!("{:?}", req);
+        Ok(req)
+    }
+
+    fn request_stream(&self, req: Payload) -> Flux<Result<Payload>> {
+        info!("{:?}", req);
+        // repeat 3 times.
+        Box::pin(futures::stream::iter(vec![
+            Ok(req.clone()),
+            Ok(req.clone()),
+            Ok(req),
+        ]))
+    }
+
+    fn request_channel(&self, mut reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>> {
+        let (sender, receiver) = mpsc::unbounded_channel();
+        tokio::spawn(async move {
+            while let Some(it) = reqs.next().await {
+                info!("{:?}", it);
+                sender.send(it).unwrap();
+            }
+        });
+        Box::pin(receiver)
+        // or returns directly
+        // reqs
+    }
+}
+
+pub(crate) struct EmptyRSocket;
+
+#[async_trait]
+impl RSocket for EmptyRSocket {
+    async fn metadata_push(&self, _req: Payload) -> Result<()> {
+        Err(RSocketError::ApplicationException("UNIMPLEMENT".into()).into())
+    }
+
+    async fn fire_and_forget(&self, _req: Payload) -> Result<()> {
+        Err(RSocketError::ApplicationException("UNIMPLEMENT".into()).into())
+    }
+
+    async fn request_response(&self, _req: Payload) -> Result<Payload> {
+        Err(RSocketError::ApplicationException("UNIMPLEMENT".into()).into())
+    }
+
+    fn request_stream(&self, _req: Payload) -> Flux<Result<Payload>> {
+        Box::pin(futures::stream::empty())
+    }
+
+    fn request_channel(&self, _reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>> {
+        Box::pin(futures::stream::empty())
+    }
+}
 
 pub trait Writeable {
     fn write_to(&self, bf: &mut BytesMut);

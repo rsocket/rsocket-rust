@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use redis::Client as RedisClient;
 use rsocket_rust::prelude::*;
 use rsocket_rust::Result;
@@ -28,33 +29,34 @@ impl FromStr for RedisDao {
     }
 }
 
+#[async_trait]
 impl RSocket for RedisDao {
-    fn request_response(&self, req: Payload) -> Mono<Result<Payload>> {
+    async fn request_response(&self, req: Payload) -> Result<Payload> {
         let client = self.inner.clone();
-
-        Box::pin(async move {
-            let mut conn: redis::aio::Connection = client
-                .get_async_connection()
-                .await
-                .expect("Connect redis failed!");
-            let value: String = redis::cmd("GET")
-                .arg(&[req.data_utf8()])
-                .query_async(&mut conn)
-                .await
-                .unwrap_or("<nil>".to_owned());
-            Ok(Payload::builder().set_data_utf8(&value).build())
-        })
+        let mut conn: redis::aio::Connection = client
+            .get_async_connection()
+            .await
+            .expect("Connect redis failed!");
+        let value: String = redis::cmd("GET")
+            .arg(&[req.data_utf8()])
+            .query_async(&mut conn)
+            .await
+            .unwrap_or("<nil>".to_owned());
+        Ok(Payload::builder().set_data_utf8(&value).build())
     }
 
-    fn metadata_push(&self, _req: Payload) -> Mono<()> {
+    async fn metadata_push(&self, _req: Payload) -> Result<()> {
         unimplemented!()
     }
-    fn fire_and_forget(&self, _req: Payload) -> Mono<()> {
+
+    async fn fire_and_forget(&self, _req: Payload) -> Result<()> {
         unimplemented!()
     }
+
     fn request_stream(&self, _req: Payload) -> Flux<Result<Payload>> {
         unimplemented!()
     }
+
     fn request_channel(&self, _reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>> {
         unimplemented!()
     }

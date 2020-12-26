@@ -18,6 +18,7 @@ async-trait = "0.1.42"
 dashmap = "3.11.10"
 thiserror = "1.0.22"
 anyhow = "1.0.36"
+async-stream = "0.3.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen-futures = "0.4.19"
