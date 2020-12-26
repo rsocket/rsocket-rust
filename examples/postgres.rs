@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate log;
 
+use async_trait::async_trait;
 use rsocket_rust::prelude::*;
 use rsocket_rust::Result;
 use rsocket_rust_transport_tcp::TcpServerTransport;
@@ -24,24 +25,23 @@ struct Dao {
     client: Arc<PgClient>,
 }
 
+#[async_trait]
 impl RSocket for Dao {
-    fn request_response(&self, _: Payload) -> Mono<Result<Payload>> {
+    async fn request_response(&self, _: Payload) -> Result<Payload> {
         let client = self.client.clone();
-        Box::pin(async move {
-            let row = client
-                .query_one("SELECT 'world' AS hello", &[])
-                .await
-                .expect("Execute SQL failed!");
-            let result: String = row.get("hello");
-            Ok(Payload::builder().set_data_utf8(&result).build())
-        })
+        let row = client
+            .query_one("SELECT 'world' AS hello", &[])
+            .await
+            .expect("Execute SQL failed!");
+        let result: String = row.get("hello");
+        Ok(Payload::builder().set_data_utf8(&result).build())
     }
 
-    fn metadata_push(&self, _: Payload) -> Mono<()> {
+    async fn metadata_push(&self, _: Payload) -> Result<()> {
         unimplemented!()
     }
 
-    fn fire_and_forget(&self, _: Payload) -> Mono<()> {
+    async fn fire_and_forget(&self, _: Payload) -> Result<()> {
         unimplemented!()
     }
 

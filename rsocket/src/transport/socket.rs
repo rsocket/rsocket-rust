@@ -4,16 +4,19 @@ use super::spi::*;
 use crate::error::{self, RSocketError};
 use crate::frame::{self, Body, Frame};
 use crate::payload::{Payload, SetupPayload};
-use crate::spi::{EmptyRSocket, Flux, Mono, RSocket};
+use crate::spi::{Flux, RSocket};
+use crate::utils::EmptyRSocket;
 use crate::{runtime, Result};
+use async_stream::stream;
+use async_trait::async_trait;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use dashmap::{mapref::entry::Entry, DashMap};
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use tokio::prelude::*;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, RwLock};
 
 #[derive(Clone)]
 pub(crate) struct DuplexSocket {
@@ -115,7 +118,10 @@ impl DuplexSocket {
         debug_frame(false, &msg);
         match msg.get_body() {
             Body::Setup(v) => {
-                if let Err(e) = self.on_setup(acceptor, sid, flag, SetupPayload::from(v)) {
+                if let Err(e) = self
+                    .on_setup(acceptor, sid, flag, SetupPayload::from(v))
+                    .await
+                {
                     let errmsg = format!("{}", e);
                     let sending = frame::Error::builder(0, 0)
                         .set_code(error::ERR_REJECT_SETUP)
@@ -334,7 +340,7 @@ impl DuplexSocket {
     }
 
     #[inline]
-    fn on_setup(
+    async fn on_setup(
         &self,
         acceptor: &Option<Acceptor>,
         sid: u32,
@@ -343,16 +349,16 @@ impl DuplexSocket {
     ) -> Result<()> {
         match acceptor {
             None => {
-                self.responder.set(Box::new(EmptyRSocket));
+                self.responder.set(Box::new(EmptyRSocket)).await;
                 Ok(())
             }
             Some(Acceptor::Simple(gen)) => {
-                self.responder.set(gen());
+                self.responder.set(gen()).await;
                 Ok(())
             }
             Some(Acceptor::Generate(gen)) => match gen(setup, Box::new(self.clone())) {
                 Ok(it) => {
-                    self.responder.set(it);
+                    self.responder.set(it).await;
                     Ok(())
                 }
                 Err(e) => Err(e),
@@ -362,7 +368,9 @@ impl DuplexSocket {
 
     #[inline]
     async fn on_fire_and_forget(&mut self, sid: u32, input: Payload) {
-        self.responder.fire_and_forget(input).await
+        if let Err(e) = self.responder.fire_and_forget(input).await {
+            error!("respond fire_and_forget failed: {:?}", e);
+        }
     }
 
     #[inline]
@@ -484,7 +492,9 @@ impl DuplexSocket {
 
     #[inline]
     async fn on_metadata_push(&mut self, input: Payload) {
-        self.responder.metadata_push(input).await
+        if let Err(e) = self.responder.metadata_push(input).await {
+            error!("response metadata_push failed: {:?}", e);
+        }
     }
 
     #[inline]
@@ -617,82 +627,77 @@ impl DuplexSocket {
     }
 }
 
+#[async_trait]
 impl RSocket for DuplexSocket {
-    fn metadata_push(&self, req: Payload) -> Mono<()> {
+    async fn metadata_push(&self, req: Payload) -> Result<()> {
         let sid = self.seq.next();
         let tx = self.tx.clone();
-        Box::pin(async move {
-            let (_d, m) = req.split();
-            let mut bu = frame::MetadataPush::builder(sid, 0);
-            if let Some(b) = m {
-                bu = bu.set_metadata(b);
-            }
-            if let Err(e) = tx.send(bu.build()).await {
-                error!("send metadata_push failed: {}", e);
-            }
-        })
+        let (_d, m) = req.split();
+        let mut bu = frame::MetadataPush::builder(sid, 0);
+        if let Some(b) = m {
+            bu = bu.set_metadata(b);
+        }
+        tx.send(bu.build()).await?;
+        Ok(())
+        // if let Err(e) = tx.send(bu.build()).await {
+        //     error!("send metadata_push failed: {}", e);
+        // }
     }
-    fn fire_and_forget(&self, req: Payload) -> Mono<()> {
+
+    async fn fire_and_forget(&self, req: Payload) -> Result<()> {
         let sid = self.seq.next();
         let tx = self.tx.clone();
         let splitter = self.splitter.clone();
-        Box::pin(async move {
-            match splitter {
-                Some(sp) => {
-                    let mut cuts: usize = 0;
-                    let mut prev: Option<Payload> = None;
-                    for next in sp.cut(req, 0) {
-                        if let Some(cur) = prev.take() {
-                            let sending = if cuts == 1 {
-                                // make first frame as request_fnf.
-                                frame::RequestFNF::builder(sid, Frame::FLAG_FOLLOW)
-                                    .set_all(cur.split())
-                                    .build()
-                            } else {
-                                // make other frames as payload.
-                                frame::Payload::builder(sid, Frame::FLAG_FOLLOW)
-                                    .set_all(cur.split())
-                                    .build()
-                            };
-                            // send frame
-                            if let Err(e) = tx.send(sending).await {
-                                error!("send fire_and_forget failed: {}", e);
-                                return;
-                            }
-                        }
-                        prev = Some(next);
-                        cuts += 1;
-                    }
 
-                    let sending = if cuts == 0 {
-                        frame::RequestFNF::builder(sid, 0).build()
-                    } else if cuts == 1 {
-                        frame::RequestFNF::builder(sid, 0)
-                            .set_all(prev.unwrap().split())
-                            .build()
-                    } else {
-                        frame::Payload::builder(sid, 0)
-                            .set_all(prev.unwrap().split())
-                            .build()
-                    };
-                    // send frame
-                    if let Err(e) = tx.send(sending).await {
-                        error!("send fire_and_forget failed: {}", e);
+        match splitter {
+            Some(sp) => {
+                let mut cuts: usize = 0;
+                let mut prev: Option<Payload> = None;
+                for next in sp.cut(req, 0) {
+                    if let Some(cur) = prev.take() {
+                        let sending = if cuts == 1 {
+                            // make first frame as request_fnf.
+                            frame::RequestFNF::builder(sid, Frame::FLAG_FOLLOW)
+                                .set_all(cur.split())
+                                .build()
+                        } else {
+                            // make other frames as payload.
+                            frame::Payload::builder(sid, Frame::FLAG_FOLLOW)
+                                .set_all(cur.split())
+                                .build()
+                        };
+                        // send frame
+                        tx.send(sending).await?;
                     }
+                    prev = Some(next);
+                    cuts += 1;
                 }
-                None => {
-                    let sending = frame::RequestFNF::builder(sid, 0)
-                        .set_all(req.split())
-                        .build();
-                    if let Err(e) = tx.send(sending).await {
-                        error!("send fire_and_forget failed: {}", e);
-                    }
-                }
+
+                let sending = if cuts == 0 {
+                    frame::RequestFNF::builder(sid, 0).build()
+                } else if cuts == 1 {
+                    frame::RequestFNF::builder(sid, 0)
+                        .set_all(prev.unwrap().split())
+                        .build()
+                } else {
+                    frame::Payload::builder(sid, 0)
+                        .set_all(prev.unwrap().split())
+                        .build()
+                };
+                // send frame
+                tx.send(sending).await?;
             }
-        })
+            None => {
+                let sending = frame::RequestFNF::builder(sid, 0)
+                    .set_all(req.split())
+                    .build();
+                tx.send(sending).await?;
+            }
+        }
+        Ok(())
     }
 
-    fn request_response(&self, req: Payload) -> Mono<Result<Payload>> {
+    async fn request_response(&self, req: Payload) -> Result<Payload> {
         let (tx, rx) = oneshot::channel::<Result<Payload>>();
         let sid = self.seq.next();
         let handlers = self.handlers.clone();
@@ -758,14 +763,10 @@ impl RSocket for DuplexSocket {
                 }
             }
         });
-        Box::pin(async move {
-            match rx.await {
-                Ok(v) => v,
-                Err(_e) => {
-                    Err(RSocketError::WithDescription("request_response failed".into()).into())
-                }
-            }
-        })
+        match rx.await {
+            Ok(v) => v,
+            Err(_e) => Err(RSocketError::WithDescription("request_response failed".into()).into()),
+        }
     }
 
     fn request_stream(&self, input: Payload) -> Flux<Result<Payload>> {
@@ -892,35 +893,48 @@ impl Responder {
         }
     }
 
-    fn set(&self, rs: Box<dyn RSocket>) {
-        let mut v = self.inner.write().unwrap();
-        *v = rs;
+    async fn set(&self, rs: Box<dyn RSocket>) {
+        let mut w = self.inner.write().await;
+        *w = rs;
     }
 }
 
+#[async_trait]
 impl RSocket for Responder {
-    fn metadata_push(&self, req: Payload) -> Mono<()> {
-        let inner = self.inner.read().unwrap();
-        (*inner).metadata_push(req)
+    async fn metadata_push(&self, req: Payload) -> Result<()> {
+        let inner = self.inner.read().await;
+        (*inner).metadata_push(req).await
     }
 
-    fn fire_and_forget(&self, req: Payload) -> Mono<()> {
-        let inner = self.inner.read().unwrap();
-        (*inner).fire_and_forget(req)
+    async fn fire_and_forget(&self, req: Payload) -> Result<()> {
+        let inner = self.inner.read().await;
+        (*inner).fire_and_forget(req).await
     }
 
-    fn request_response(&self, req: Payload) -> Mono<Result<Payload>> {
-        let inner = self.inner.read().unwrap();
-        (*inner).request_response(req)
+    async fn request_response(&self, req: Payload) -> Result<Payload> {
+        let inner = self.inner.read().await;
+        (*inner).request_response(req).await
     }
 
     fn request_stream(&self, req: Payload) -> Flux<Result<Payload>> {
-        let inner = self.inner.read().unwrap();
-        (*inner).request_stream(req)
+        let inner = self.inner.clone();
+        Box::pin(stream! {
+            let r = inner.read().await;
+            let mut results = (*r).request_stream(req);
+            while let Some(next) = results.next().await {
+                yield next;
+            }
+        })
     }
 
     fn request_channel(&self, reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>> {
-        let inner = self.inner.read().unwrap();
-        (*inner).request_channel(reqs)
+        let inner = self.inner.clone();
+        Box::pin(stream! {
+            let r = inner.read().await;
+            let mut results = (*r).request_channel(reqs);
+            while let Some(next) = results.next().await{
+                yield next;
+            }
+        })
     }
 }

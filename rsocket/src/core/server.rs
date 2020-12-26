@@ -2,10 +2,11 @@ use crate::error::RSocketError;
 use crate::frame::{self, Frame};
 use crate::payload::SetupPayload;
 use crate::runtime;
-use crate::spi::{EmptyRSocket, RSocket, ServerResponder};
+use crate::spi::{RSocket, ServerResponder};
 use crate::transport::{
     Acceptor, Connection, DuplexSocket, ServerTransport, Splitter, Transport, MIN_MTU,
 };
+use crate::utils::EmptyRSocket;
 use crate::Result;
 use std::error::Error;
 use std::future::Future;

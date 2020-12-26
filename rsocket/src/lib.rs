@@ -37,11 +37,12 @@
 //!
 //! ```no_run,ignore
 //! use rsocket_rust::prelude::*;
+//! use rsocket_rust::utils::EchoRSocket;
+//! use rsocket_rust::Result;
 //! use rsocket_rust_transport_tcp::TcpServerTransport;
-//! use std::error::Error;
 //!
 //! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+//! async fn main() -> Result<()> {
 //!     RSocketFactory::receive()
 //!         .transport(TcpServerTransport::from("127.0.0.1:7878"))
 //!         .acceptor(Box::new(|setup, socket| {
@@ -65,11 +66,12 @@
 //!
 //! ```no_run,ignore
 //! use rsocket_rust::prelude::*;
+//! use rsocket_rust::utils::EchoRSocket;
+//! use rsocket_rust::Result;
 //! use rsocket_rust_transport_tcp::TcpClientTransport;
-//! use std::error::Error;
 //!
 //! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+//! async fn main() -> Result<()> {
 //!     let client = RSocketFactory::connect()
 //!         .transport(TcpClientTransport::from("127.0.0.1:7878"))
 //!         .acceptor(Box::new(|| {
@@ -112,6 +114,5 @@ pub mod utils;
 
 pub type Error = Box<dyn std::error::Error + Sync + Send>;
 pub type Result<T> = anyhow::Result<T>;
-pub type PinBoxFuture<T> = std::pin::Pin<Box<dyn std::future::Future<Output = T>>>;
 
 pub use crate::core::{Client, ClientBuilder, ServerBuilder};
