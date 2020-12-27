@@ -10,8 +10,6 @@ log = "0.4.11"
 env_logger = "0.8.2"
 futures = "0.3.8"
 clap = "2.33.3"
-tokio-postgres = "0.6.0"
-redis = "0.16.0"
 async-trait = "0.1.42"
 
 [dev-dependencies.rsocket_rust]
@@ -43,11 +41,3 @@ path = "cli.rs"
 [[example]]
 name = "qps"
 path = "qps.rs"
-
-[[example]]
-name = "postgres"
-path = "postgres.rs"
-
-[[example]]
-name = "redis"
-path = "redis.rs"
