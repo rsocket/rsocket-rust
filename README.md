@@ -21,32 +21,26 @@ Add dependencies in your `Cargo.toml`.
 
 ```toml
 [dependencies]
-tokio = "0.2"
-rsocket_rust = "*"
+tokio = "0.3.6"
+rsocket_rust = "0.7.0"
 
-# choose transport:
-# rsocket_rust_transport_tcp = "*"
-# rsocket_rust_transport_websocket = "*"
+# add transport dependencies:
+# rsocket_rust_transport_tcp = "0.7.0"
+# rsocket_rust_transport_websocket = "0.7.0"
 ```
 
 ### Server
 
 ```rust
-#[macro_use]
-extern crate log;
-
 use rsocket_rust::prelude::*;
+use rsocket_rust::utils::EchoRSocket;
+use rsocket_rust::Result;
 use rsocket_rust_transport_tcp::TcpServerTransport;
-use std::env;
-use std::error::Error;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    env_logger::builder().format_timestamp_millis().init();
-    let addr = env::args().nth(1).unwrap_or("127.0.0.1:7878".to_string());
-
+async fn main() -> Result<()> {
     RSocketFactory::receive()
-        .transport(TcpServerTransport::from(addr))
+        .transport(TcpServerTransport::from("127.0.0.1:7878"))
         .acceptor(Box::new(|setup, _socket| {
             info!("accept setup: {:?}", setup);
             Ok(Box::new(EchoRSocket))
@@ -63,24 +57,22 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
 ```rust
 use rsocket_rust::prelude::*;
+use rsocket_rust::Result;
 use rsocket_rust_transport_tcp::TcpClientTransport;
 
 #[tokio::main]
-#[test]
-async fn test() {
+async fn main() -> Result<()> {
     let cli = RSocketFactory::connect()
-        .acceptor(Box::new(|| Box::new(EchoRSocket)))
         .transport(TcpClientTransport::from("127.0.0.1:7878"))
         .setup(Payload::from("READY!"))
         .mime_type("text/plain", "text/plain")
         .start()
-        .await
-        .unwrap();
+        .await?;
     let req = Payload::builder()
         .set_data_utf8("Hello World!")
         .set_metadata_utf8("Rust")
         .build();
-    let res = cli.request_response(req).await.unwrap();
+    let res = cli.request_response(req).await?;
     println!("got: {:?}", res);
     cli.close();
 }
@@ -100,7 +92,7 @@ async fn test() {
   - [ ] Cancel
   - [x] Fragmentation
   - [ ] Resume
-  - [ ] Keepalive
+  - [x] Keepalive
 - QoS
   - [ ] RequestN
   - [ ] Lease
