@@ -98,10 +98,7 @@ fn to_vec(input: JsValue) -> Option<Vec<u8>> {
     if input.is_null() || input.is_undefined() {
         None
     } else if input.is_string() {
-        match input.as_string() {
-            Some(s) => Some(s.into_bytes()),
-            None => None,
-        }
+        input.as_string().map(|s| s.into_bytes())
     } else {
         Some(Uint8Array::from(input).to_vec())
     }

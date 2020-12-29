@@ -93,10 +93,7 @@ impl Setup {
     }
 
     pub fn get_token(&self) -> Option<&Bytes> {
-        match &self.token {
-            Some(b) => Some(b),
-            None => None,
-        }
+        self.token.as_ref()
     }
 
     pub fn get_mime_metadata(&self) -> Option<&str> {
@@ -108,17 +105,11 @@ impl Setup {
     }
 
     pub fn get_metadata(&self) -> Option<&Bytes> {
-        match &self.metadata {
-            Some(b) => Some(b),
-            None => None,
-        }
+        self.metadata.as_ref()
     }
 
     pub fn get_data(&self) -> Option<&Bytes> {
-        match &self.data {
-            Some(b) => Some(b),
-            None => None,
-        }
+        self.data.as_ref()
     }
 
     pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {

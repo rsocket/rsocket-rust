@@ -37,10 +37,7 @@ impl Writer for InnerWriter {
 #[async_trait]
 impl Reader for InnerReader {
     async fn read(&mut self) -> Option<Result<Frame>> {
-        match self.rx.next().await {
-            Some(frame) => Some(Ok(frame)),
-            None => None,
-        }
+        self.rx.next().await.map(|frame| Ok(frame))
     }
 }
 

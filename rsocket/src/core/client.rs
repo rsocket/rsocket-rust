@@ -120,10 +120,7 @@ where
         let mut socket = DuplexSocket::new(1, snd_tx, splitter).await;
 
         let mut cloned_socket = socket.clone();
-        let acceptor: Option<Acceptor> = match self.responder {
-            Some(it) => Some(Acceptor::Simple(Arc::new(it))),
-            None => None,
-        };
+        let acceptor: Option<Acceptor> = self.responder.map(|it| Acceptor::Simple(Arc::new(it)));
 
         let conn = tp.connect().await?;
         let (mut sink, mut stream) = conn.split();

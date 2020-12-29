@@ -70,10 +70,7 @@ impl Error {
     }
 
     pub fn get_data(&self) -> Option<&Bytes> {
-        match &self.data {
-            Some(b) => Some(b),
-            None => None,
-        }
+        self.data.as_ref()
     }
 
     pub fn get_code(&self) -> u32 {
