@@ -49,11 +49,10 @@ impl Writer for InnerWriter {
 #[async_trait]
 impl Reader for InnerReader {
     async fn read(&mut self) -> Option<Result<Frame>> {
-        match self.stream.next().await {
-            Some(Ok(frame)) => Some(Ok(frame)),
-            Some(Err(e)) => Some(Err(RSocketError::IO(e).into())),
-            None => None,
-        }
+        self.stream
+            .next()
+            .await
+            .map(|it| it.map_err(|e| RSocketError::IO(e).into()))
     }
 }
 

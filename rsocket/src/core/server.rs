@@ -65,11 +65,7 @@ where
 
     pub async fn serve(mut self) -> Result<()> {
         let mut server_transport = self.transport.take().expect("missing transport");
-
-        let acceptor = match self.on_setup {
-            Some(v) => Some(Acceptor::Generate(Arc::new(v))),
-            None => None,
-        };
+        let acceptor = self.on_setup.map(|v| Acceptor::Generate(Arc::new(v)));
 
         let mtu = self.mtu;
 

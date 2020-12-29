@@ -100,17 +100,11 @@ impl SetupPayloadBuilder {
 
 impl SetupPayload {
     pub fn metadata(&self) -> Option<&Bytes> {
-        match &self.m {
-            Some(b) => Some(b),
-            None => None,
-        }
+        self.m.as_ref()
     }
 
     pub fn data(&self) -> Option<&Bytes> {
-        match &self.d {
-            Some(b) => Some(b),
-            None => None,
-        }
+        self.d.as_ref()
     }
 
     pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {

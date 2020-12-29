@@ -44,10 +44,7 @@ impl MetadataPush {
     }
 
     pub fn get_metadata(&self) -> Option<&Bytes> {
-        match &self.metadata {
-            Some(b) => Some(b),
-            None => None,
-        }
+        self.metadata.as_ref()
     }
 
     pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {

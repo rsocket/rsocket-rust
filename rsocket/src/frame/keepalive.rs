@@ -68,10 +68,7 @@ impl Keepalive {
     }
 
     pub fn get_data(&self) -> Option<&Bytes> {
-        match &self.data {
-            Some(b) => Some(b),
-            None => None,
-        }
+        self.data.as_ref()
     }
 
     pub fn split(self) -> (Option<Bytes>, Option<Bytes>) {
