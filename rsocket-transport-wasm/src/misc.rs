@@ -73,10 +73,11 @@ impl JsClient {
         let request: JsPayload = request.into_serde().unwrap();
         future_to_promise(async move {
             match inner.request_response(request.into()).await {
-                Ok(v) => {
+                Ok(Some(v)) => {
                     let jp = JsPayload::from(v);
                     Ok((&jp).into())
                 }
+                Ok(None) => Ok(JsValue::UNDEFINED),
                 Err(e) => Err(JsValue::from(&format!("{:?}", e))),
             }
         })

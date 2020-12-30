@@ -36,7 +36,7 @@ struct Responder {
 
 #[derive(Debug)]
 enum Handler {
-    ReqRR(oneshot::Sender<Result<Payload>>),
+    ReqRR(oneshot::Sender<Result<Option<Payload>>>),
     ResRR(Counter),
     ReqRS(mpsc::Sender<Result<Payload>>),
     ReqRC(mpsc::Sender<Result<Payload>>),
@@ -261,12 +261,12 @@ impl DuplexSocket {
         // pick handler
         if let Some((_, handler)) = self.handlers.remove(&sid) {
             let desc = input.get_data_utf8().unwrap().to_owned();
-            let e: Result<_> = Err(RSocketError::must_new_from_code(input.get_code(), desc).into());
+            let e = RSocketError::must_new_from_code(input.get_code(), desc);
             match handler {
-                Handler::ReqRR(tx) => tx.send(e).expect("Send RR failed"),
+                Handler::ReqRR(tx) => tx.send(Err(e.into())).expect("Send RR failed"),
                 Handler::ResRR(_) => unreachable!(),
-                Handler::ReqRS(tx) => tx.send(e).await.expect("Send RS failed"),
-                Handler::ReqRC(tx) => tx.send(e).await.expect("Send RC failed"),
+                Handler::ReqRS(tx) => tx.send(Err(e.into())).await.expect("Send RS failed"),
+                Handler::ReqRC(tx) => tx.send(Err(e.into())).await.expect("Send RC failed"),
             }
         }
     }
@@ -303,7 +303,11 @@ impl DuplexSocket {
                 match o.get() {
                     Handler::ReqRR(_) => match o.remove() {
                         Handler::ReqRR(sender) => {
-                            sender.send(Ok(input)).unwrap();
+                            if flag & Frame::FLAG_NEXT != 0 {
+                                sender.send(Ok(Some(input))).unwrap();
+                            } else {
+                                sender.send(Ok(None)).unwrap();
+                            }
                         }
                         _ => unreachable!(),
                     },
@@ -394,7 +398,7 @@ impl DuplexSocket {
             canceller.send(sid).await.expect("Send canceller failed");
 
             match result {
-                Ok(res) => {
+                Ok(Some(res)) => {
                     Self::try_send_payload(
                         &splitter,
                         &mut tx,
@@ -403,6 +407,9 @@ impl DuplexSocket {
                         Frame::FLAG_NEXT | Frame::FLAG_COMPLETE,
                     )
                     .await;
+                }
+                Ok(None) => {
+                    Self::try_send_complete(&mut tx, sid, Frame::FLAG_COMPLETE).await;
                 }
                 Err(e) => {
                     let sending = frame::Error::builder(sid, 0)
@@ -571,6 +578,14 @@ impl DuplexSocket {
     }
 
     #[inline]
+    async fn try_send_complete(tx: &mut mpsc::Sender<Frame>, sid: u32, flag: u16) {
+        let sending = frame::Payload::builder(sid, flag).build();
+        if let Err(e) = tx.send(sending).await {
+            error!("respond failed: {}", e);
+        }
+    }
+
+    #[inline]
     async fn try_send_payload(
         splitter: &Option<Splitter>,
         tx: &mut mpsc::Sender<Frame>,
@@ -697,8 +712,8 @@ impl RSocket for DuplexSocket {
         Ok(())
     }
 
-    async fn request_response(&self, req: Payload) -> Result<Payload> {
-        let (tx, rx) = oneshot::channel::<Result<Payload>>();
+    async fn request_response(&self, req: Payload) -> Result<Option<Payload>> {
+        let (tx, rx) = oneshot::channel::<Result<Option<Payload>>>();
         let sid = self.seq.next();
         let handlers = self.handlers.clone();
         let sender = self.tx.clone();
@@ -911,7 +926,7 @@ impl RSocket for Responder {
         (*inner).fire_and_forget(req).await
     }
 
-    async fn request_response(&self, req: Payload) -> Result<Payload> {
+    async fn request_response(&self, req: Payload) -> Result<Option<Payload>> {
         let inner = self.inner.read().await;
         (*inner).request_response(req).await
     }

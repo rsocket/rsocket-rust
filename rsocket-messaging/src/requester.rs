@@ -15,7 +15,7 @@ use url::Url;
 type FnMetadata = Box<dyn FnMut() -> Result<(MimeType, Vec<u8>)>>;
 type FnData = Box<dyn FnMut(&MimeType) -> Result<Vec<u8>>>;
 type PreflightResult = Result<(Payload, MimeType, Arc<Box<dyn RSocket>>)>;
-type UnpackerResult = Result<(MimeType, Payload)>;
+type UnpackerResult = Result<(MimeType, Option<Payload>)>;
 type UnpackersResult = Result<(MimeType, Flux<Result<Payload>>)>;
 
 enum TransportKind {
@@ -352,8 +352,11 @@ impl Unpacker {
         T: Sized + DeserializeOwned,
     {
         let (mime_type, inner) = self.inner?;
-        match inner.data() {
-            Some(raw) => do_unmarshal(&mime_type, raw),
+        match inner {
+            Some(it) => match it.data() {
+                Some(raw) => do_unmarshal(&mime_type, raw),
+                None => Ok(None),
+            },
             None => Ok(None),
         }
     }

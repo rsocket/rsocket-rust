@@ -18,7 +18,7 @@ pub type Flux<T> = Pin<Box<dyn Send + Stream<Item = T>>>;
 pub trait RSocket: Sync + Send {
     async fn metadata_push(&self, req: Payload) -> Result<()>;
     async fn fire_and_forget(&self, req: Payload) -> Result<()>;
-    async fn request_response(&self, req: Payload) -> Result<Payload>;
+    async fn request_response(&self, req: Payload) -> Result<Option<Payload>>;
     fn request_stream(&self, req: Payload) -> Flux<Result<Payload>>;
     fn request_channel(&self, reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>>;
 }
