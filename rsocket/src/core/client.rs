@@ -217,7 +217,7 @@ impl RSocket for Client {
         self.socket.fire_and_forget(req).await
     }
 
-    async fn request_response(&self, req: Payload) -> Result<Payload> {
+    async fn request_response(&self, req: Payload) -> Result<Option<Payload>> {
         self.socket.request_response(req).await
     }
 

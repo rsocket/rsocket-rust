@@ -26,9 +26,9 @@ impl RSocket for EchoRSocket {
         Ok(())
     }
 
-    async fn request_response(&self, req: Payload) -> Result<Payload> {
+    async fn request_response(&self, req: Payload) -> Result<Option<Payload>> {
         info!("{:?}", req);
-        Ok(req)
+        Ok(Some(req))
     }
 
     fn request_stream(&self, req: Payload) -> Flux<Result<Payload>> {
@@ -67,7 +67,7 @@ impl RSocket for EmptyRSocket {
         Err(RSocketError::ApplicationException("UNIMPLEMENT".into()).into())
     }
 
-    async fn request_response(&self, _req: Payload) -> Result<Payload> {
+    async fn request_response(&self, _req: Payload) -> Result<Option<Payload>> {
         Err(RSocketError::ApplicationException("UNIMPLEMENT".into()).into())
     }
 
