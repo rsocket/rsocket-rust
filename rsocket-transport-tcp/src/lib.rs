@@ -8,6 +8,13 @@ mod connection;
 mod misc;
 mod server;
 
-pub use client::{TcpClientTransport, TlsClientTransport, UnixClientTransport};
-pub use connection::{TcpConnection, TlsConnection, UnixConnection};
-pub use server::{TcpServerTransport, TlsServerTransport, UnixServerTransport};
+pub use client::{TcpClientTransport, UnixClientTransport};
+pub use connection::{TcpConnection, UnixConnection};
+pub use server::{TcpServerTransport, UnixServerTransport};
+
+#[cfg(feature = "tls")]
+pub use client::TlsClientTransport;
+#[cfg(feature = "tls")]
+pub use connection::TlsConnection;
+#[cfg(feature = "tls")]
+pub use server::TlsServerTransport;

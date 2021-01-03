@@ -9,6 +9,10 @@ repository = "https://github.com/rsocket/rsocket-rust"
 homepage = "https://github.com/rsocket/rsocket-rust"
 description = "TCP RSocket transport implementation."
 
+[features]
+default = []
+tls = ["tokio-native-tls"]
+
 [dependencies]
 log = "0.4.11"
 futures = "0.3.8"
@@ -30,4 +34,5 @@ default-features = false
 features = ["codec"]
 
 [dependencies.tokio-native-tls]
+optional = true
 version = "0.2.0"
