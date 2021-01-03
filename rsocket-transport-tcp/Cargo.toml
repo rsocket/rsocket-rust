@@ -28,3 +28,6 @@ features = [ "rt", "rt-multi-thread", "net", "sync", "stream", "io-util", "macro
 version = "0.5.1"
 default-features = false
 features = ["codec"]
+
+[dependencies.tokio-native-tls]
+version = "0.2.0"

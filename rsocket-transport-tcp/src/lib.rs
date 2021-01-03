@@ -8,6 +8,6 @@ mod connection;
 mod misc;
 mod server;
 
-pub use client::{TcpClientTransport, UnixClientTransport};
-pub use connection::{TcpConnection, UnixConnection};
-pub use server::{TcpServerTransport, UnixServerTransport};
+pub use client::{TcpClientTransport, TlsClientTransport, UnixClientTransport};
+pub use connection::{TcpConnection, TlsConnection, UnixConnection};
+pub use server::{TcpServerTransport, TlsServerTransport, UnixServerTransport};

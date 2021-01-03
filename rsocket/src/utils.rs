@@ -1,7 +1,9 @@
 use super::spi::{Flux, RSocket};
 use crate::error::RSocketError;
 use crate::payload::Payload;
+use crate::runtime;
 use crate::Result;
+use async_stream::stream;
 use async_trait::async_trait;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, Stream, StreamExt};
@@ -33,22 +35,20 @@ impl RSocket for EchoRSocket {
 
     fn request_stream(&self, req: Payload) -> Flux<Result<Payload>> {
         info!("{:?}", req);
-        // repeat 3 times.
-        Box::pin(futures::stream::iter(vec![
-            Ok(req.clone()),
-            Ok(req.clone()),
-            Ok(req),
-        ]))
+        Box::pin(stream! {
+            yield Ok(req);
+        })
     }
 
     fn request_channel(&self, mut reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>> {
         let (sender, receiver) = mpsc::unbounded_channel();
-        tokio::spawn(async move {
+        runtime::spawn(async move {
             while let Some(it) = reqs.next().await {
                 info!("{:?}", it);
                 sender.send(it).unwrap();
             }
         });
+
         Box::pin(receiver)
         // or returns directly
         // reqs

@@ -1,27 +1,29 @@
-use crate::{client::TcpClientTransport, misc::parse_tcp_addr};
+use crate::client::TlsClientTransport;
 use async_trait::async_trait;
 use rsocket_rust::{error::RSocketError, transport::ServerTransport, Result};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
+use tokio_native_tls::TlsAcceptor;
 
-#[derive(Debug)]
-pub struct TcpServerTransport {
+pub struct TlsServerTransport {
     addr: SocketAddr,
     listener: Option<TcpListener>,
+    tls_acceptor: TlsAcceptor,
 }
 
-impl TcpServerTransport {
-    fn new(addr: SocketAddr) -> TcpServerTransport {
-        TcpServerTransport {
+impl TlsServerTransport {
+    pub fn new(addr: SocketAddr, tls_acceptor: TlsAcceptor) -> Self {
+        Self {
             addr,
             listener: None,
+            tls_acceptor,
         }
     }
 }
 
 #[async_trait]
-impl ServerTransport for TcpServerTransport {
-    type Item = TcpClientTransport;
+impl ServerTransport for TlsServerTransport {
+    type Item = TlsClientTransport;
 
     async fn start(&mut self) -> Result<()> {
         if self.listener.is_some() {
@@ -40,28 +42,16 @@ impl ServerTransport for TcpServerTransport {
     async fn next(&mut self) -> Option<Result<Self::Item>> {
         match self.listener.as_mut() {
             Some(listener) => match listener.accept().await {
-                Ok((socket, _)) => Some(Ok(TcpClientTransport::from(socket))),
+                Ok((socket, _)) => {
+                    let tls_acceptor = self.tls_acceptor.clone();
+                    match tls_acceptor.accept(socket).await {
+                        Ok(stream) => Some(Ok(TlsClientTransport::from(stream))),
+                        Err(e) => Some(Err(RSocketError::Other(e.into()).into())),
+                    }
+                }
                 Err(e) => Some(Err(RSocketError::IO(e).into())),
             },
             None => None,
         }
-    }
-}
-
-impl From<SocketAddr> for TcpServerTransport {
-    fn from(addr: SocketAddr) -> TcpServerTransport {
-        TcpServerTransport::new(addr)
-    }
-}
-
-impl From<String> for TcpServerTransport {
-    fn from(addr: String) -> TcpServerTransport {
-        TcpServerTransport::new(parse_tcp_addr(addr).parse().unwrap())
-    }
-}
-
-impl From<&str> for TcpServerTransport {
-    fn from(addr: &str) -> TcpServerTransport {
-        TcpServerTransport::new(parse_tcp_addr(addr).parse().unwrap())
     }
 }
