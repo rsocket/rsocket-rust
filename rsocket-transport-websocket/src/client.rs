@@ -1,6 +1,5 @@
 use super::connection::WebsocketConnection;
-use async_trait::async_trait;
-use rsocket_rust::{error::RSocketError, transport::Transport, Result};
+use rsocket_rust::{async_trait, error::RSocketError, transport::Transport, Result};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{accept_async, connect_async};

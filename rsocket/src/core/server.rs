@@ -10,26 +10,24 @@ use crate::utils::EmptyRSocket;
 use crate::Result;
 use std::error::Error;
 use std::future::Future;
+use std::marker::PhantomData;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
-pub struct ServerBuilder<T, C>
-where
-    T: Send + Sync + ServerTransport<Item = C>,
-    C: Send + Sync + Transport,
-{
+pub struct ServerBuilder<T, C> {
     transport: Option<T>,
     on_setup: Option<ServerResponder>,
     start_handler: Option<Box<dyn FnMut() + Send + Sync>>,
     mtu: usize,
+    _c: PhantomData<C>,
 }
 
 impl<T, C> ServerBuilder<T, C>
 where
-    T: Send + Sync + ServerTransport<Item = C> + 'static,
-    C: Send + Sync + Transport + 'static,
+    T: Send + Sync + ServerTransport<Item = C>,
+    C: Send + Sync + Transport,
 {
     pub(crate) fn new() -> ServerBuilder<T, C> {
         ServerBuilder {
@@ -37,9 +35,9 @@ where
             on_setup: None,
             start_handler: None,
             mtu: 0,
+            _c: PhantomData,
         }
     }
-
     pub fn fragment(mut self, mtu: usize) -> Self {
         if mtu > 0 && mtu < MIN_MTU {
             panic!("invalid fragment mtu: at least {}!", MIN_MTU)
@@ -62,7 +60,13 @@ where
         self.transport = Some(transport);
         self
     }
+}
 
+impl<T, C> ServerBuilder<T, C>
+where
+    T: Send + Sync + ServerTransport<Item = C> + 'static,
+    C: Send + Sync + Transport + 'static,
+{
     pub async fn serve(mut self) -> Result<()> {
         let mut server_transport = self.transport.take().expect("missing transport");
         let acceptor = self.on_setup.map(|v| Acceptor::Generate(Arc::new(v)));

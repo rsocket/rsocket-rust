@@ -28,5 +28,8 @@ async fn main() -> Result<()> {
         .request_response(Payload::builder().set_data_utf8("hello").build())
         .await?;
     info!("response: {:?}", res);
+
+    cli.wait_for_close().await;
+
     Ok(())
 }

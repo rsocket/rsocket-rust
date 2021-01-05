@@ -8,8 +8,8 @@ use crate::transport::{
 };
 use crate::Result;
 use async_trait::async_trait;
-use futures::{future, select, FutureExt, SinkExt, StreamExt};
-use std::error::Error;
+use futures::{future, FutureExt, SinkExt, StreamExt};
+use std::marker::PhantomData;
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -18,25 +18,23 @@ use tokio::sync::{mpsc, Mutex, Notify};
 
 #[derive(Clone)]
 pub struct Client {
+    closed: Arc<Notify>,
     socket: DuplexSocket,
 }
 
-pub struct ClientBuilder<T, C>
-where
-    T: Send + Sync + Transport<Conn = C> + 'static,
-    C: Send + Sync + Connection + 'static,
-{
+pub struct ClientBuilder<T, C> {
     transport: Option<T>,
     setup: SetupPayloadBuilder,
     responder: Option<ClientResponder>,
     closer: Option<Box<dyn FnMut() + Send + Sync>>,
     mtu: usize,
+    _c: PhantomData<C>,
 }
 
 impl<T, C> ClientBuilder<T, C>
 where
-    T: Send + Sync + Transport<Conn = C> + 'static,
-    C: Send + Sync + Connection + 'static,
+    T: Send + Sync + Transport<Conn = C>,
+    C: Send + Sync + Connection,
 {
     pub(crate) fn new() -> ClientBuilder<T, C> {
         ClientBuilder {
@@ -45,6 +43,7 @@ where
             setup: SetupPayload::builder(),
             closer: None,
             mtu: 0,
+            _c: PhantomData,
         }
     }
 
@@ -105,7 +104,13 @@ where
         self.closer = Some(callback);
         self
     }
+}
 
+impl<T, C> ClientBuilder<T, C>
+where
+    T: Send + Sync + Transport<Conn = C> + 'static,
+    C: Send + Sync + Connection + 'static,
+{
     pub async fn start(mut self) -> Result<Client> {
         let tp: T = self.transport.take().expect("missint transport");
 
@@ -160,6 +165,8 @@ where
 
         // begin read loop
         let closer = self.closer.take();
+        let closed = Arc::new(Notify::new());
+        let closed_clone = closed.clone();
         runtime::spawn(async move {
             while let Some(next) = stream.read().await {
                 match next {
@@ -184,6 +191,9 @@ where
                 debug!("send close notify frame failed!");
             }
 
+            // notify client closed
+            closed_clone.notify_one();
+
             // invoke on_close handler
             if let Some(mut invoke) = closer {
                 invoke();
@@ -191,17 +201,19 @@ where
         });
 
         socket.setup(setup).await;
-        Ok(Client::from(socket))
-    }
-}
-
-impl From<DuplexSocket> for Client {
-    fn from(socket: DuplexSocket) -> Client {
-        Client { socket }
+        Ok(Client::new(socket, closed))
     }
 }
 
 impl Client {
+    fn new(socket: DuplexSocket, closed: Arc<Notify>) -> Client {
+        Client { socket, closed }
+    }
+
+    pub async fn wait_for_close(self) {
+        self.closed.notified().await
+    }
+
     pub fn close(self) {
         // TODO: support close
     }
