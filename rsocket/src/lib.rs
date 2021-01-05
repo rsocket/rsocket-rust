@@ -91,6 +91,11 @@
 //! ```
 //!
 
+/// A re-export of [`async-stream`](https://docs.rs/async-stream) for creating a Stream.
+pub use async_stream::stream;
+/// A re-export of [`async-trait`](https://docs.rs/async-trait) for use with RSocket trait implementation.
+pub use async_trait::async_trait;
+
 #[macro_use]
 extern crate log;
 #[macro_use]

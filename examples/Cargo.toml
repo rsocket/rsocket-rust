@@ -10,13 +10,13 @@ log = "0.4.11"
 env_logger = "0.8.2"
 futures = "0.3.8"
 clap = "2.33.3"
-async-trait = "0.1.42"
 
 [dev-dependencies.rsocket_rust]
 path = "../rsocket"
 
 [dev-dependencies.rsocket_rust_transport_tcp]
 path = "../rsocket-transport-tcp"
+features = ["tls"]
 
 [dev-dependencies.rsocket_rust_transport_websocket]
 path = "../rsocket-transport-websocket"
@@ -41,3 +41,11 @@ path = "cli.rs"
 [[example]]
 name = "qps"
 path = "qps.rs"
+
+[[example]]
+name = "tls-server"
+path = "tls/server.rs"
+
+[[example]]
+name = "tls-client"
+path = "tls/client.rs"

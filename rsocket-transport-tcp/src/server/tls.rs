@@ -1,5 +1,5 @@
 use crate::client::TlsClientTransport;
-use async_trait::async_trait;
+use rsocket_rust::async_trait;
 use rsocket_rust::{error::RSocketError, transport::ServerTransport, Result};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;

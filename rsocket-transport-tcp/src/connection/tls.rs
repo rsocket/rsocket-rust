@@ -1,7 +1,7 @@
 use super::codec::LengthBasedFrameCodec;
-use async_trait::async_trait;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
+use rsocket_rust::async_trait;
 use rsocket_rust::frame::Frame;
 use rsocket_rust::transport::{Connection, Reader, Writer};
 use rsocket_rust::{error::RSocketError, Result};

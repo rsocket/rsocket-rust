@@ -1,5 +1,5 @@
 use crate::connection::TlsConnection;
-use async_trait::async_trait;
+use rsocket_rust::async_trait;
 use rsocket_rust::{error::RSocketError, transport::Transport, Result};
 use std::net::SocketAddr;
 use tokio::net::TcpStream;

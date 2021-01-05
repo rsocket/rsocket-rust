@@ -18,3 +18,5 @@ pub use client::TlsClientTransport;
 pub use connection::TlsConnection;
 #[cfg(feature = "tls")]
 pub use server::TlsServerTransport;
+#[cfg(feature = "tls")]
+pub use tokio_native_tls;

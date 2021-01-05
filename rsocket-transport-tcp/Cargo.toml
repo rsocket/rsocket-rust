@@ -17,7 +17,6 @@ tls = ["tokio-native-tls"]
 log = "0.4.11"
 futures = "0.3.8"
 bytes = "0.6.0"
-async-trait = "0.1.42"
 
 [dependencies.rsocket_rust]
 path = "../rsocket"
@@ -35,4 +34,4 @@ features = ["codec"]
 
 [dependencies.tokio-native-tls]
 optional = true
-version = "0.2.0"
+version = "0.1.0"

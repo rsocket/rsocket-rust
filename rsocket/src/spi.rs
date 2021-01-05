@@ -17,10 +17,8 @@ pub type Flux<T> = Pin<Box<dyn Send + Stream<Item = T>>>;
 ///
 /// # Example
 /// ```
-/// use async_trait::async_trait;
-/// use async_stream::stream;
 /// use rsocket_rust::prelude::*;
-/// use rsocket_rust::Result;
+/// use rsocket_rust::{async_trait, stream, Result};
 ///
 /// struct ExampleRSocket;
 ///
