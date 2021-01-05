@@ -6,19 +6,20 @@ use rsocket_rust::frame::Frame;
 use rsocket_rust::transport::{Connection, Reader, Writer};
 use rsocket_rust::{error::RSocketError, Result};
 use tokio::net::TcpStream;
+use tokio_native_tls::TlsStream;
 use tokio_util::codec::Framed;
 
 #[derive(Debug)]
-pub struct TcpConnection {
-    stream: TcpStream,
+pub struct TlsConnection {
+    stream: TlsStream<TcpStream>,
 }
 
 struct InnerWriter {
-    sink: SplitSink<Framed<TcpStream, LengthBasedFrameCodec>, Frame>,
+    sink: SplitSink<Framed<TlsStream<TcpStream>, LengthBasedFrameCodec>, Frame>,
 }
 
 struct InnerReader {
-    stream: SplitStream<Framed<TcpStream, LengthBasedFrameCodec>>,
+    stream: SplitStream<Framed<TlsStream<TcpStream>, LengthBasedFrameCodec>>,
 }
 
 #[async_trait]
@@ -41,7 +42,7 @@ impl Reader for InnerReader {
     }
 }
 
-impl Connection for TcpConnection {
+impl Connection for TlsConnection {
     fn split(
         self,
     ) -> (
@@ -56,8 +57,8 @@ impl Connection for TcpConnection {
     }
 }
 
-impl From<TcpStream> for TcpConnection {
-    fn from(stream: TcpStream) -> TcpConnection {
-        TcpConnection { stream }
+impl From<TlsStream<TcpStream>> for TlsConnection {
+    fn from(stream: TlsStream<TcpStream>) -> Self {
+        Self { stream }
     }
 }

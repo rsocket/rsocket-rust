@@ -9,11 +9,14 @@ repository = "https://github.com/rsocket/rsocket-rust"
 homepage = "https://github.com/rsocket/rsocket-rust"
 description = "TCP RSocket transport implementation."
 
+[features]
+default = []
+tls = ["tokio-native-tls"]
+
 [dependencies]
 log = "0.4.11"
 futures = "0.3.8"
 bytes = "0.6.0"
-async-trait = "0.1.42"
 
 [dependencies.rsocket_rust]
 path = "../rsocket"
@@ -28,3 +31,7 @@ features = [ "rt", "rt-multi-thread", "net", "sync", "stream", "io-util", "macro
 version = "0.5.1"
 default-features = false
 features = ["codec"]
+
+[dependencies.tokio-native-tls]
+optional = true
+version = "0.2.0"

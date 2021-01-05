@@ -15,8 +15,8 @@ impl RSocketFactory {
 
     pub fn receive<S, T>() -> ServerBuilder<S, T>
     where
-        S: Send + Sync + ServerTransport<Item = T> + 'static,
-        T: Send + Sync + Transport + 'static,
+        S: Send + Sync + ServerTransport<Item = T>,
+        T: Send + Sync + Transport,
     {
         ServerBuilder::new()
     }

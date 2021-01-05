@@ -1,8 +1,8 @@
-use async_trait::async_trait;
 use bytes::{BufMut, BytesMut};
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use rsocket_rust::{
+    async_trait,
     error::RSocketError,
     frame::Frame,
     transport::{Connection, Reader, Writer},

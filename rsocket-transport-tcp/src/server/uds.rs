@@ -1,6 +1,6 @@
 use crate::client::UnixClientTransport;
 use crate::misc::parse_uds_addr;
-use async_trait::async_trait;
+use rsocket_rust::async_trait;
 use rsocket_rust::{error::RSocketError, transport::ServerTransport, Result};
 use tokio::net::UnixListener;
 
