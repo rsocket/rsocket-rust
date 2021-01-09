@@ -15,16 +15,6 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{ErrorEvent, Event, FileReader, MessageEvent, ProgressEvent, WebSocket};
 
-macro_rules! console_log {
-    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
-}
-
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-}
-
 pub struct WebsocketClientTransport {
     url: String,
 }
@@ -104,7 +94,7 @@ impl Transport for WebsocketClientTransport {
 
                     // on error
                     let on_error = Closure::wrap(Box::new(move |e: ErrorEvent| {
-                        console_log!("websocket error: {}", e.message());
+                        log::error!("websocket error: {}", e.message());
                     })
                         as Box<dyn FnMut(ErrorEvent)>);
                     ws.set_onerror(Some(on_error.as_ref().unchecked_ref()));
@@ -112,7 +102,7 @@ impl Transport for WebsocketClientTransport {
 
                     // on_close
                     let on_close = Closure::once(Box::new(move |_e: Event| {
-                        console_log!("websocket closed");
+                        log::info!("websocket closed");
                     }) as Box<dyn FnMut(Event)>);
                     ws.set_onclose(Some(on_close.as_ref().unchecked_ref()));
                     on_close.forget();
