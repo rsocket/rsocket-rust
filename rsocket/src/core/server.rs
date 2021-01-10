@@ -8,6 +8,7 @@ use crate::transport::{
 };
 use crate::utils::EmptyRSocket;
 use crate::Result;
+use futures::{SinkExt, StreamExt};
 use std::error::Error;
 use std::future::Future;
 use std::marker::PhantomData;
@@ -111,34 +112,45 @@ where
         };
 
         // Init duplex socket.
-        let (snd_tx, mut snd_rx) = mpsc::channel::<Frame>(super::CHANNEL_SIZE);
+        let (snd_tx, mut snd_rx) = mpsc::unbounded_channel::<Frame>();
         let mut socket = DuplexSocket::new(0, snd_tx, splitter).await;
 
         // Begin loop for writing frames.
         runtime::spawn(async move {
             while let Some(frame) = snd_rx.recv().await {
-                if let Err(e) = writer.write(frame).await {
+                if let Err(e) = writer.send(frame).await {
                     error!("write frame failed: {}", e);
                     break;
                 }
             }
         });
 
-        loop {
-            match reader.read().await {
-                Some(Ok(frame)) => {
-                    if let Err(e) = socket.dispatch(frame, &acceptor).await {
-                        error!("dispatch incoming frame failed: {}", e);
+        let (read_tx, mut read_rx) = mpsc::unbounded_channel::<Frame>();
+
+        runtime::spawn(async move {
+            loop {
+                match reader.next().await {
+                    Some(Ok(frame)) => {
+                        if let Err(e) = read_tx.send(frame) {
+                            error!("read next frame failed: {}", e);
+                            break;
+                        }
+                    }
+                    Some(Err(e)) => {
+                        error!("read next frame failed: {}", e);
+                        break;
+                    }
+                    None => {
                         break;
                     }
                 }
-                Some(Err(e)) => {
-                    error!("read next frame failed: {}", e);
-                    break;
-                }
-                None => {
-                    break;
-                }
+            }
+        });
+
+        while let Some(frame) = read_rx.next().await {
+            if let Err(e) = socket.dispatch(frame, &acceptor).await {
+                error!("dispatch incoming frame failed: {}", e);
+                break;
             }
         }
 

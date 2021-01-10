@@ -1,20 +1,22 @@
+use std::marker::PhantomData;
+use std::net::SocketAddr;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::time::Duration;
+
+use async_trait::async_trait;
+use futures::{future, FutureExt, Sink, SinkExt, Stream, StreamExt};
+use tokio::sync::{mpsc, Mutex, Notify};
+
 use crate::error::{RSocketError, ERR_CONN_CLOSED};
 use crate::frame::{self, Frame};
 use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::runtime;
 use crate::spi::{ClientResponder, Flux, RSocket};
 use crate::transport::{
-    self, Acceptor, Connection, DuplexSocket, Reader, Splitter, Transport, Writer,
+    self, Acceptor, Connection, DuplexSocket, FrameSink, FrameStream, Splitter, Transport,
 };
 use crate::Result;
-use async_trait::async_trait;
-use futures::{future, FutureExt, SinkExt, StreamExt};
-use std::marker::PhantomData;
-use std::net::SocketAddr;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::{mpsc, Mutex, Notify};
 
 #[derive(Clone)]
 pub struct Client {
@@ -120,7 +122,7 @@ where
             Some(Splitter::new(self.mtu))
         };
 
-        let (snd_tx, mut snd_rx) = mpsc::channel::<Frame>(super::CHANNEL_SIZE);
+        let (snd_tx, mut snd_rx) = mpsc::unbounded_channel::<Frame>();
         let cloned_snd_tx = snd_tx.clone();
         let mut socket = DuplexSocket::new(1, snd_tx, splitter).await;
 
@@ -144,7 +146,7 @@ where
                                 break;
                             }
                         }
-                        if let Err(e) = (&mut sink).write(frame).await {
+                        if let Err(e) = sink.send(frame).await {
                             error!("write frame failed: {}", e);
                             break;
                         }
@@ -154,7 +156,7 @@ where
                         // keepalive
                         let keepalive_frame =
                             frame::Keepalive::builder(0, Frame::FLAG_RESPOND).build();
-                        if let Err(e) = (&mut sink).write(keepalive_frame).await {
+                        if let Err(e) = sink.send(keepalive_frame).await {
                             error!("write frame failed: {}", e);
                             break;
                         }
@@ -167,12 +169,15 @@ where
         let closer = self.closer.take();
         let closed = Arc::new(Notify::new());
         let closed_clone = closed.clone();
+
+        let (read_tx, mut read_rx) = mpsc::unbounded_channel::<Frame>();
+
         runtime::spawn(async move {
-            while let Some(next) = stream.read().await {
+            while let Some(next) = stream.next().await {
                 match next {
                     Ok(frame) => {
-                        if let Err(e) = cloned_socket.dispatch(frame, &acceptor).await {
-                            error!("dispatch frame failed: {}", e);
+                        if let Err(e) = read_tx.send(frame) {
+                            error!("read next frame failed: {}", e);
                             break;
                         }
                     }
@@ -182,12 +187,21 @@ where
                     }
                 }
             }
+        });
+
+        runtime::spawn(async move {
+            while let Some(next) = read_rx.next().await {
+                if let Err(e) = cloned_socket.dispatch(next, &acceptor).await {
+                    error!("dispatch frame failed: {}", e);
+                    break;
+                }
+            }
 
             // workaround: send a notify frame that the connection has been closed.
             let close_frame = frame::Error::builder(0, 0)
                 .set_code(ERR_CONN_CLOSED)
                 .build();
-            if let Err(_) = cloned_snd_tx.send(close_frame).await {
+            if let Err(_) = cloned_snd_tx.send(close_frame) {
                 debug!("send close notify frame failed!");
             }
 
@@ -212,10 +226,6 @@ impl Client {
 
     pub async fn wait_for_close(self) {
         self.closed.notified().await
-    }
-
-    pub fn close(self) {
-        // TODO: support close
     }
 }
 

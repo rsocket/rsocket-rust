@@ -1,10 +1,7 @@
 use super::codec::LengthBasedFrameCodec;
-use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
-use rsocket_rust::async_trait;
-use rsocket_rust::frame::Frame;
-use rsocket_rust::transport::{Connection, Reader, Writer};
-use rsocket_rust::{error::RSocketError, Result};
+use rsocket_rust::error::RSocketError;
+use rsocket_rust::transport::{Connection, FrameSink, FrameStream};
 use tokio::net::TcpStream;
 use tokio_native_tls::TlsStream;
 use tokio_util::codec::Framed;
@@ -14,45 +11,12 @@ pub struct TlsConnection {
     stream: TlsStream<TcpStream>,
 }
 
-struct InnerWriter {
-    sink: SplitSink<Framed<TlsStream<TcpStream>, LengthBasedFrameCodec>, Frame>,
-}
-
-struct InnerReader {
-    stream: SplitStream<Framed<TlsStream<TcpStream>, LengthBasedFrameCodec>>,
-}
-
-#[async_trait]
-impl Writer for InnerWriter {
-    async fn write(&mut self, frame: Frame) -> Result<()> {
-        match self.sink.send(frame).await {
-            Ok(()) => Ok(()),
-            Err(e) => Err(RSocketError::IO(e).into()),
-        }
-    }
-}
-
-#[async_trait]
-impl Reader for InnerReader {
-    async fn read(&mut self) -> Option<Result<Frame>> {
-        self.stream
-            .next()
-            .await
-            .map(|next| next.map_err(|e| RSocketError::IO(e).into()))
-    }
-}
-
 impl Connection for TlsConnection {
-    fn split(
-        self,
-    ) -> (
-        Box<dyn Writer + Send + Unpin>,
-        Box<dyn Reader + Send + Unpin>,
-    ) {
+    fn split(self) -> (Box<FrameSink>, Box<FrameStream>) {
         let (sink, stream) = Framed::new(self.stream, LengthBasedFrameCodec).split();
         (
-            Box::new(InnerWriter { sink }),
-            Box::new(InnerReader { stream }),
+            Box::new(sink.sink_map_err(|e| RSocketError::Other(e.into()))),
+            Box::new(stream.map(|it| it.map_err(|e| RSocketError::Other(e.into())))),
         )
     }
 }

@@ -1,21 +1,12 @@
-use async_trait::async_trait;
 use futures_channel::mpsc;
 use futures_util::{SinkExt, StreamExt};
-use rsocket_rust::transport::{Connection, Reader, Writer};
-use rsocket_rust::{error::RSocketError, frame::Frame, Result};
+use rsocket_rust::transport::{Connection, FrameSink, FrameStream};
+use rsocket_rust::{error::RSocketError, frame::Frame};
 
 #[derive(Debug)]
 pub struct WebsocketConnection {
     rx: mpsc::Receiver<Frame>,
     tx: mpsc::Sender<Frame>,
-}
-
-struct InnerWriter {
-    tx: mpsc::Sender<Frame>,
-}
-
-struct InnerReader {
-    rx: mpsc::Receiver<Frame>,
 }
 
 impl WebsocketConnection {
@@ -24,33 +15,11 @@ impl WebsocketConnection {
     }
 }
 
-#[async_trait]
-impl Writer for InnerWriter {
-    async fn write(&mut self, frame: Frame) -> Result<()> {
-        match self.tx.send(frame).await {
-            Ok(()) => Ok(()),
-            Err(e) => Err(RSocketError::Other(e.into()).into()),
-        }
-    }
-}
-
-#[async_trait]
-impl Reader for InnerReader {
-    async fn read(&mut self) -> Option<Result<Frame>> {
-        self.rx.next().await.map(|frame| Ok(frame))
-    }
-}
-
 impl Connection for WebsocketConnection {
-    fn split(
-        self,
-    ) -> (
-        Box<dyn Writer + Send + Unpin>,
-        Box<dyn Reader + Send + Unpin>,
-    ) {
+    fn split(self) -> (Box<FrameSink>, Box<FrameStream>) {
         (
-            Box::new(InnerWriter { tx: self.tx }),
-            Box::new(InnerReader { rx: self.rx }),
+            Box::new(self.tx.sink_map_err(|e| RSocketError::Other(e.into()))),
+            Box::new(self.rx.map(|it| Ok(it))),
         )
     }
 }

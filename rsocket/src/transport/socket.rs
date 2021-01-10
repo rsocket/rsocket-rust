@@ -22,7 +22,7 @@ use tokio::sync::{mpsc, oneshot, RwLock};
 pub(crate) struct DuplexSocket {
     seq: StreamID,
     responder: Responder,
-    tx: mpsc::Sender<Frame>,
+    tx: mpsc::UnboundedSender<Frame>,
     handlers: Arc<DashMap<u32, Handler>>,
     canceller: mpsc::Sender<u32>,
     splitter: Option<Splitter>,
@@ -45,7 +45,7 @@ enum Handler {
 impl DuplexSocket {
     pub(crate) async fn new(
         first_stream_id: u32,
-        tx: mpsc::Sender<Frame>,
+        tx: mpsc::UnboundedSender<Frame>,
         splitter: Option<Splitter>,
     ) -> DuplexSocket {
         let (canceller_tx, canceller_rx) = mpsc::channel::<u32>(32);
@@ -85,7 +85,7 @@ impl DuplexSocket {
         if let Some(b) = m {
             bu = bu.set_metadata(b);
         }
-        self.tx.send(bu.build()).await.expect("Send setup failed");
+        self.tx.send(bu.build()).expect("Send setup failed");
     }
 
     #[inline]
@@ -127,7 +127,7 @@ impl DuplexSocket {
                         .set_code(error::ERR_REJECT_SETUP)
                         .set_data(Bytes::from(errmsg))
                         .build();
-                    self.tx.send(sending).await.expect("Reject setup failed");
+                    self.tx.send(sending).expect("Reject setup failed");
                     return;
                 }
             }
@@ -416,7 +416,7 @@ impl DuplexSocket {
                         .set_code(error::ERR_APPLICATION)
                         .set_data(Bytes::from("TODO: should be error details"))
                         .build();
-                    if let Err(e) = tx.send(sending).await {
+                    if let Err(e) = tx.send(sending) {
                         error!("respond REQUEST_RESPONSE failed: {}", e);
                     }
                 }
@@ -442,13 +442,12 @@ impl DuplexSocket {
                             .set_code(error::ERR_APPLICATION)
                             .set_data(Bytes::from(format!("{}", e)))
                             .build();
-                        tx.send(sending).await.expect("Send stream response failed");
+                        tx.send(sending).expect("Send stream response failed");
                     }
                 };
             }
             let complete = frame::Payload::builder(sid, Frame::FLAG_COMPLETE).build();
             tx.send(complete)
-                .await
                 .expect("Send stream complete response failed");
         });
     }
@@ -466,7 +465,7 @@ impl DuplexSocket {
             // TODO: support custom RequestN.
             let request_n = frame::RequestN::builder(sid, 0).build();
 
-            if let Err(e) = tx.send(request_n).await {
+            if let Err(e) = tx.send(request_n) {
                 error!("respond REQUEST_N failed: {}", e);
             }
 
@@ -488,10 +487,10 @@ impl DuplexSocket {
                         .set_data(Bytes::from(format!("{}", e)))
                         .build(),
                 };
-                tx.send(sending).await.expect("Send failed!");
+                tx.send(sending).expect("Send failed!");
             }
             let complete = frame::Payload::builder(sid, Frame::FLAG_COMPLETE).build();
-            if let Err(e) = tx.send(complete).await {
+            if let Err(e) = tx.send(complete) {
                 error!("complete REQUEST_CHANNEL failed: {}", e);
             }
         });
@@ -511,7 +510,7 @@ impl DuplexSocket {
         if let Some(b) = data {
             sending = sending.set_data(b);
         }
-        if let Err(e) = self.tx.send(sending.build()).await {
+        if let Err(e) = self.tx.send(sending.build()) {
             error!("respond KEEPALIVE failed: {}", e);
         }
     }
@@ -519,7 +518,7 @@ impl DuplexSocket {
     #[inline]
     async fn try_send_channel(
         splitter: &Option<Splitter>,
-        tx: &mut mpsc::Sender<Frame>,
+        tx: &mut mpsc::UnboundedSender<Frame>,
         sid: u32,
         res: Payload,
         flag: u16,
@@ -541,7 +540,7 @@ impl DuplexSocket {
                                 .build()
                         };
                         // send frame
-                        if let Err(e) = tx.send(sending).await {
+                        if let Err(e) = tx.send(sending) {
                             error!("send request_channel failed: {}", e);
                             return;
                         }
@@ -562,7 +561,7 @@ impl DuplexSocket {
                         .build()
                 };
                 // send frame
-                if let Err(e) = tx.send(sending).await {
+                if let Err(e) = tx.send(sending) {
                     error!("send request_channel failed: {}", e);
                 }
             }
@@ -570,7 +569,7 @@ impl DuplexSocket {
                 let sending = frame::RequestChannel::builder(sid, flag)
                     .set_all(res.split())
                     .build();
-                if let Err(e) = tx.send(sending).await {
+                if let Err(e) = tx.send(sending) {
                     error!("send request_channel failed: {}", e);
                 }
             }
@@ -578,9 +577,9 @@ impl DuplexSocket {
     }
 
     #[inline]
-    async fn try_send_complete(tx: &mut mpsc::Sender<Frame>, sid: u32, flag: u16) {
+    async fn try_send_complete(tx: &mut mpsc::UnboundedSender<Frame>, sid: u32, flag: u16) {
         let sending = frame::Payload::builder(sid, flag).build();
-        if let Err(e) = tx.send(sending).await {
+        if let Err(e) = tx.send(sending) {
             error!("respond failed: {}", e);
         }
     }
@@ -588,7 +587,7 @@ impl DuplexSocket {
     #[inline]
     async fn try_send_payload(
         splitter: &Option<Splitter>,
-        tx: &mut mpsc::Sender<Frame>,
+        tx: &mut mpsc::UnboundedSender<Frame>,
         sid: u32,
         res: Payload,
         flag: u16,
@@ -609,7 +608,7 @@ impl DuplexSocket {
                                 .build()
                         };
                         // send frame
-                        if let Err(e) = tx.send(sending).await {
+                        if let Err(e) = tx.send(sending) {
                             error!("send payload failed: {}", e);
                             return;
                         }
@@ -626,7 +625,7 @@ impl DuplexSocket {
                         .build()
                 };
                 // send frame
-                if let Err(e) = tx.send(sending).await {
+                if let Err(e) = tx.send(sending) {
                     error!("send payload failed: {}", e);
                 }
             }
@@ -634,7 +633,7 @@ impl DuplexSocket {
                 let sending = frame::Payload::builder(sid, flag)
                     .set_all(res.split())
                     .build();
-                if let Err(e) = tx.send(sending).await {
+                if let Err(e) = tx.send(sending) {
                     error!("respond failed: {}", e);
                 }
             }
@@ -652,11 +651,8 @@ impl RSocket for DuplexSocket {
         if let Some(b) = m {
             bu = bu.set_metadata(b);
         }
-        tx.send(bu.build()).await?;
+        tx.send(bu.build())?;
         Ok(())
-        // if let Err(e) = tx.send(bu.build()).await {
-        //     error!("send metadata_push failed: {}", e);
-        // }
     }
 
     async fn fire_and_forget(&self, req: Payload) -> Result<()> {
@@ -682,7 +678,7 @@ impl RSocket for DuplexSocket {
                                 .build()
                         };
                         // send frame
-                        tx.send(sending).await?;
+                        tx.send(sending)?;
                     }
                     prev = Some(next);
                     cuts += 1;
@@ -700,13 +696,13 @@ impl RSocket for DuplexSocket {
                         .build()
                 };
                 // send frame
-                tx.send(sending).await?;
+                tx.send(sending)?;
             }
             None => {
                 let sending = frame::RequestFNF::builder(sid, 0)
                     .set_all(req.split())
                     .build();
-                tx.send(sending).await?;
+                tx.send(sending)?;
             }
         }
         Ok(())
@@ -741,7 +737,7 @@ impl RSocket for DuplexSocket {
                                     .build()
                             };
                             // send frame
-                            if let Err(e) = sender.send(sending).await {
+                            if let Err(e) = sender.send(sending) {
                                 error!("send request_response failed: {}", e);
                                 return;
                             }
@@ -762,7 +758,7 @@ impl RSocket for DuplexSocket {
                             .build()
                     };
                     // send frame
-                    if let Err(e) = sender.send(sending).await {
+                    if let Err(e) = sender.send(sending) {
                         error!("send request_response failed: {}", e);
                     }
                 }
@@ -772,7 +768,7 @@ impl RSocket for DuplexSocket {
                         .set_all(req.split())
                         .build();
                     // send frame
-                    if let Err(e) = sender.send(sending).await {
+                    if let Err(e) = sender.send(sending) {
                         error!("send request_response failed: {}", e);
                     }
                 }
@@ -812,7 +808,7 @@ impl RSocket for DuplexSocket {
                                     .build()
                             };
                             // send frame
-                            if let Err(e) = tx.send(sending).await {
+                            if let Err(e) = tx.send(sending) {
                                 error!("send request_stream failed: {}", e);
                                 return;
                             }
@@ -833,7 +829,7 @@ impl RSocket for DuplexSocket {
                             .build()
                     };
                     // send frame
-                    if let Err(e) = tx.send(sending).await {
+                    if let Err(e) = tx.send(sending) {
                         error!("send request_stream failed: {}", e);
                     }
                 }
@@ -841,7 +837,7 @@ impl RSocket for DuplexSocket {
                     let sending = frame::RequestStream::builder(sid, 0)
                         .set_all(input.split())
                         .build();
-                    if let Err(e) = tx.send(sending).await {
+                    if let Err(e) = tx.send(sending) {
                         error!("send request_stream failed: {}", e);
                     }
                 }
@@ -877,14 +873,14 @@ impl RSocket for DuplexSocket {
                             .set_code(error::ERR_APPLICATION)
                             .set_data(Bytes::from(format!("{}", e)))
                             .build();
-                        if let Err(e) = tx.send(sending).await {
+                        if let Err(e) = tx.send(sending) {
                             error!("send REQUEST_CHANNEL failed: {}", e);
                         }
                     }
                 };
             }
             let sending = frame::Payload::builder(sid, Frame::FLAG_COMPLETE).build();
-            if let Err(e) = tx.send(sending).await {
+            if let Err(e) = tx.send(sending) {
                 error!("complete REQUEST_CHANNEL failed: {}", e);
             }
         });

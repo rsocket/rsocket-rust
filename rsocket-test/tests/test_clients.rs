@@ -74,7 +74,6 @@ fn test_websocket() {
         exec_request_response(&cli).await;
         exec_request_stream(&cli).await;
         exec_request_channel(&cli).await;
-        cli.close();
     });
 }
 
@@ -120,7 +119,6 @@ fn test_tcp() {
         exec_request_response(&cli).await;
         exec_request_stream(&cli).await;
         exec_request_channel(&cli).await;
-        cli.close();
     });
 }
 
@@ -176,7 +174,6 @@ fn test_unix() {
         exec_request_response(&cli).await;
         exec_request_stream(&cli).await;
         exec_request_channel(&cli).await;
-        cli.close();
     });
 }
 

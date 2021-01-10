@@ -1,28 +1,22 @@
 use bytes::{BufMut, BytesMut};
-use futures::stream::{SplitSink, SplitStream};
-use futures::{SinkExt, StreamExt};
+use futures::stream::SplitSink;
+use futures::{Sink, SinkExt, StreamExt};
 use rsocket_rust::{
-    async_trait,
     error::RSocketError,
     frame::Frame,
-    transport::{Connection, Reader, Writer},
+    transport::{Connection, FrameSink, FrameStream},
     utils::Writeable,
-    Result,
 };
+use std::result::Result;
 use tokio::net::TcpStream;
-use tokio_tungstenite::{tungstenite::Message, WebSocketStream};
+use tokio_tungstenite::{
+    tungstenite::{Error as WsError, Message},
+    WebSocketStream,
+};
 
 #[derive(Debug)]
 pub struct WebsocketConnection {
     stream: WebSocketStream<TcpStream>,
-}
-
-struct InnerWriter {
-    sink: SplitSink<WebSocketStream<TcpStream>, Message>,
-}
-
-struct InnerReader {
-    stream: SplitStream<WebSocketStream<TcpStream>>,
 }
 
 impl WebsocketConnection {
@@ -31,49 +25,57 @@ impl WebsocketConnection {
     }
 }
 
+struct InnerSink(SplitSink<WebSocketStream<TcpStream>, Message>);
+
+impl Sink<Frame> for InnerSink {
+    type Error = WsError;
+
+    fn poll_ready(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        self.as_mut().0.poll_ready_unpin(cx)
+    }
+
+    fn start_send(mut self: std::pin::Pin<&mut Self>, item: Frame) -> Result<(), Self::Error> {
+        let mut b = BytesMut::new();
+        item.write_to(&mut b);
+        let msg = Message::binary(b.to_vec());
+        self.as_mut().0.start_send_unpin(msg)
+    }
+
+    fn poll_flush(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        self.as_mut().0.poll_flush_unpin(cx)
+    }
+
+    fn poll_close(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        self.as_mut().0.poll_close_unpin(cx)
+    }
+}
+
 impl Connection for WebsocketConnection {
-    fn split(
-        self,
-    ) -> (
-        Box<dyn Writer + Send + Unpin>,
-        Box<dyn Reader + Send + Unpin>,
-    ) {
+    fn split(self) -> (Box<FrameSink>, Box<FrameStream>) {
         let (sink, stream) = self.stream.split();
         (
-            Box::new(InnerWriter { sink }),
-            Box::new(InnerReader { stream }),
-        )
-    }
-}
-
-#[async_trait]
-impl Writer for InnerWriter {
-    async fn write(&mut self, frame: Frame) -> Result<()> {
-        let mut bf = BytesMut::new();
-        frame.write_to(&mut bf);
-        let msg = Message::binary(bf.to_vec());
-        match self.sink.send(msg).await {
-            Ok(()) => Ok(()),
-            Err(e) => Err(RSocketError::Other(e.into()).into()),
-        }
-    }
-}
-
-#[async_trait]
-impl Reader for InnerReader {
-    async fn read(&mut self) -> Option<Result<Frame>> {
-        match self.stream.next().await {
-            Some(Ok(msg)) => {
-                let raw = msg.into_data();
-                let mut bf = BytesMut::new();
-                bf.put_slice(&raw[..]);
-                match Frame::decode(&mut bf) {
-                    Ok(frame) => Some(Ok(frame)),
-                    Err(e) => Some(Err(e)),
+            Box::new(InnerSink(sink).sink_map_err(|e| RSocketError::Other(e.into()))),
+            Box::new(stream.map(|it| match it {
+                Ok(msg) => {
+                    let raw = msg.into_data();
+                    let mut bf = BytesMut::new();
+                    bf.put_slice(&raw[..]);
+                    match Frame::decode(&mut bf) {
+                        Ok(frame) => Ok(frame),
+                        Err(e) => Err(RSocketError::Other(e.into())),
+                    }
                 }
-            }
-            Some(Err(e)) => Some(Err(RSocketError::Other(e.into()).into())),
-            None => None,
-        }
+                Err(e) => Err(RSocketError::Other(e.into())),
+            })),
+        )
     }
 }
