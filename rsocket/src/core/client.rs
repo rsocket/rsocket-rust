@@ -14,7 +14,7 @@ use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::runtime;
 use crate::spi::{ClientResponder, Flux, RSocket};
 use crate::transport::{
-    self, Acceptor, Connection, DuplexSocket, FrameSink, FrameStream, Splitter, Transport,
+    self, Connection, DuplexSocket, FrameSink, FrameStream, Splitter, Transport,
 };
 use crate::Result;
 
@@ -127,7 +127,11 @@ where
         let mut socket = DuplexSocket::new(1, snd_tx, splitter).await;
 
         let mut cloned_socket = socket.clone();
-        let acceptor: Option<Acceptor> = self.responder.map(|it| Acceptor::Simple(Arc::new(it)));
+
+        if let Some(f) = self.responder {
+            let responder = f();
+            socket.bind_responder(responder).await;
+        }
 
         let conn = tp.connect().await?;
         let (mut sink, mut stream) = conn.split();
@@ -191,7 +195,7 @@ where
 
         runtime::spawn(async move {
             while let Some(next) = read_rx.next().await {
-                if let Err(e) = cloned_socket.dispatch(next, &acceptor).await {
+                if let Err(e) = cloned_socket.dispatch(next, None).await {
                     error!("dispatch frame failed: {}", e);
                     break;
                 }

@@ -3,9 +3,7 @@ use crate::frame::{self, Frame};
 use crate::payload::SetupPayload;
 use crate::runtime;
 use crate::spi::{RSocket, ServerResponder};
-use crate::transport::{
-    Acceptor, Connection, DuplexSocket, ServerTransport, Splitter, Transport, MIN_MTU,
-};
+use crate::transport::{Connection, DuplexSocket, ServerTransport, Splitter, Transport, MIN_MTU};
 use crate::utils::EmptyRSocket;
 use crate::Result;
 use futures::{SinkExt, StreamExt};
@@ -70,7 +68,7 @@ where
 {
     pub async fn serve(mut self) -> Result<()> {
         let mut server_transport = self.transport.take().expect("missing transport");
-        let acceptor = self.on_setup.map(|v| Acceptor::Generate(Arc::new(v)));
+        // let acceptor = self.on_setup.map(|v| Acceptor::Generate(Arc::new(v)));
 
         let mtu = self.mtu;
 
@@ -80,6 +78,7 @@ where
             invoke();
         }
 
+        let acceptor = Arc::new(self.on_setup);
         while let Some(next) = server_transport.next().await {
             match next {
                 Ok(tp) => {
@@ -99,7 +98,7 @@ where
     }
 
     #[inline]
-    async fn on_transport(mtu: usize, tp: C, acceptor: Option<Acceptor>) -> Result<()> {
+    async fn on_transport(mtu: usize, tp: C, acceptor: Arc<Option<ServerResponder>>) -> Result<()> {
         // Establish connection.
         let conn = tp.connect().await?;
         let (mut writer, mut reader) = conn.split();
@@ -148,7 +147,7 @@ where
         });
 
         while let Some(frame) = read_rx.next().await {
-            if let Err(e) = socket.dispatch(frame, &acceptor).await {
+            if let Err(e) = socket.dispatch(frame, acceptor.as_ref().as_ref()).await {
                 error!("dispatch incoming frame failed: {}", e);
                 break;
             }

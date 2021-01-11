@@ -4,7 +4,7 @@ use super::spi::*;
 use crate::error::{self, RSocketError};
 use crate::frame::{self, Body, Frame};
 use crate::payload::{Payload, SetupPayload};
-use crate::spi::{Flux, RSocket};
+use crate::spi::{Flux, RSocket, ServerResponder};
 use crate::utils::EmptyRSocket;
 use crate::{runtime, Result};
 use async_stream::stream;
@@ -103,7 +103,7 @@ impl DuplexSocket {
     pub(crate) async fn dispatch(
         &mut self,
         frame: Frame,
-        acceptor: &Option<Acceptor>,
+        acceptor: Option<&ServerResponder>,
     ) -> Result<()> {
         if let Some(frame) = self.join_frame(frame).await {
             self.process_once(frame, acceptor).await;
@@ -112,7 +112,7 @@ impl DuplexSocket {
     }
 
     #[inline]
-    async fn process_once(&mut self, msg: Frame, acceptor: &Option<Acceptor>) {
+    async fn process_once(&mut self, msg: Frame, acceptor: Option<&ServerResponder>) {
         let sid = msg.get_stream_id();
         let flag = msg.get_flag();
         debug_frame(false, &msg);
@@ -343,10 +343,14 @@ impl DuplexSocket {
         }
     }
 
+    pub(crate) async fn bind_responder(&self, responder: Box<dyn RSocket>) {
+        self.responder.set(responder).await;
+    }
+
     #[inline]
     async fn on_setup(
         &self,
-        acceptor: &Option<Acceptor>,
+        acceptor: Option<&ServerResponder>,
         sid: u32,
         flag: u16,
         setup: SetupPayload,
@@ -356,11 +360,7 @@ impl DuplexSocket {
                 self.responder.set(Box::new(EmptyRSocket)).await;
                 Ok(())
             }
-            Some(Acceptor::Simple(gen)) => {
-                self.responder.set(gen()).await;
-                Ok(())
-            }
-            Some(Acceptor::Generate(gen)) => match gen(setup, Box::new(self.clone())) {
+            Some(gen) => match gen(setup, Box::new(self.clone())) {
                 Ok(it) => {
                     self.responder.set(it).await;
                     Ok(())
@@ -414,7 +414,7 @@ impl DuplexSocket {
                 Err(e) => {
                     let sending = frame::Error::builder(sid, 0)
                         .set_code(error::ERR_APPLICATION)
-                        .set_data(Bytes::from("TODO: should be error details"))
+                        .set_data(Bytes::from(e.to_string()))
                         .build();
                     if let Err(e) = tx.send(sending) {
                         error!("respond REQUEST_RESPONSE failed: {}", e);

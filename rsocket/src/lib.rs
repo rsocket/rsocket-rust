@@ -97,6 +97,8 @@ pub use async_stream::stream;
 pub use async_trait::async_trait;
 
 #[macro_use]
+extern crate anyhow;
+#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate lazy_static;

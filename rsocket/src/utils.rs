@@ -60,23 +60,27 @@ pub(crate) struct EmptyRSocket;
 #[async_trait]
 impl RSocket for EmptyRSocket {
     async fn metadata_push(&self, _req: Payload) -> Result<()> {
-        Err(RSocketError::ApplicationException("UNIMPLEMENT".into()).into())
+        Err(anyhow!("UNIMPLEMENT"))
     }
 
     async fn fire_and_forget(&self, _req: Payload) -> Result<()> {
-        Err(RSocketError::ApplicationException("UNIMPLEMENT".into()).into())
+        Err(anyhow!("UNIMPLEMENT"))
     }
 
     async fn request_response(&self, _req: Payload) -> Result<Option<Payload>> {
-        Err(RSocketError::ApplicationException("UNIMPLEMENT".into()).into())
+        Err(anyhow!("UNIMPLEMENT"))
     }
 
     fn request_stream(&self, _req: Payload) -> Flux<Result<Payload>> {
-        Box::pin(futures::stream::empty())
+        Box::pin(stream! {
+            yield Err(anyhow!("UNIMPLEMENT"));
+        })
     }
 
     fn request_channel(&self, _reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>> {
-        Box::pin(futures::stream::empty())
+        Box::pin(stream! {
+            yield Err(anyhow!("UNIMPLEMENT"));
+        })
     }
 }
 

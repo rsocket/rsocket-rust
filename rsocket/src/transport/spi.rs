@@ -15,12 +15,6 @@ use crate::spi::{ClientResponder, RSocket, ServerResponder};
 use crate::{error::RSocketError, frame::Frame};
 use crate::{Error, Result};
 
-#[derive(Clone)]
-pub(crate) enum Acceptor {
-    Simple(Arc<ClientResponder>),
-    Generate(Arc<ServerResponder>),
-}
-
 pub type FrameSink = dyn Sink<Frame, Error = RSocketError> + Send + Unpin;
 pub type FrameStream = dyn Stream<Item = StdResult<Frame, RSocketError>> + Send + Unpin;
 
