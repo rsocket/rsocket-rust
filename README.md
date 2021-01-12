@@ -21,12 +21,12 @@ Add dependencies in your `Cargo.toml`.
 
 ```toml
 [dependencies]
-tokio = "0.3.6"
-rsocket_rust = "0.7.0"
+tokio = "1.0"
+rsocket_rust = "0.7"
 
 # add transport dependencies:
-# rsocket_rust_transport_tcp = "0.7.0"
-# rsocket_rust_transport_websocket = "0.7.0"
+# rsocket_rust_transport_tcp = "0.7"
+# rsocket_rust_transport_websocket = "0.7"
 ```
 
 ### Server
@@ -74,7 +74,75 @@ async fn main() -> Result<()> {
         .build();
     let res = cli.request_response(req).await?;
     println!("got: {:?}", res);
-    cli.close();
+
+    // If you want to block until socket disconnected.
+    cli.wait_for_close().await;
+
+    Ok(())
+}
+
+```
+
+### Implement RSocket trait
+
+Example for access Redis([crates](https://crates.io/crates/redis)):
+
+> NOTICE: add dependency in Cargo.toml => redis = { version = "0.19.0", features = [ "aio" ] }
+
+```rust
+use redis::Client as RedisClient;
+use rsocket_rust::async_trait;
+use rsocket_rust::prelude::*;
+use rsocket_rust::Result;
+use std::str::FromStr;
+
+#[derive(Clone)]
+pub struct RedisDao {
+    inner: RedisClient,
+}
+
+// Create RedisDao from str.
+// Example: RedisDao::from_str("redis://127.0.0.1").expect("Connect redis failed!");
+impl FromStr for RedisDao {
+    type Err = redis::RedisError;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        let client = redis::Client::open(s)?;
+        Ok(RedisDao { inner: client })
+    }
+}
+
+#[async_trait]
+impl RSocket for RedisDao {
+    async fn request_response(&self, req: Payload) -> Result<Option<Payload>> {
+        let client = self.inner.clone();
+        let mut conn = client.get_async_connection().await?;
+        let value: redis::RedisResult<Option<String>> = redis::cmd("GET")
+            .arg(&[req.data_utf8()])
+            .query_async(&mut conn)
+            .await;
+        match value {
+            Ok(Some(value)) => Ok(Some(Payload::builder().set_data_utf8(&value).build())),
+            Ok(None) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    async fn metadata_push(&self, _req: Payload) -> Result<()> {
+        todo!()
+    }
+
+    async fn fire_and_forget(&self, _req: Payload) -> Result<()> {
+        todo!()
+    }
+
+    fn request_stream(&self, _req: Payload) -> Flux<Result<Payload>> {
+        todo!()
+    }
+
+    fn request_channel(&self, _reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>> {
+        todo!()
+    }
 }
 
 ```
