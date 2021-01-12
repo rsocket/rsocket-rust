@@ -11,8 +11,8 @@ use rsocket_rust_transport_tcp::TlsServerTransport;
 async fn main() -> Result<()> {
     env_logger::builder().format_timestamp_millis().init();
 
-    let der = include_bytes!("identity.p12");
-    let cert = native_tls::Identity::from_pkcs12(der, "mypass")?;
+    let der = include_bytes!("foobar.com.p12");
+    let cert = native_tls::Identity::from_pkcs12(der, "foobar")?;
     RSocketFactory::receive()
         .acceptor(Box::new(|setup, _socket| {
             info!("connection established: {:?}", setup);
