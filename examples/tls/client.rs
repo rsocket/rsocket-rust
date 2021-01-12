@@ -10,7 +10,7 @@ use rsocket_rust_transport_tcp::TlsClientTransport;
 async fn main() -> Result<()> {
     env_logger::builder().format_timestamp_millis().init();
 
-    let pem = include_bytes!("cert.pem");
+    let pem = include_bytes!("foobar.com.pem");
     let cert = native_tls::Certificate::from_pem(pem)?;
     let cx = native_tls::TlsConnector::builder()
         .add_root_certificate(cert)
