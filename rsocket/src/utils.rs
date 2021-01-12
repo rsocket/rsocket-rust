@@ -41,15 +41,18 @@ impl RSocket for EchoRSocket {
     }
 
     fn request_channel(&self, mut reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>> {
-        let (sender, receiver) = mpsc::unbounded_channel();
+        let (sender, mut receiver) = mpsc::unbounded_channel();
         runtime::spawn(async move {
             while let Some(it) = reqs.next().await {
                 info!("{:?}", it);
                 sender.send(it).unwrap();
             }
         });
-
-        Box::pin(receiver)
+        Box::pin(stream! {
+            while let Some(it) = receiver.recv().await {
+                yield it;
+            }
+        })
         // or returns directly
         // reqs
     }

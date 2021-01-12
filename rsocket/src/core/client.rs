@@ -143,7 +143,7 @@ where
         runtime::spawn(async move {
             loop {
                 // send keepalive if timeout
-                match tokio::time::timeout(tick_period, snd_rx.next()).await {
+                match tokio::time::timeout(tick_period, snd_rx.recv()).await {
                     Ok(Some(frame)) => {
                         if let frame::Body::Error(e) = frame.get_body_ref() {
                             if e.get_code() == ERR_CONN_CLOSED {
@@ -194,7 +194,7 @@ where
         });
 
         runtime::spawn(async move {
-            while let Some(next) = read_rx.next().await {
+            while let Some(next) = read_rx.recv().await {
                 if let Err(e) = cloned_socket.dispatch(next, None).await {
                     error!("dispatch frame failed: {}", e);
                     break;

@@ -146,7 +146,7 @@ where
             }
         });
 
-        while let Some(frame) = read_rx.next().await {
+        while let Some(frame) = read_rx.recv().await {
             if let Err(e) = socket.dispatch(frame, acceptor.as_ref().as_ref()).await {
                 error!("dispatch incoming frame failed: {}", e);
                 break;

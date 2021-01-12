@@ -15,7 +15,6 @@ use futures::{Sink, SinkExt, Stream, StreamExt};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use tokio::prelude::*;
 use tokio::sync::{mpsc, oneshot, RwLock};
 
 #[derive(Clone)]
@@ -95,7 +94,7 @@ impl DuplexSocket {
 
     #[inline]
     async fn loop_canceller(&self, mut rx: mpsc::Receiver<u32>) {
-        while let Some(sid) = rx.next().await {
+        while let Some(sid) = rx.recv().await {
             self.handlers.remove(&sid);
         }
     }
@@ -456,12 +455,16 @@ impl DuplexSocket {
     async fn on_request_channel(&self, sid: u32, flag: u16, first: Payload) {
         let responder = self.responder.clone();
         let tx = self.tx.clone();
-        let (sender, receiver) = mpsc::channel::<Result<Payload>>(32);
+        let (sender, mut receiver) = mpsc::channel::<Result<Payload>>(32);
         sender.send(Ok(first)).await.expect("Send failed!");
         self.register_handler(sid, Handler::ReqRC(sender)).await;
         runtime::spawn(async move {
             // respond client channel
-            let mut outputs = responder.request_channel(Box::pin(receiver));
+            let mut outputs = responder.request_channel(Box::pin(stream! {
+                while let Some(it) = receiver.recv().await{
+                    yield it;
+                }
+            }));
             // TODO: support custom RequestN.
             let request_n = frame::RequestN::builder(sid, 0).build();
 
@@ -784,7 +787,7 @@ impl RSocket for DuplexSocket {
         let sid = self.seq.next();
         let tx = self.tx.clone();
         // register handler
-        let (sender, receiver) = mpsc::channel::<Result<Payload>>(32);
+        let (sender, mut receiver) = mpsc::channel::<Result<Payload>>(32);
         let handlers = self.handlers.clone();
         let splitter = self.splitter.clone();
         runtime::spawn(async move {
@@ -843,14 +846,18 @@ impl RSocket for DuplexSocket {
                 }
             }
         });
-        Box::pin(receiver)
+        Box::pin(stream! {
+            while let Some(it) = receiver.recv().await{
+                yield it;
+            }
+        })
     }
 
     fn request_channel(&self, mut reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>> {
         let sid = self.seq.next();
         let mut tx = self.tx.clone();
         // register handler
-        let (sender, receiver) = mpsc::channel::<Result<Payload>>(32);
+        let (sender, mut receiver) = mpsc::channel::<Result<Payload>>(32);
         let handlers = self.handlers.clone();
         let splitter = self.splitter.clone();
         runtime::spawn(async move {
@@ -884,7 +891,11 @@ impl RSocket for DuplexSocket {
                 error!("complete REQUEST_CHANNEL failed: {}", e);
             }
         });
-        Box::pin(receiver)
+        Box::pin(stream! {
+            while let Some(it) = receiver.recv().await{
+                yield it;
+            }
+        })
     }
 }
 
