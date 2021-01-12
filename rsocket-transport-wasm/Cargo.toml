@@ -10,15 +10,15 @@ homepage = "https://github.com/rsocket/rsocket-rust"
 description = "WASM Websocket RSocket transport implementation."
 
 [dependencies]
-bytes = "0.6.0"
+bytes = "1.0.1"
 wasm-bindgen-futures = "0.4.19"
 futures-channel = "0.3.9"
 futures-util = "0.3.9"
 js-sys = "0.3.46"
-serde = "1.0.118"
-serde_derive = "1.0.118"
+serde = "1.0.119"
+serde_derive = "1.0.119"
 async-trait = "0.1.42"
-log = "0.4.11"
+log = "0.4.13"
 
 [dependencies.rsocket_rust]
 path = "../rsocket"

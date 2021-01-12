@@ -7,13 +7,13 @@ publish = false
 
 [dev-dependencies]
 log = "0.4"
-futures = "0.3.8"
+futures = "0.3.9"
 env_logger = "0.8.2"
-bytes = "0.6.0"
+bytes = "1.0.1"
 hex = "0.4.2"
-rand = "0.8.0"
-serde = "1.0.118"
-serde_derive = "1.0.118"
+rand = "0.8.1"
+serde = "1.0.119"
+serde_derive = "1.0.119"
 
 [dev-dependencies.rsocket_rust]
 path = "../rsocket"
@@ -29,6 +29,6 @@ path = "../rsocket-transport-websocket"
 path = "../rsocket-messaging"
 
 [dev-dependencies.tokio]
-version = "0.3.6"
+version = "1.0.1"
 default-features = false
 features = ["full"]
