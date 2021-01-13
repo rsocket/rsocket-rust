@@ -8,15 +8,14 @@ mod connection;
 mod misc;
 mod server;
 
-pub use client::{TcpClientTransport, UnixClientTransport};
-pub use connection::{TcpConnection, UnixConnection};
-pub use server::{TcpServerTransport, UnixServerTransport};
-
 #[cfg(feature = "tls")]
 pub use client::TlsClientTransport;
+pub use client::{TcpClientTransport, UnixClientTransport};
 #[cfg(feature = "tls")]
 pub use connection::TlsConnection;
+pub use connection::{TcpConnection, UnixConnection};
 #[cfg(feature = "tls")]
 pub use server::TlsServerTransport;
+pub use server::{TcpServerTransport, UnixServerTransport};
 #[cfg(feature = "tls")]
 pub use tokio_native_tls;

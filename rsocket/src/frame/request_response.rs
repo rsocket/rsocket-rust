@@ -1,6 +1,7 @@
+use bytes::{BufMut, Bytes, BytesMut};
+
 use super::{utils, Body, Frame};
 use crate::utils::Writeable;
-use bytes::{BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
 pub struct RequestResponse {

@@ -1,10 +1,11 @@
-use super::codec::LengthBasedFrameCodec;
 use futures::{SinkExt, StreamExt};
 use rsocket_rust::error::RSocketError;
 use rsocket_rust::transport::{Connection, FrameSink, FrameStream};
 use tokio::net::TcpStream;
 use tokio_native_tls::TlsStream;
 use tokio_util::codec::Framed;
+
+use super::codec::LengthBasedFrameCodec;
 
 #[derive(Debug)]
 pub struct TlsConnection {

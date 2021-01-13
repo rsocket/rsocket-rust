@@ -1,6 +1,7 @@
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+
 use crate::error::RSocketError;
 use crate::utils::Writeable;
-use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 mod cancel;
 mod error;

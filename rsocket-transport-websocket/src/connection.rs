@@ -1,3 +1,5 @@
+use std::result::Result;
+
 use bytes::{BufMut, BytesMut};
 use futures::stream::SplitSink;
 use futures::{Sink, SinkExt, StreamExt};
@@ -7,7 +9,6 @@ use rsocket_rust::{
     transport::{Connection, FrameSink, FrameStream},
     utils::Writeable,
 };
-use std::result::Result;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     tungstenite::{Error as WsError, Message},

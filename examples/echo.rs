@@ -1,6 +1,8 @@
 #[macro_use]
 extern crate log;
 
+use std::fs;
+
 use clap::{App, Arg, SubCommand};
 use rsocket_rust::prelude::*;
 use rsocket_rust::transport::Connection;
@@ -10,7 +12,6 @@ use rsocket_rust_transport_tcp::{
     TcpClientTransport, TcpServerTransport, UnixClientTransport, UnixServerTransport,
 };
 use rsocket_rust_transport_websocket::{WebsocketClientTransport, WebsocketServerTransport};
-use std::fs;
 
 enum RequestMode {
     FNF,

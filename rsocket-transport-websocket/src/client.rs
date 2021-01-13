@@ -1,9 +1,11 @@
-use super::connection::WebsocketConnection;
-use rsocket_rust::{async_trait, error::RSocketError, transport::Transport, Result};
 use std::net::SocketAddr;
+
+use rsocket_rust::{async_trait, error::RSocketError, transport::Transport, Result};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{accept_async, connect_async};
 use url::Url;
+
+use super::connection::WebsocketConnection;
 
 #[derive(Debug)]
 pub(crate) enum Connector {

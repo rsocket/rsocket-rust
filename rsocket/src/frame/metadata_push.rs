@@ -1,6 +1,7 @@
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+
 use super::{Body, Frame};
 use crate::utils::Writeable;
-use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
 pub struct MetadataPush {

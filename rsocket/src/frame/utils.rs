@@ -1,7 +1,8 @@
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+
 use super::Frame;
 use crate::error::RSocketError;
 use crate::utils::{u24, Writeable};
-use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[inline]
 pub(crate) fn read_payload(

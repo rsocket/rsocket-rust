@@ -1,7 +1,8 @@
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+
 use super::{Body, Frame};
 use crate::error::RSocketError;
 use crate::utils::Writeable;
-use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
 pub struct ResumeOK {

@@ -1,5 +1,6 @@
 use std::fmt;
 use std::io;
+
 use thiserror::Error;
 
 pub const ERR_INVALID_SETUP: u32 = 0x0000_0001;

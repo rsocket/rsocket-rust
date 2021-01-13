@@ -1,4 +1,7 @@
-use super::misc::{self, marshal, unmarshal};
+use std::collections::LinkedList;
+use std::net::SocketAddr;
+use std::sync::Arc;
+
 use bytes::{Bytes, BytesMut};
 use rsocket_rust::extension::{CompositeMetadata, MimeType, RoutingMetadata};
 use rsocket_rust::prelude::*;
@@ -7,10 +10,9 @@ use rsocket_rust::{error::RSocketError, Result};
 use rsocket_rust_transport_tcp::TcpClientTransport;
 use rsocket_rust_transport_websocket::WebsocketClientTransport;
 use serde::{de::DeserializeOwned, Serialize};
-use std::collections::LinkedList;
-use std::net::SocketAddr;
-use std::sync::Arc;
 use url::Url;
+
+use super::misc::{self, marshal, unmarshal};
 
 type FnMetadata = Box<dyn FnMut() -> Result<(MimeType, Vec<u8>)>>;
 type FnData = Box<dyn FnMut(&MimeType) -> Result<Vec<u8>>>;

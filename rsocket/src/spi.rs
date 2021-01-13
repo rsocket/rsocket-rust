@@ -1,9 +1,11 @@
-use crate::payload::{Payload, SetupPayload};
-use crate::Result;
-use async_trait::async_trait;
-use futures::Stream;
 use std::future::Future;
 use std::pin::Pin;
+
+use async_trait::async_trait;
+use futures::Stream;
+
+use crate::payload::{Payload, SetupPayload};
+use crate::Result;
 
 pub type ClientResponder = Box<dyn Send + Sync + Fn() -> Box<dyn RSocket>>;
 pub type ServerResponder =

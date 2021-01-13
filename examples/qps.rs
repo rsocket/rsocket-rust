@@ -1,17 +1,18 @@
 #[macro_use]
 extern crate log;
 
+use std::sync::{
+    atomic::{AtomicU32, Ordering},
+    Arc,
+};
+use std::time::SystemTime;
+
 use clap::{App, Arg};
 use rsocket_rust::prelude::*;
 use rsocket_rust::transport::{Connection, Transport};
 use rsocket_rust::Result;
 use rsocket_rust_transport_tcp::{TcpClientTransport, UnixClientTransport};
 use rsocket_rust_transport_websocket::WebsocketClientTransport;
-use std::sync::{
-    atomic::{AtomicU32, Ordering},
-    Arc,
-};
-use std::time::SystemTime;
 use tokio::sync::{oneshot, Notify};
 
 async fn connect<A, B>(

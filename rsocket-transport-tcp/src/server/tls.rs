@@ -1,9 +1,11 @@
-use crate::client::TlsClientTransport;
+use std::net::SocketAddr;
+
 use rsocket_rust::async_trait;
 use rsocket_rust::{error::RSocketError, transport::ServerTransport, Result};
-use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tokio_native_tls::TlsAcceptor;
+
+use crate::client::TlsClientTransport;
 
 pub struct TlsServerTransport {
     addr: SocketAddr,

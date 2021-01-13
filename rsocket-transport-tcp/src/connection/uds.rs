@@ -1,9 +1,10 @@
-use super::codec::LengthBasedFrameCodec;
 use futures::{SinkExt, StreamExt};
 use rsocket_rust::error::RSocketError;
 use rsocket_rust::transport::{Connection, FrameSink, FrameStream};
 use tokio::net::UnixStream;
 use tokio_util::codec::Framed;
+
+use super::codec::LengthBasedFrameCodec;
 
 #[derive(Debug)]
 pub struct UnixConnection {

@@ -1,7 +1,8 @@
+use std::io::{Error, ErrorKind};
+
 use bytes::{Buf, BytesMut};
 use rsocket_rust::frame::Frame;
 use rsocket_rust::utils::{u24, Writeable};
-use std::io::{Error, ErrorKind};
 use tokio_util::codec::{Decoder, Encoder};
 
 pub struct LengthBasedFrameCodec;
