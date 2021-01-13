@@ -133,12 +133,12 @@ where
                 match reader.next().await {
                     Some(Ok(frame)) => {
                         if let Err(e) = read_tx.send(frame) {
-                            error!("read next frame failed: {}", e);
+                            error!("forward frame failed: {}", e);
                             break;
                         }
                     }
                     Some(Err(e)) => {
-                        error!("read next frame failed: {}", e);
+                        error!("read frame failed: {}", e);
                         break;
                     }
                     None => {
@@ -150,7 +150,7 @@ where
 
         while let Some(frame) = read_rx.recv().await {
             if let Err(e) = socket.dispatch(frame, acceptor.as_ref().as_ref()).await {
-                error!("dispatch incoming frame failed: {}", e);
+                error!("dispatch frame failed: {}", e);
                 break;
             }
         }
