@@ -168,7 +168,6 @@ where
                     }
                 }
             }
-            println!("loop1: closed");
         });
 
         // begin read loop
