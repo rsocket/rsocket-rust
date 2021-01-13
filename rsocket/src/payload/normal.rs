@@ -1,6 +1,7 @@
+use bytes::Bytes;
+
 use super::misc::bytes_to_utf8;
 use crate::frame;
-use bytes::Bytes;
 
 #[derive(Debug, Clone)]
 pub struct Payload {

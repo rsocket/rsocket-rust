@@ -1,9 +1,10 @@
-use super::client::WebsocketClientTransport;
 use js_sys::{Promise, Uint8Array};
 use rsocket_rust::prelude::*;
 use rsocket_rust::Client;
 use wasm_bindgen::prelude::{wasm_bindgen, JsValue};
 use wasm_bindgen_futures::future_to_promise;
+
+use super::client::WebsocketClientTransport;
 
 #[derive(Serialize, Deserialize)]
 pub struct JsPayload {

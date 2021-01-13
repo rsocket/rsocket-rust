@@ -1,5 +1,6 @@
-use crate::utils::Writeable;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+
+use crate::utils::Writeable;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Version {

@@ -1,8 +1,10 @@
+use std::time::Duration;
+
+use bytes::Bytes;
+
 use super::misc::bytes_to_utf8;
 use crate::frame::Setup;
 use crate::utils::DEFAULT_MIME_TYPE;
-use bytes::Bytes;
-use std::time::Duration;
 
 #[derive(Debug)]
 pub struct SetupPayload {

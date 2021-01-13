@@ -1,8 +1,10 @@
-use crate::{client::TcpClientTransport, misc::parse_tcp_addr};
+use std::net::SocketAddr;
+
 use rsocket_rust::async_trait;
 use rsocket_rust::{error::RSocketError, transport::ServerTransport, Result};
-use std::net::SocketAddr;
 use tokio::net::TcpListener;
+
+use crate::{client::TcpClientTransport, misc::parse_tcp_addr};
 
 #[derive(Debug)]
 pub struct TcpServerTransport {

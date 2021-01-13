@@ -1,7 +1,9 @@
+use std::collections::LinkedList;
+
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+
 use crate::frame::{self, Body, Frame};
 use crate::payload::Payload;
-use bytes::{Buf, BufMut, Bytes, BytesMut};
-use std::collections::LinkedList;
 
 pub(crate) const MIN_MTU: usize = 64;
 
@@ -136,10 +138,11 @@ impl Joiner {
 #[cfg(test)]
 mod tests {
 
+    use bytes::{Buf, Bytes};
+
     use crate::frame::{self, Frame};
     use crate::payload::Payload;
     use crate::transport::{Joiner, Splitter};
-    use bytes::{Buf, Bytes};
 
     #[test]
     fn test_joiner() {

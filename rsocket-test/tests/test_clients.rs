@@ -1,6 +1,9 @@
 #[macro_use]
 extern crate log;
 
+use std::thread::sleep;
+use std::time::Duration;
+
 use futures::stream;
 use rsocket_rust::prelude::*;
 use rsocket_rust::utils::EchoRSocket;
@@ -9,8 +12,6 @@ use rsocket_rust_transport_tcp::{
     TcpClientTransport, TcpServerTransport, UnixClientTransport, UnixServerTransport,
 };
 use rsocket_rust_transport_websocket::{WebsocketClientTransport, WebsocketServerTransport};
-use std::thread::sleep;
-use std::time::Duration;
 use tokio::runtime::Runtime;
 
 fn init() {

@@ -1,9 +1,11 @@
-use crate::connection::TlsConnection;
+use std::net::SocketAddr;
+
 use rsocket_rust::async_trait;
 use rsocket_rust::{error::RSocketError, transport::Transport, Result};
-use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio_native_tls::{TlsConnector, TlsStream};
+
+use crate::connection::TlsConnection;
 
 #[derive(Debug)]
 enum Connector {

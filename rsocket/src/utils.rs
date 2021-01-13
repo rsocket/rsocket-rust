@@ -1,16 +1,18 @@
+use std::error::Error;
+use std::future::Future;
+use std::pin::Pin;
+
+use async_stream::stream;
+use async_trait::async_trait;
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+use futures::{pin_mut, FutureExt, Sink, SinkExt, Stream, StreamExt};
+use tokio::sync::mpsc;
+
 use super::spi::{Flux, RSocket};
 use crate::error::RSocketError;
 use crate::payload::Payload;
 use crate::runtime;
 use crate::Result;
-use async_stream::stream;
-use async_trait::async_trait;
-use bytes::{Buf, BufMut, Bytes, BytesMut};
-use futures::{pin_mut, FutureExt, Sink, SinkExt, Stream, StreamExt};
-use std::error::Error;
-use std::future::Future;
-use std::pin::Pin;
-use tokio::sync::mpsc;
 
 pub const DEFAULT_MIME_TYPE: &str = "application/binary";
 

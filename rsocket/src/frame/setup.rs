@@ -1,9 +1,11 @@
+use std::time::Duration;
+
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+
 use super::utils;
 use super::{Body, Frame, Version};
 use crate::error::RSocketError;
 use crate::utils::{Writeable, DEFAULT_MIME_TYPE};
-use bytes::{Buf, BufMut, Bytes, BytesMut};
-use std::time::Duration;
 
 #[derive(Debug, PartialEq)]
 pub struct Setup {

@@ -1,7 +1,8 @@
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+
 use super::{utils, Body, Frame, REQUEST_MAX};
 use crate::error::RSocketError;
 use crate::utils::Writeable;
-use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
 pub struct RequestStream {

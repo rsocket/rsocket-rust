@@ -1,6 +1,7 @@
-use crate::frame::Frame;
 use std::sync::atomic::{AtomicI64, AtomicU32, Ordering};
 use std::sync::Arc;
+
+use crate::frame::Frame;
 
 #[derive(Debug, Clone)]
 pub(crate) struct StreamID {

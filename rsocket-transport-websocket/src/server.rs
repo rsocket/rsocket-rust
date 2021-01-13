@@ -1,7 +1,9 @@
-use super::client::WebsocketClientTransport;
-use rsocket_rust::{async_trait, error::RSocketError, transport::ServerTransport, Result};
 use std::net::SocketAddr;
+
+use rsocket_rust::{async_trait, error::RSocketError, transport::ServerTransport, Result};
 use tokio::net::TcpListener;
+
+use super::client::WebsocketClientTransport;
 
 const WS_PROTO: &str = "ws://";
 

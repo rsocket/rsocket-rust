@@ -1,8 +1,9 @@
+use bytes::{BufMut, Bytes, BytesMut};
+
 use super::utils;
 use super::{Body, Frame};
 use crate::utils::Writeable;
 use crate::Result;
-use bytes::{BufMut, Bytes, BytesMut};
 
 #[derive(Debug, PartialEq)]
 pub struct Payload {

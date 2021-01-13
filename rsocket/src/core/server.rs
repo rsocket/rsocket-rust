@@ -1,3 +1,13 @@
+use std::error::Error;
+use std::future::Future;
+use std::marker::PhantomData;
+use std::net::SocketAddr;
+use std::pin::Pin;
+use std::sync::Arc;
+
+use futures::{SinkExt, StreamExt};
+use tokio::sync::mpsc;
+
 use crate::error::RSocketError;
 use crate::frame::{self, Frame};
 use crate::payload::SetupPayload;
@@ -6,14 +16,6 @@ use crate::spi::{RSocket, ServerResponder};
 use crate::transport::{Connection, DuplexSocket, ServerTransport, Splitter, Transport, MIN_MTU};
 use crate::utils::EmptyRSocket;
 use crate::Result;
-use futures::{SinkExt, StreamExt};
-use std::error::Error;
-use std::future::Future;
-use std::marker::PhantomData;
-use std::net::SocketAddr;
-use std::pin::Pin;
-use std::sync::Arc;
-use tokio::sync::mpsc;
 
 pub struct ServerBuilder<T, C> {
     transport: Option<T>,
