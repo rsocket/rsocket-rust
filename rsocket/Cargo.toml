@@ -12,10 +12,10 @@ description = "rsocket-rust is an implementation of the RSocket protocol in Rust
 [dependencies]
 log = "0.4.13"
 bytes = "1.0.1"
-futures = "0.3.9"
+futures = "0.3.10"
 lazy_static = "1.4.0"
 async-trait = "0.1.42"
-dashmap = "4.0.1"
+dashmap = "4.0.2"
 thiserror = "1.0.23"
 anyhow = "1.0.38"
 async-stream = "0.3.0"
@@ -26,7 +26,7 @@ wasm-bindgen-futures = "0.4.19"
 [dependencies.tokio]
 version = "1.0.1"
 default-features = false
-features = [ "rt", "rt-multi-thread", "sync", "time" ]
+features = [ "macros", "rt", "rt-multi-thread", "sync", "time" ]
 
 [features]
 default = []
