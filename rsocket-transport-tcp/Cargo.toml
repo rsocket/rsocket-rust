@@ -15,7 +15,7 @@ tls = ["tokio-native-tls"]
 
 [dependencies]
 log = "0.4.13"
-futures = "0.3.9"
+futures = "0.3.10"
 bytes = "1.0.1"
 
 [dependencies.rsocket_rust]
@@ -28,7 +28,7 @@ default-features = false
 features = [ "rt", "rt-multi-thread", "net", "sync", "io-util", "macros" ]
 
 [dependencies.tokio-util]
-version = "0.6.0"
+version = "0.6.1"
 default-features = false
 features = ["codec"]
 
