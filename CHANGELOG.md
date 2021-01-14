@@ -1,4 +1,33 @@
 
+<a name="v0.7.0"></a>
+## [v0.7.0](https://github.com/rsocket/rsocket-rust/compare/v0.6.0...v0.7.0) (2021-01-14)
+
+### Chore
+
+* update deps ([#42](https://github.com/rsocket/rsocket-rust/issues/42))
+* config chglog ([#41](https://github.com/rsocket/rsocket-rust/issues/41))
+* use mkcert to generate TLS example certificates and keys ([#38](https://github.com/rsocket/rsocket-rust/issues/38))
+* add RSocket trait example in readme
+* fix readme
+* bump tokio to v0.3.6
+* **rustfmt:** optimize import ([#39](https://github.com/rsocket/rsocket-rust/issues/39))
+
+### Feat
+
+* close connection correctly when client is dropped ([#40](https://github.com/rsocket/rsocket-rust/issues/40))
+* migrate to tokio v1
+* change transport api ([#35](https://github.com/rsocket/rsocket-rust/issues/35))
+* implment tls transport ([#31](https://github.com/rsocket/rsocket-rust/issues/31))
+* redesign RSocket trait based on async_trait
+* **request_response:** handle empty response correctly
+
+### Fix
+
+* register client-side responder correctly ([#36](https://github.com/rsocket/rsocket-rust/issues/36))
+* simplify Option convert
+* remove useless examples
+
+
 <a name="v0.6.0"></a>
 ## [v0.6.0](https://github.com/rsocket/rsocket-rust/compare/v0.5.3...v0.6.0) (2020-12-13)
 
