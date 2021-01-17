@@ -42,12 +42,12 @@ async fn main() -> Result<()> {
     RSocketFactory::receive()
         .transport(TcpServerTransport::from("127.0.0.1:7878"))
         .acceptor(Box::new(|setup, _socket| {
-            info!("accept setup: {:?}", setup);
+            println!("accept setup: {:?}", setup);
             Ok(Box::new(EchoRSocket))
             // Or you can reject setup
             // Err(From::from("SETUP_NOT_ALLOW"))
         }))
-        .on_start(|| info!("+++++++ echo server started! +++++++"))
+        .on_start(Box::new(|| println!("+++++++ echo server started! +++++++")))
         .serve()
         .await
 }
@@ -66,6 +66,7 @@ async fn main() -> Result<()> {
         .transport(TcpClientTransport::from("127.0.0.1:7878"))
         .setup(Payload::from("READY!"))
         .mime_type("text/plain", "text/plain")
+        .on_close(Box::new(|| println!("connection closed")))
         .start()
         .await?;
     let req = Payload::builder()
@@ -80,7 +81,6 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
-
 ```
 
 ### Implement RSocket trait
@@ -90,11 +90,12 @@ Example for access Redis([crates](https://crates.io/crates/redis)):
 > NOTICE: add dependency in Cargo.toml => redis = { version = "0.19.0", features = [ "aio" ] }
 
 ```rust
+use std::str::FromStr;
+
 use redis::Client as RedisClient;
 use rsocket_rust::async_trait;
 use rsocket_rust::prelude::*;
 use rsocket_rust::Result;
-use std::str::FromStr;
 
 #[derive(Clone)]
 pub struct RedisDao {
