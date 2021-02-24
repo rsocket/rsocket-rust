@@ -95,7 +95,6 @@
 pub use async_stream::stream;
 /// A re-export of [`async-trait`](https://docs.rs/async-trait) for use with RSocket trait implementation.
 pub use async_trait::async_trait;
-use cfg_if::cfg_if;
 
 #[macro_use]
 extern crate anyhow;
@@ -104,8 +103,16 @@ extern crate log;
 #[macro_use]
 extern crate cfg_if;
 
+#[macro_use]
+#[doc(hidden)]
+pub mod macros;
+
 pub mod error;
 pub mod extension;
+pub mod prelude;
+pub mod runtime;
+pub mod transport;
+pub mod utils;
 
 cfg_if! {
     if #[cfg(feature = "frame")]{
@@ -117,11 +124,7 @@ cfg_if! {
 
 mod core;
 mod payload;
-pub mod prelude;
-pub mod runtime;
 mod spi;
-pub mod transport;
-pub mod utils;
 
 pub type Error = Box<dyn std::error::Error + Sync + Send>;
 pub type Result<T> = anyhow::Result<T>;
