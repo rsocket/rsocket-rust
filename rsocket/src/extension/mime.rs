@@ -1,28 +1,29 @@
 use std::collections::HashMap;
 use std::fmt;
 
+use once_cell::sync::Lazy;
+
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub enum MimeType {
     Normal(String),
     WellKnown(u8),
 }
 
-lazy_static! {
-    static ref U8_TO_STR: HashMap<u8, &'static str> = {
-        let mut m = HashMap::new();
-        for it in list_all().iter() {
-            m.insert(it.0, it.1);
-        }
-        m
-    };
-    static ref STR_TO_U8: HashMap<&'static str, u8> = {
-        let mut m = HashMap::new();
-        for it in list_all().iter() {
-            m.insert(it.1, it.0);
-        }
-        m
-    };
-}
+static U8_TO_STR: Lazy<HashMap<u8, &'static str>> = Lazy::new(|| {
+    let mut m = HashMap::new();
+    for it in list_all().iter() {
+        m.insert(it.0, it.1);
+    }
+    m
+});
+
+static STR_TO_U8: Lazy<HashMap<&'static str, u8>> = Lazy::new(|| {
+    let mut m = HashMap::new();
+    for it in list_all().iter() {
+        m.insert(it.1, it.0);
+    }
+    m
+});
 
 impl MimeType {
     pub fn parse(value: u8) -> Option<MimeType> {

@@ -95,21 +95,25 @@
 pub use async_stream::stream;
 /// A re-export of [`async-trait`](https://docs.rs/async-trait) for use with RSocket trait implementation.
 pub use async_trait::async_trait;
+use cfg_if::cfg_if;
 
 #[macro_use]
 extern crate anyhow;
 #[macro_use]
 extern crate log;
 #[macro_use]
-extern crate lazy_static;
+extern crate cfg_if;
 
 pub mod error;
 pub mod extension;
 
-#[cfg(feature = "frame")]
-pub mod frame;
-#[cfg(not(feature = "frame"))]
-mod frame;
+cfg_if! {
+    if #[cfg(feature = "frame")]{
+        pub mod frame;
+    }else{
+        mod frame;
+    }
+}
 
 mod core;
 mod payload;

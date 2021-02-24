@@ -10,10 +10,10 @@ homepage = "https://github.com/rsocket/rsocket-rust"
 description = "Websocket RSocket transport implementation."
 
 [dependencies]
-log = "0.4.13"
-futures = "0.3.10"
+log = "0.4.14"
+futures = "0.3.13"
 bytes = "1.0.1"
-url = "2.2.0"
+url = "2.2.1"
 tokio-tungstenite = "0.13.0"
 
 [dependencies.rsocket_rust]
@@ -21,6 +21,6 @@ path = "../rsocket"
 features = ["frame"]
 
 [dependencies.tokio]
-version = "1.0.1"
+version = "1.0.3"
 default-features = false
 features = [ "rt", "rt-multi-thread", "net", "sync"]
