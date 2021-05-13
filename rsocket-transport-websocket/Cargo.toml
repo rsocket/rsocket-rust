@@ -17,7 +17,8 @@ url = "2.2.2"
 tokio-tungstenite = "0.13.0"
 
 [dependencies.rsocket_rust]
-path = "../rsocket"
+version = "0.7.1"
+# path = "../rsocket"
 features = ["frame"]
 
 [dependencies.tokio]
