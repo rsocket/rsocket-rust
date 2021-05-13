@@ -69,7 +69,7 @@ impl DuplexSocket {
         socket
     }
 
-    pub(crate) async fn setup(&mut self, setup: SetupPayload) {
+    pub(crate) async fn setup(&mut self, setup: SetupPayload) -> Result<()> {
         let mut bu = frame::Setup::builder(0, 0);
         if let Some(s) = setup.data_mime_type() {
             bu = bu.set_mime_data(s);
@@ -86,7 +86,7 @@ impl DuplexSocket {
         if let Some(b) = m {
             bu = bu.set_metadata(b);
         }
-        self.tx.send(bu.build()).expect("Send setup failed");
+        self.tx.send(bu.build()).map_err(|e| e.into())
     }
 
     #[inline]
@@ -128,7 +128,9 @@ impl DuplexSocket {
                         .set_code(error::ERR_REJECT_SETUP)
                         .set_data(Bytes::from(errmsg))
                         .build();
-                    self.tx.send(sending).expect("Reject setup failed");
+                    if let Err(_) = self.tx.send(sending) {
+                        error!("Reject setup failed");
+                    }
                     return;
                 }
             }
@@ -261,13 +263,28 @@ impl DuplexSocket {
         self.joiners.remove(&sid);
         // pick handler
         if let Some((_, handler)) = self.handlers.remove(&sid) {
-            let desc = input.get_data_utf8().unwrap().to_owned();
+            let desc = input
+                .get_data_utf8()
+                .map(|it| it.to_string())
+                .unwrap_or_default();
             let e = RSocketError::must_new_from_code(input.get_code(), desc);
             match handler {
-                Handler::ReqRR(tx) => tx.send(Err(e.into())).expect("Send RR failed"),
+                Handler::ReqRR(tx) => {
+                    if let Err(_) = tx.send(Err(e.into())) {
+                        error!("respond with error for REQUEST_RESPONSE failed!");
+                    }
+                }
                 Handler::ResRR(_) => unreachable!(),
-                Handler::ReqRS(tx) => tx.send(Err(e.into())).await.expect("Send RS failed"),
-                Handler::ReqRC(tx) => tx.send(Err(e.into())).await.expect("Send RC failed"),
+                Handler::ReqRS(tx) => {
+                    if let Err(_) = tx.send(Err(e.into())).await {
+                        error!("respond with error for REQUEST_STREAM failed!");
+                    };
+                }
+                Handler::ReqRC(tx) => {
+                    if let Err(_) = tx.send(Err(e.into())).await {
+                        error!("respond with error for REQUEST_CHANNEL failed!");
+                    }
+                }
             }
         }
     }
@@ -281,7 +298,9 @@ impl DuplexSocket {
             match handler {
                 Handler::ReqRR(sender) => {
                     info!("REQUEST_RESPONSE {} cancelled!", sid);
-                    sender.send(e).unwrap();
+                    if let Err(_) = sender.send(e) {
+                        error!("notify cancel for REQUEST_RESPONSE failed: sid={}", sid);
+                    }
                 }
                 Handler::ResRR(c) => {
                     let lefts = c.count_down();
@@ -305,9 +324,13 @@ impl DuplexSocket {
                     Handler::ReqRR(_) => match o.remove() {
                         Handler::ReqRR(sender) => {
                             if flag & Frame::FLAG_NEXT != 0 {
-                                sender.send(Ok(Some(input))).unwrap();
+                                if let Err(_) = sender.send(Ok(Some(input))) {
+                                    error!("response successful payload for REQUEST_RESPONSE failed: sid={}",sid);
+                                }
                             } else {
-                                sender.send(Ok(None)).unwrap();
+                                if let Err(_) = sender.send(Ok(None)) {
+                                    error!("response successful payload for REQUEST_RESPONSE failed: sid={}",sid);
+                                }
                             }
                         }
                         _ => unreachable!(),
@@ -315,11 +338,12 @@ impl DuplexSocket {
                     Handler::ResRR(c) => unreachable!(),
                     Handler::ReqRS(sender) => {
                         if flag & Frame::FLAG_NEXT != 0 {
-                            sender
-                                .clone()
-                                .send(Ok(input))
-                                .await
-                                .expect("Send payload response failed.");
+                            if let Err(e) = sender.send(Ok(input)).await {
+                                error!(
+                                    "response successful payload for REQUEST_STREAM failed: sid={}",
+                                    sid
+                                );
+                            }
                         }
                         if flag & Frame::FLAG_COMPLETE != 0 {
                             o.remove();
@@ -328,11 +352,9 @@ impl DuplexSocket {
                     Handler::ReqRC(sender) => {
                         // TODO: support channel
                         if flag & Frame::FLAG_NEXT != 0 {
-                            sender
-                                .clone()
-                                .send(Ok(input))
-                                .await
-                                .expect("Send payload response failed");
+                            if let Err(_) = sender.clone().send(Ok(input)).await {
+                                error!("response successful payload for REQUEST_CHANNEL failed: sid={}",sid);
+                            }
                         }
                         if flag & Frame::FLAG_COMPLETE != 0 {
                             o.remove();
@@ -396,7 +418,9 @@ impl DuplexSocket {
             }
 
             // async remove canceller
-            canceller.send(sid).await.expect("Send canceller failed");
+            if let Err(_) = canceller.send(sid).await {
+                error!("Send canceller failed: sid={}", sid);
+            }
 
             match result {
                 Ok(Some(res)) => {

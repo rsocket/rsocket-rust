@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate log;
 
+use std::fs::File;
 use std::sync::{
     atomic::{AtomicU32, Ordering},
     Arc,
@@ -66,6 +67,13 @@ async fn main() -> Result<()> {
         .author("Jeffsky <jjeffcaii@outlook.com>")
         .about("An QPS benchmark tool for RSocket.")
         .arg(
+            Arg::with_name("pprof")
+                .long("pprof")
+                .required(false)
+                .takes_value(false)
+                .help("Enable pprof."),
+        )
+        .arg(
             Arg::with_name("count")
                 .short("c")
                 .long("count")
@@ -100,6 +108,12 @@ async fn main() -> Result<()> {
         .value_of("size")
         .map(|s| s.parse().expect("Invalid size!"))
         .unwrap();
+
+    let mut guard = None;
+    if cli.is_present("pprof") {
+        guard = Some(pprof::ProfilerGuard::new(100).unwrap());
+    }
+
     let addr = cli.value_of("URL").unwrap();
 
     let notify = Arc::new(Notify::new());
@@ -145,5 +159,16 @@ async fn main() -> Result<()> {
         costs,
         1000f64 * (count as f64) / (costs as f64)
     );
+
+    if let Some(guard) = guard {
+        match guard.report().build() {
+            Ok(report) => {
+                let file = File::create("flamegraph.svg").unwrap();
+                report.flamegraph(file).unwrap();
+            }
+            Err(_) => {}
+        };
+    }
+
     Ok(())
 }

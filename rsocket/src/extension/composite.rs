@@ -119,13 +119,7 @@ impl CompositeMetadata {
         let mime_type = if 0x80 & first != 0 {
             // Well
             let n = first & 0x7F;
-            match MimeType::parse(n) {
-                Some(well) => well,
-                None => {
-                    let err_str = format!("invalid Well-Known MIME type: identifier={:x}", n);
-                    return Err(RSocketError::WithDescription(err_str).into());
-                }
-            }
+            MimeType::WellKnown(n)
         } else {
             // Bad
             let mime_len = (first as usize) + 1;
