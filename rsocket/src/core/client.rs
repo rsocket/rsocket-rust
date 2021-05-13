@@ -52,9 +52,10 @@ where
 
     pub fn fragment(mut self, mtu: usize) -> Self {
         if mtu > 0 && mtu < transport::MIN_MTU {
-            panic!("invalid fragment mtu: at least {}!", transport::MIN_MTU)
+            warn!("invalid fragment mtu: at least {}!", transport::MIN_MTU)
+        } else {
+            self.mtu = mtu;
         }
-        self.mtu = mtu;
         self
     }
 
@@ -82,18 +83,22 @@ where
         self
     }
 
-    pub fn mime_type(mut self, metadata_mime_type: &str, data_mime_type: &str) -> Self {
+    pub fn mime_type(
+        mut self,
+        metadata_mime_type: impl Into<String>,
+        data_mime_type: impl Into<String>,
+    ) -> Self {
         self = self.metadata_mime_type(metadata_mime_type);
         self = self.data_mime_type(data_mime_type);
         self
     }
 
-    pub fn data_mime_type(mut self, mime_type: &str) -> Self {
+    pub fn data_mime_type(mut self, mime_type: impl Into<String>) -> Self {
         self.setup = self.setup.set_data_mime_type(mime_type);
         self
     }
 
-    pub fn metadata_mime_type(mut self, mime_type: &str) -> Self {
+    pub fn metadata_mime_type(mut self, mime_type: impl Into<String>) -> Self {
         self.setup = self.setup.set_metadata_mime_type(mime_type);
         self
     }
@@ -232,7 +237,7 @@ where
             }
         });
 
-        socket.setup(setup).await;
+        socket.setup(setup).await?;
 
         Ok(Client::new(socket, close_notify, closing))
     }

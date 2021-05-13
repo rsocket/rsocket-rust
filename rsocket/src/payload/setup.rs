@@ -86,12 +86,12 @@ impl SetupPayloadBuilder {
         self
     }
 
-    pub fn set_data_mime_type(mut self, mime: &str) -> Self {
-        self.inner.mime_d = Some(Bytes::from(mime.to_owned()));
+    pub fn set_data_mime_type(mut self, mime: impl Into<String>) -> Self {
+        self.inner.mime_d = Some(Bytes::from(mime.into()));
         self
     }
-    pub fn set_metadata_mime_type(mut self, mime: &str) -> Self {
-        self.inner.mime_m = Some(Bytes::from(mime.to_owned()));
+    pub fn set_metadata_mime_type(mut self, mime: impl Into<String>) -> Self {
+        self.inner.mime_m = Some(Bytes::from(mime.into()));
         self
     }
 

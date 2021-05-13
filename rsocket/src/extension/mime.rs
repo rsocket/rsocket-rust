@@ -1,7 +1,11 @@
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::fmt;
 
 use once_cell::sync::Lazy;
+
+use crate::error::RSocketError;
+use crate::Result;
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub enum MimeType {
@@ -36,19 +40,26 @@ impl MimeType {
             Self::Normal(_) => None,
         }
     }
+
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            Self::Normal(s) => Some(s.as_ref()),
+            Self::WellKnown(n) => match U8_TO_STR.get(n) {
+                Some(v) => Some(v),
+                None => None,
+            },
+        }
+    }
 }
 
 impl Into<String> for MimeType {
     fn into(self) -> String {
-        self.as_ref().to_owned()
-    }
-}
-
-impl AsRef<str> for MimeType {
-    fn as_ref(&self) -> &str {
         match self {
-            Self::Normal(s) => &s,
-            Self::WellKnown(n) => U8_TO_STR.get(n).unwrap(),
+            Self::Normal(s) => s,
+            Self::WellKnown(n) => match U8_TO_STR.get(&n) {
+                Some(v) => v.to_string(),
+                None => "UNKNOWN".to_string(),
+            },
         }
     }
 }

@@ -155,9 +155,9 @@ impl RequesterBuilder {
             Some(TransportKind::TCP(h, p)) => {
                 let addr: SocketAddr = format!("{}:{}", h, p).parse()?;
                 let cli = RSocketFactory::connect()
-                    .data_mime_type(data_mime_type.as_ref())
+                    .data_mime_type(data_mime_type)
                     .setup(setup)
-                    .metadata_mime_type(MimeType::MESSAGE_X_RSOCKET_COMPOSITE_METADATA_V0.as_ref())
+                    .metadata_mime_type(MimeType::MESSAGE_X_RSOCKET_COMPOSITE_METADATA_V0)
                     .transport(TcpClientTransport::from(addr))
                     .start()
                     .await?;
@@ -168,9 +168,9 @@ impl RequesterBuilder {
             Some(TransportKind::WS(u)) => {
                 let url = Url::parse(&u)?;
                 let cli = RSocketFactory::connect()
-                    .data_mime_type(data_mime_type.as_ref())
+                    .data_mime_type(data_mime_type)
                     .setup(setup)
-                    .metadata_mime_type(MimeType::MESSAGE_X_RSOCKET_COMPOSITE_METADATA_V0.as_ref())
+                    .metadata_mime_type(MimeType::MESSAGE_X_RSOCKET_COMPOSITE_METADATA_V0)
                     .transport(WebsocketClientTransport::from(url))
                     .start()
                     .await?;
