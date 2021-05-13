@@ -2,7 +2,6 @@ use std::cell::RefCell;
 use std::future::Future;
 use std::rc::Rc;
 
-use async_trait::async_trait;
 use bytes::BytesMut;
 use futures_channel::{mpsc, oneshot};
 use futures_util::StreamExt;
@@ -10,7 +9,7 @@ use js_sys::{ArrayBuffer, Uint8Array};
 use rsocket_rust::frame::Frame;
 use rsocket_rust::transport::Transport;
 use rsocket_rust::utils::Writeable;
-use rsocket_rust::{error::RSocketError, Result};
+use rsocket_rust::{async_trait, error::RSocketError, Result};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{ErrorEvent, Event, FileReader, MessageEvent, ProgressEvent, WebSocket};
