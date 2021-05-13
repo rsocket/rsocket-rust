@@ -20,7 +20,8 @@ serde_derive = "1.0.126"
 log = "0.4.14"
 
 [dependencies.rsocket_rust]
-path = "../rsocket"
+version = "0.7.1"
+# path = "../rsocket"
 features = ["frame"]
 
 [dependencies.wasm-bindgen]
