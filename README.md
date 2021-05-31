@@ -21,12 +21,12 @@ Add dependencies in your `Cargo.toml`.
 
 ```toml
 [dependencies]
-tokio = "1.0"
-rsocket_rust = "0.7"
+tokio = "1.0.3"
+rsocket_rust = "0.7.1"
 
 # add transport dependencies:
-# rsocket_rust_transport_tcp = "0.7"
-# rsocket_rust_transport_websocket = "0.7"
+# rsocket_rust_transport_tcp = "0.7.1"
+# rsocket_rust_transport_websocket = "0.7.1"
 ```
 
 ### Server
