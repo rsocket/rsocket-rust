@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use dashmap::{mapref::entry::Entry, DashMap};
 use futures::{Sink, SinkExt, Stream, StreamExt};
+use futures::future::{AbortHandle, Abortable};
 use tokio::sync::{mpsc, oneshot, RwLock};
 
 use super::fragmentation::{Joiner, Splitter};
@@ -28,6 +29,8 @@ pub(crate) struct DuplexSocket {
     canceller: mpsc::Sender<u32>,
     splitter: Option<Splitter>,
     joiners: Arc<DashMap<u32, Joiner>>,
+    /// AbortHandles for streams and channels associated by sid
+    abort_handles: Arc<DashMap<u32, AbortHandle>>,
 }
 
 #[derive(Clone)]
@@ -58,6 +61,7 @@ impl DuplexSocket {
             handlers: Arc::new(DashMap::new()),
             joiners: Arc::new(DashMap::new()),
             splitter,
+            abort_handles: Arc::new(DashMap::new()),
         };
 
         let cloned_socket = socket.clone();
@@ -291,6 +295,9 @@ impl DuplexSocket {
 
     #[inline]
     async fn on_cancel(&mut self, sid: u32, _flag: u16) {
+        if let Some((sid,abort_handle)) = self.abort_handles.remove(&sid) {
+            abort_handle.abort();
+        }
         self.joiners.remove(&sid);
         if let Some((_, handler)) = self.handlers.remove(&sid) {
             let e: Result<_> =
@@ -338,11 +345,14 @@ impl DuplexSocket {
                     Handler::ResRR(c) => unreachable!(),
                     Handler::ReqRS(sender) => {
                         if flag & Frame::FLAG_NEXT != 0 {
-                            if let Err(e) = sender.send(Ok(input)).await {
+                            if sender.is_closed() {
+                                self.send_cancel_frame(sid);
+                            } else if let Err(e) = sender.send(Ok(input)).await {
                                 error!(
                                     "response successful payload for REQUEST_STREAM failed: sid={}",
                                     sid
                                 );
+                                self.send_cancel_frame(sid);
                             }
                         }
                         if flag & Frame::FLAG_COMPLETE != 0 {
@@ -352,8 +362,11 @@ impl DuplexSocket {
                     Handler::ReqRC(sender) => {
                         // TODO: support channel
                         if flag & Frame::FLAG_NEXT != 0 {
-                            if let Err(_) = sender.clone().send(Ok(input)).await {
+                            if sender.is_closed() {
+                                self.send_cancel_frame(sid);
+                            } else if let Err(_) = sender.clone().send(Ok(input)).await {
                                 error!("response successful payload for REQUEST_CHANNEL failed: sid={}",sid);
+                                self.send_cancel_frame(sid);
                             }
                         }
                         if flag & Frame::FLAG_COMPLETE != 0 {
@@ -363,6 +376,14 @@ impl DuplexSocket {
                 }
             }
             Entry::Vacant(_) => warn!("invalid payload id {}: no such request!", sid),
+        }
+    }
+
+    #[inline]
+    fn send_cancel_frame(&self, sid: u32) {
+        let cancel_frame = frame::Cancel::builder(sid, Frame::FLAG_COMPLETE).build();
+        if let Err(e) = self.tx.send(cancel_frame) {
+            error!("Sending CANCEL frame failed: sid={}, reason: {}", sid, e);
         }
     }
 
@@ -454,9 +475,14 @@ impl DuplexSocket {
         let responder = self.responder.clone();
         let mut tx = self.tx.clone();
         let splitter = self.splitter.clone();
+        let abort_handles = self.abort_handles.clone();
         runtime::spawn(async move {
-            // TODO: support cancel
-            let mut payloads = responder.request_stream(input);
+            let (abort_handle, abort_registration) = AbortHandle::new_pair();
+            abort_handles.insert(sid, abort_handle);
+            let mut payloads = Abortable::new(
+                responder.request_stream(input),
+                abort_registration
+            );
             while let Some(next) = payloads.next().await {
                 match next {
                     Ok(it) => {
@@ -471,6 +497,7 @@ impl DuplexSocket {
                     }
                 };
             }
+            abort_handles.remove(&sid);
             let complete = frame::Payload::builder(sid, Frame::FLAG_COMPLETE).build();
             tx.send(complete)
                 .expect("Send stream complete response failed");
@@ -484,13 +511,21 @@ impl DuplexSocket {
         let (sender, mut receiver) = mpsc::channel::<Result<Payload>>(32);
         sender.send(Ok(first)).await.expect("Send failed!");
         self.register_handler(sid, Handler::ReqRC(sender)).await;
+        let abort_handles = self.abort_handles.clone();
         runtime::spawn(async move {
             // respond client channel
-            let mut outputs = responder.request_channel(Box::pin(stream! {
+            let outputs = responder.request_channel(Box::pin(stream! {
                 while let Some(it) = receiver.recv().await{
                     yield it;
                 }
             }));
+            let (abort_handle, abort_registration) = AbortHandle::new_pair();
+            abort_handles.insert(sid, abort_handle);
+            let mut outputs = Abortable::new(
+                outputs,
+                abort_registration
+            );
+
             // TODO: support custom RequestN.
             let request_n = frame::RequestN::builder(sid, 0).build();
 
@@ -518,6 +553,7 @@ impl DuplexSocket {
                 };
                 tx.send(sending).expect("Send failed!");
             }
+            abort_handles.remove(&sid);
             let complete = frame::Payload::builder(sid, Frame::FLAG_COMPLETE).build();
             if let Err(e) = tx.send(complete) {
                 error!("complete REQUEST_CHANNEL failed: {}", e);
