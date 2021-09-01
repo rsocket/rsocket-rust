@@ -1,6 +1,6 @@
 [package]
 name = "rsocket_rust_transport_tcp"
-version = "0.7.1"
+version = "0.7.2"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -20,8 +20,7 @@ bytes = "1.0.1"
 cfg-if = "1.0.0"
 
 [dependencies.rsocket_rust]
-version = "0.7.1"
-# path = "../rsocket"
+version = "0.7"
 features = ["frame"]
 
 [dependencies.tokio]

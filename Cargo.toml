@@ -9,7 +9,3 @@ members = [
   "examples",
   "rsocket-test",
 ]
-
-[replace]
-"rsocket_rust:0.7.1" = { path = "../rsocket-rust/rsocket" }
-"rsocket_rust_transport_tcp:0.7.1" = { path = "../rsocket-rust/rsocket-transport-tcp" }
