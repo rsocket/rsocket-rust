@@ -29,6 +29,10 @@ version = "1.0.3"
 default-features = false
 features = [ "macros", "rt", "rt-multi-thread", "sync", "time" ]
 
+[dependencies.tokio-stream]
+version = "0.1.7"
+features = ["sync"]
+
 [features]
 default = []
 frame = []
