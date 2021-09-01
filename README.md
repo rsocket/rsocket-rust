@@ -7,9 +7,9 @@
 [![License](https://img.shields.io/github/license/rsocket/rsocket-rust.svg)](https://github.com/rsocket/rsocket-rust/blob/master/LICENSE)
 [![GitHub Release](https://img.shields.io/github/release-pre/rsocket/rsocket-rust.svg)](https://github.com/rsocket/rsocket-rust/releases)
 
-> rsocket-rust is an implementation of the RSocket protocol in Rust(1.39+).
-It's an **alpha** version and still under active development.
-**Do not use it in a production environment!**
+> rsocket-rust is an implementation of the RSocket protocol in Rust(1.39+). It's
+> an **alpha** version and still under active development. **Do not use it in a
+> production environment!**
 
 ## Example
 
@@ -22,11 +22,11 @@ Add dependencies in your `Cargo.toml`.
 ```toml
 [dependencies]
 tokio = "1.0.3"
-rsocket_rust = "0.7.1"
+rsocket_rust = "0.7.2"
 
 # add transport dependencies:
-# rsocket_rust_transport_tcp = "0.7.1"
-# rsocket_rust_transport_websocket = "0.7.1"
+# rsocket_rust_transport_tcp = "0.7.2"
+# rsocket_rust_transport_websocket = "0.7.2"
 ```
 
 ### Server
@@ -101,7 +101,8 @@ async fn main() -> Result<()> {
 
 Example for access Redis([crates](https://crates.io/crates/redis)):
 
-> NOTICE: add dependency in Cargo.toml => redis = { version = "0.19.0", features = [ "aio" ] }
+> NOTICE: add dependency in Cargo.toml => redis = { version = "0.19.0", features
+> = [ "aio" ] }
 
 ```rust
 use std::str::FromStr;
@@ -159,7 +160,6 @@ impl RSocket for RedisDao {
         todo!()
     }
 }
-
 ```
 
 ## TODO

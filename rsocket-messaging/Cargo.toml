@@ -1,6 +1,6 @@
 [package]
 name = "rsocket_rust_messaging"
-version = "0.7.1"
+version = "0.7.2"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -19,14 +19,11 @@ hex = "0.4.2"
 url = "2.2.0"
 
 [dependencies.rsocket_rust]
-version = "0.7.1"
-# path = "../rsocket"
+version = "0.7"
 features = ["frame"]
 
 [dependencies.rsocket_rust_transport_tcp]
-version = "0.7.1"
-# path = "../rsocket-transport-tcp"
+version = "0.7"
 
 [dependencies.rsocket_rust_transport_websocket]
-version = "0.7.1"
-# path = "../rsocket-transport-websocket"
+version = "0.7"
