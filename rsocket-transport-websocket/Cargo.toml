@@ -1,6 +1,6 @@
 [package]
 name = "rsocket_rust_transport_websocket"
-version = "0.7.2"
+version = "0.7.3"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
 edition = "2018"
 license = "Apache-2.0"
@@ -23,4 +23,4 @@ features = ["frame"]
 [dependencies.tokio]
 version = "1.0.3"
 default-features = false
-features = [ "rt", "rt-multi-thread", "net", "sync"]
+features = [ "macros", "rt", "rt-multi-thread", "net", "sync"]
