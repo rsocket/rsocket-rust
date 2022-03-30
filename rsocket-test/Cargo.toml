@@ -2,7 +2,7 @@
 name = "rsocket_rust_test"
 version = "0.0.0"
 authors = ["Jeffsky <jjeffcaii@outlook.com>"]
-edition = "2018"
+edition = "2021"
 publish = false
 
 [dev-dependencies]
