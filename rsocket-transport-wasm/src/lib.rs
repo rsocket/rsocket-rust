@@ -1,4 +1,6 @@
 #![allow(clippy::type_complexity)]
+#![allow(clippy::unused_unit)]
+#![allow(clippy::from_over_into)]
 
 #[macro_use]
 extern crate serde_derive;

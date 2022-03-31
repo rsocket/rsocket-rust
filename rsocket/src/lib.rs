@@ -2,6 +2,7 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 #![allow(clippy::type_complexity)]
+#![allow(clippy::from_over_into)]
 #![doc(test(
     no_crate_inject,
     attr(deny(warnings, rust_2018_idioms), allow(dead_code, unused_variables))

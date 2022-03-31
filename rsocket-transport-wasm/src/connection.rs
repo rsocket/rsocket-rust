@@ -19,7 +19,7 @@ impl Connection for WebsocketConnection {
     fn split(self) -> (Box<FrameSink>, Box<FrameStream>) {
         (
             Box::new(self.tx.sink_map_err(|e| RSocketError::Other(e.into()))),
-            Box::new(self.rx.map(|it| Ok(it))),
+            Box::new(self.rx.map(Ok)),
         )
     }
 }

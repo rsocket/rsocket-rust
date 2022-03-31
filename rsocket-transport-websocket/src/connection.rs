@@ -72,7 +72,7 @@ impl Connection for WebsocketConnection {
                     bf.put_slice(&raw[..]);
                     match Frame::decode(&mut bf) {
                         Ok(frame) => Ok(frame),
-                        Err(e) => Err(RSocketError::Other(e.into())),
+                        Err(e) => Err(RSocketError::Other(e)),
                     }
                 }
                 Err(e) => Err(RSocketError::Other(e.into())),
