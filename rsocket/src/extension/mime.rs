@@ -44,10 +44,7 @@ impl MimeType {
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Self::Normal(s) => Some(s.as_ref()),
-            Self::WellKnown(n) => match U8_TO_STR.get(n) {
-                Some(v) => Some(v),
-                None => None,
-            },
+            Self::WellKnown(n) => U8_TO_STR.get(n).copied(),
         }
     }
 }

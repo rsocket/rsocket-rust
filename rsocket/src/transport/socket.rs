@@ -132,10 +132,9 @@ impl DuplexSocket {
                         .set_code(error::ERR_REJECT_SETUP)
                         .set_data(Bytes::from(errmsg))
                         .build();
-                    if let Err(_) = self.tx.send(sending) {
+                    if self.tx.send(sending).is_err() {
                         error!("Reject setup failed");
                     }
-                    return;
                 }
             }
             Body::Resume(v) => {
@@ -274,18 +273,18 @@ impl DuplexSocket {
             let e = RSocketError::must_new_from_code(input.get_code(), desc);
             match handler {
                 Handler::ReqRR(tx) => {
-                    if let Err(_) = tx.send(Err(e.into())) {
+                    if tx.send(Err(e.into())).is_err() {
                         error!("respond with error for REQUEST_RESPONSE failed!");
                     }
                 }
                 Handler::ResRR(_) => unreachable!(),
                 Handler::ReqRS(tx) => {
-                    if let Err(_) = tx.send(Err(e.into())).await {
+                    if (tx.send(Err(e.into())).await).is_err() {
                         error!("respond with error for REQUEST_STREAM failed!");
                     };
                 }
                 Handler::ReqRC(tx) => {
-                    if let Err(_) = tx.send(Err(e.into())).await {
+                    if (tx.send(Err(e.into())).await).is_err() {
                         error!("respond with error for REQUEST_CHANNEL failed!");
                     }
                 }
@@ -305,7 +304,7 @@ impl DuplexSocket {
             match handler {
                 Handler::ReqRR(sender) => {
                     info!("REQUEST_RESPONSE {} cancelled!", sid);
-                    if let Err(_) = sender.send(e) {
+                    if sender.send(e).is_err() {
                         error!("notify cancel for REQUEST_RESPONSE failed: sid={}", sid);
                     }
                 }
@@ -331,13 +330,11 @@ impl DuplexSocket {
                     Handler::ReqRR(_) => match o.remove() {
                         Handler::ReqRR(sender) => {
                             if flag & Frame::FLAG_NEXT != 0 {
-                                if let Err(_) = sender.send(Ok(Some(input))) {
+                                if sender.send(Ok(Some(input))).is_err() {
                                     error!("response successful payload for REQUEST_RESPONSE failed: sid={}",sid);
                                 }
-                            } else {
-                                if let Err(_) = sender.send(Ok(None)) {
+                            } else if sender.send(Ok(None)).is_err() {
                                     error!("response successful payload for REQUEST_RESPONSE failed: sid={}",sid);
-                                }
                             }
                         }
                         _ => unreachable!(),
@@ -364,7 +361,7 @@ impl DuplexSocket {
                         if flag & Frame::FLAG_NEXT != 0 {
                             if sender.is_closed() {
                                 self.send_cancel_frame(sid);
-                            } else if let Err(_) = sender.clone().send(Ok(input)).await {
+                            } else if (sender.clone().send(Ok(input)).await).is_err() {
                                 error!("response successful payload for REQUEST_CHANNEL failed: sid={}",sid);
                                 self.send_cancel_frame(sid);
                             }
@@ -439,7 +436,7 @@ impl DuplexSocket {
             }
 
             // async remove canceller
-            if let Err(_) = canceller.send(sid).await {
+            if (canceller.send(sid).await).is_err() {
                 error!("Send canceller failed: sid={}", sid);
             }
 

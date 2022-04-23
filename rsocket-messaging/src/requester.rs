@@ -36,6 +36,7 @@ pub struct RequestSpec {
     data: Option<FnData>,
 }
 
+#[derive(Default)]
 pub struct RequesterBuilder {
     data_mime_type: Option<MimeType>,
     route: Option<String>,
@@ -50,18 +51,6 @@ pub struct Unpackers {
 
 pub struct Unpacker {
     inner: UnpackerResult,
-}
-
-impl Default for RequesterBuilder {
-    fn default() -> Self {
-        Self {
-            data_mime_type: None,
-            route: None,
-            metadata: Default::default(),
-            data: None,
-            tp: None,
-        }
-    }
 }
 
 impl RequesterBuilder {
@@ -371,9 +360,9 @@ where
     match mime_type.as_u8() {
         Some(code) => {
             if code == MimeType::APPLICATION_JSON.as_u8().unwrap() {
-                Ok(Some(unmarshal(misc::json(), &raw.as_ref())?))
+                Ok(Some(unmarshal(misc::json(), raw.as_ref())?))
             } else if code == MimeType::APPLICATION_CBOR.as_u8().unwrap() {
-                Ok(Some(unmarshal(misc::cbor(), &raw.as_ref())?))
+                Ok(Some(unmarshal(misc::cbor(), raw.as_ref())?))
             } else {
                 Err(RSocketError::WithDescription("unsupported mime type!".into()).into())
             }

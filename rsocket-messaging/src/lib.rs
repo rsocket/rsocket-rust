@@ -1,3 +1,5 @@
+#![allow(clippy::upper_case_acronyms)]
+
 mod misc;
 mod requester;
 
