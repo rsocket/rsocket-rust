@@ -4,7 +4,7 @@ use super::{Body, Frame};
 use crate::error::RSocketError;
 use crate::utils::Writeable;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Lease {
     ttl: u32,
     number_of_requests: u32,

@@ -40,7 +40,7 @@ pub const REQUEST_MAX: u32 = 0x7FFF_FFFF; // 2147483647
 
 pub(crate) const LEN_HEADER: usize = 6;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Body {
     Setup(Setup),
     Lease(Lease),
@@ -58,7 +58,7 @@ pub enum Body {
     ResumeOK(ResumeOK),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Frame {
     pub(crate) stream_id: u32,
     pub(crate) body: Body,

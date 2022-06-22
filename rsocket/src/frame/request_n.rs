@@ -4,7 +4,7 @@ use super::{utils, Body, Frame, REQUEST_MAX};
 use crate::error::RSocketError;
 use crate::utils::Writeable;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct RequestN {
     n: u32,
 }

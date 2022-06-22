@@ -4,7 +4,7 @@ use super::{Body, Frame};
 use crate::error::RSocketError;
 use crate::utils::Writeable;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Keepalive {
     last_received_position: u64,
     data: Option<Bytes>,

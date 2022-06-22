@@ -1,6 +1,6 @@
 use super::{Body, Frame};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Cancel {}
 
 pub struct CancelBuilder {

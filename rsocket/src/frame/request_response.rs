@@ -3,7 +3,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 use super::{utils, Body, Frame};
 use crate::utils::Writeable;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct RequestResponse {
     metadata: Option<Bytes>,
     data: Option<Bytes>,

@@ -6,7 +6,7 @@ use super::{Body, Frame};
 use crate::error::RSocketError;
 use crate::utils::Writeable;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Error {
     code: u32,
     data: Option<Bytes>,

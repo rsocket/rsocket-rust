@@ -4,7 +4,7 @@ use super::{Body, Frame, Version};
 use crate::error::RSocketError;
 use crate::utils::Writeable;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Resume {
     version: Version,
     token: Option<Bytes>,

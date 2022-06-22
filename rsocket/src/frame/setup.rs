@@ -7,7 +7,7 @@ use super::{Body, Frame, Version};
 use crate::error::RSocketError;
 use crate::utils::{Writeable, DEFAULT_MIME_TYPE};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Setup {
     version: Version,
     keepalive: u32,
