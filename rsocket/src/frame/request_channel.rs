@@ -5,7 +5,7 @@ use super::{Body, Frame, REQUEST_MAX};
 use crate::error::RSocketError;
 use crate::utils::Writeable;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct RequestChannel {
     initial_request_n: u32,
     metadata: Option<Bytes>,

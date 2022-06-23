@@ -5,7 +5,7 @@ use super::{Body, Frame};
 use crate::utils::Writeable;
 use crate::Result;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Payload {
     metadata: Option<Bytes>,
     data: Option<Bytes>,
