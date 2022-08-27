@@ -19,11 +19,14 @@ hex = "0.4.2"
 url = "2.2.0"
 
 [dependencies.rsocket_rust]
+path = "../rsocket"
 version = "0.7"
 features = ["frame"]
 
 [dependencies.rsocket_rust_transport_tcp]
+path = "../rsocket-transport-tcp"
 version = "0.7"
 
 [dependencies.rsocket_rust_transport_websocket]
+path = "../rsocket-transport-websocket"
 version = "0.7"
