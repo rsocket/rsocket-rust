@@ -2,7 +2,12 @@ mod tcp;
 mod uds;
 
 pub use tcp::TcpClientTransport;
-pub use uds::UnixClientTransport;
+
+cfg_if! {
+    if #[cfg(unix)] {
+        pub use uds::UnixClientTransport;
+    }
+}
 
 cfg_if! {
     if #[cfg(feature = "tls")] {

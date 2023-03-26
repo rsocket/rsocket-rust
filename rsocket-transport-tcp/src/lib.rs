@@ -10,9 +10,17 @@ mod connection;
 mod misc;
 mod server;
 
-pub use client::{TcpClientTransport, UnixClientTransport};
-pub use connection::{TcpConnection, UnixConnection};
-pub use server::{TcpServerTransport, UnixServerTransport};
+pub use client::TcpClientTransport;
+pub use connection::TcpConnection;
+pub use server::TcpServerTransport;
+
+cfg_if! {
+    if #[cfg(unix)]{
+        pub use client::UnixClientTransport;
+        pub use connection::UnixConnection;
+        pub use server::UnixServerTransport;
+    }
+}
 
 cfg_if! {
     if #[cfg(feature = "tls")] {

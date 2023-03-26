@@ -1,8 +1,18 @@
 mod tcp;
-mod uds;
+
+cfg_if! {
+    if #[cfg(unix)] {
+        mod uds;
+    }
+}
 
 pub use tcp::TcpServerTransport;
-pub use uds::UnixServerTransport;
+
+cfg_if! {
+    if #[cfg(unix)] {
+        pub use uds::UnixServerTransport;
+    }
+}
 
 cfg_if! {
     if #[cfg(feature = "tls")] {

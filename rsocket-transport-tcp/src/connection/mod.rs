@@ -1,9 +1,19 @@
 mod codec;
 mod tcp;
-mod uds;
+
+cfg_if! {
+    if #[cfg(unix)] {
+        mod uds;
+    }
+}
 
 pub use tcp::TcpConnection;
-pub use uds::UnixConnection;
+
+cfg_if! {
+    if #[cfg(unix)] {
+        pub use uds::UnixConnection;
+    }
+}
 
 cfg_if! {
     if #[cfg(feature = "tls")] {
