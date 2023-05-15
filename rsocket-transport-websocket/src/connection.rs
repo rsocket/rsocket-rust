@@ -10,6 +10,7 @@ use rsocket_rust::{
     utils::Writeable,
 };
 use tokio::net::TcpStream;
+use tokio_tungstenite::MaybeTlsStream;
 use tokio_tungstenite::{
     tungstenite::{Error as WsError, Message},
     WebSocketStream,
@@ -17,16 +18,16 @@ use tokio_tungstenite::{
 
 #[derive(Debug)]
 pub struct WebsocketConnection {
-    stream: WebSocketStream<TcpStream>,
+    stream: WebSocketStream<MaybeTlsStream<TcpStream>>,
 }
 
 impl WebsocketConnection {
-    pub(crate) fn new(stream: WebSocketStream<TcpStream>) -> WebsocketConnection {
+    pub(crate) fn new(stream: WebSocketStream<MaybeTlsStream<TcpStream>>) -> WebsocketConnection {
         WebsocketConnection { stream }
     }
 }
 
-struct InnerSink(SplitSink<WebSocketStream<TcpStream>, Message>);
+struct InnerSink(SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>);
 
 impl Sink<Frame> for InnerSink {
     type Error = WsError;

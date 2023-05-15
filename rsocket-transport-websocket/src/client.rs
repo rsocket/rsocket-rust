@@ -2,16 +2,19 @@ use std::net::SocketAddr;
 
 use rsocket_rust::{async_trait, error::RSocketError, transport::Transport, Result};
 use tokio::net::TcpStream;
-use tokio_tungstenite::{accept_async, connect_async, tungstenite::handshake::client::Request};
+use tokio_tungstenite::{accept_async, connect_async, tungstenite::handshake::client::Request, MaybeTlsStream};
 use url::Url;
 
 use super::connection::WebsocketConnection;
 
 pub type WebsocketRequest = Request;
 
+const WS_PROTO: &str = "ws://";
+const WSS_PROTO: &str = "wss://";
+
 #[derive(Debug)]
 pub(crate) enum Connector {
-    Direct(TcpStream),
+    Direct(MaybeTlsStream<TcpStream>),
     Url(Url),
     Request(WebsocketRequest),
 }
@@ -49,18 +52,24 @@ impl Transport for WebsocketClientTransport {
     }
 }
 
+impl From<MaybeTlsStream<TcpStream>> for WebsocketClientTransport {
+    fn from(socket: MaybeTlsStream<TcpStream>) -> WebsocketClientTransport {
+        WebsocketClientTransport::new(Connector::Direct(socket))
+    }
+}
+
 impl From<TcpStream> for WebsocketClientTransport {
     fn from(socket: TcpStream) -> WebsocketClientTransport {
-        WebsocketClientTransport::new(Connector::Direct(socket))
+        WebsocketClientTransport::new(Connector::Direct(MaybeTlsStream::Plain(socket)))
     }
 }
 
 impl From<&str> for WebsocketClientTransport {
     fn from(addr: &str) -> WebsocketClientTransport {
-        let u = if addr.starts_with("ws://") {
+        let u = if addr.starts_with(WS_PROTO) || addr.starts_with(WSS_PROTO) {
             Url::parse(addr).unwrap()
         } else {
-            Url::parse(&format!("ws://{}", addr)).unwrap()
+            Url::parse(&format!("{}{}", WS_PROTO, addr)).unwrap()
         };
         WebsocketClientTransport::new(Connector::Url(u))
     }
@@ -68,7 +77,7 @@ impl From<&str> for WebsocketClientTransport {
 
 impl From<SocketAddr> for WebsocketClientTransport {
     fn from(addr: SocketAddr) -> WebsocketClientTransport {
-        let u = Url::parse(&format!("ws://{}", addr)).unwrap();
+        let u = Url::parse(&format!("{}{}", WS_PROTO, addr)).unwrap();
         WebsocketClientTransport::new(Connector::Url(u))
     }
 }
