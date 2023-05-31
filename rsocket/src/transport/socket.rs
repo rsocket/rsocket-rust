@@ -6,8 +6,8 @@ use async_stream::stream;
 use async_trait::async_trait;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use dashmap::{mapref::entry::Entry, DashMap};
-use futures::{Sink, SinkExt, Stream, StreamExt};
 use futures::future::{AbortHandle, Abortable};
+use futures::{Sink, SinkExt, Stream, StreamExt};
 use tokio::sync::{mpsc, oneshot, RwLock};
 
 use super::fragmentation::{Joiner, Splitter};
@@ -294,7 +294,7 @@ impl DuplexSocket {
 
     #[inline]
     async fn on_cancel(&mut self, sid: u32, _flag: u16) {
-        if let Some((sid,abort_handle)) = self.abort_handles.remove(&sid) {
+        if let Some((sid, abort_handle)) = self.abort_handles.remove(&sid) {
             abort_handle.abort();
         }
         self.joiners.remove(&sid);
@@ -334,7 +334,7 @@ impl DuplexSocket {
                                     error!("response successful payload for REQUEST_RESPONSE failed: sid={}",sid);
                                 }
                             } else if sender.send(Ok(None)).is_err() {
-                                    error!("response successful payload for REQUEST_RESPONSE failed: sid={}",sid);
+                                error!("response successful payload for REQUEST_RESPONSE failed: sid={}",sid);
                             }
                         }
                         _ => unreachable!(),
@@ -476,10 +476,7 @@ impl DuplexSocket {
         runtime::spawn(async move {
             let (abort_handle, abort_registration) = AbortHandle::new_pair();
             abort_handles.insert(sid, abort_handle);
-            let mut payloads = Abortable::new(
-                responder.request_stream(input),
-                abort_registration
-            );
+            let mut payloads = Abortable::new(responder.request_stream(input), abort_registration);
             while let Some(next) = payloads.next().await {
                 match next {
                     Ok(it) => {
@@ -518,10 +515,7 @@ impl DuplexSocket {
             }));
             let (abort_handle, abort_registration) = AbortHandle::new_pair();
             abort_handles.insert(sid, abort_handle);
-            let mut outputs = Abortable::new(
-                outputs,
-                abort_registration
-            );
+            let mut outputs = Abortable::new(outputs, abort_registration);
 
             // TODO: support custom RequestN.
             let request_n = frame::RequestN::builder(sid, 0).build();

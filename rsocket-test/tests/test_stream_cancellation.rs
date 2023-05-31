@@ -8,23 +8,24 @@ use std::time::Duration;
 use anyhow::Result;
 use async_trait::async_trait;
 use futures::StreamExt;
-use tokio_stream::wrappers::ReceiverStream;
-
 use rsocket_rust::prelude::{Flux, Payload, RSocket};
+use tokio_stream::wrappers::ReceiverStream;
 
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
 
+    use async_stream::stream;
     use futures::Future;
+    use rsocket_rust::prelude::*;
+    use rsocket_rust::utils::EchoRSocket;
+    use rsocket_rust::Client;
+    use rsocket_rust_transport_tcp::{
+        TcpClientTransport, TcpServerTransport, UnixClientTransport, UnixServerTransport,
+    };
     use rsocket_rust_transport_websocket::{WebsocketClientTransport, WebsocketServerTransport};
     use serial_test::serial;
     use tokio::runtime::Runtime;
-    use async_stream::stream;
-    use rsocket_rust::Client;
-    use rsocket_rust::prelude::*;
-    use rsocket_rust::utils::EchoRSocket;
-    use rsocket_rust_transport_tcp::{TcpClientTransport, TcpServerTransport, UnixClientTransport, UnixServerTransport};
 
     use crate::TestSocket;
 
@@ -59,7 +60,12 @@ mod tests {
     /// When request_stream handle is dropped: 0 subscribers
     async fn request_stream_can_be_cancelled_by_client(client: Client) {
         assert_eq!(
-            client.request_response(Payload::from("subscribers")).await.unwrap().unwrap().data_utf8(),
+            client
+                .request_response(Payload::from("subscribers"))
+                .await
+                .unwrap()
+                .unwrap()
+                .data_utf8(),
             Some("0")
         );
 
@@ -69,7 +75,12 @@ mod tests {
         assert_eq!(payload.data_utf8(), Some("0"));
 
         assert_eq!(
-            client.request_response(Payload::from("subscribers")).await.unwrap().unwrap().data_utf8(),
+            client
+                .request_response(Payload::from("subscribers"))
+                .await
+                .unwrap()
+                .unwrap()
+                .data_utf8(),
             Some("1")
         );
 
@@ -79,7 +90,12 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(250)).await;
 
         assert_eq!(
-            client.request_response(Payload::from("subscribers")).await.unwrap().unwrap().data_utf8(),
+            client
+                .request_response(Payload::from("subscribers"))
+                .await
+                .unwrap()
+                .unwrap()
+                .data_utf8(),
             Some("0")
         );
     }
@@ -115,19 +131,27 @@ mod tests {
     /// When request_channel handle is dropped: 0 subscribers
     async fn request_channel_can_be_cancelled_by_client(client: Client) {
         assert_eq!(
-            client.request_response(Payload::from("subscribers")).await.unwrap().unwrap().data_utf8(),
+            client
+                .request_response(Payload::from("subscribers"))
+                .await
+                .unwrap()
+                .unwrap()
+                .data_utf8(),
             Some("0")
         );
 
-        let mut results = client.request_channel(
-            stream!{ yield Ok(Payload::from("")) }.boxed()
-        );
+        let mut results = client.request_channel(stream! { yield Ok(Payload::from("")) }.boxed());
         let payload = results.next().await.expect("valid payload").unwrap();
         assert_eq!(payload.metadata_utf8(), Some("subscribers: 1"));
         assert_eq!(payload.data_utf8(), Some("0"));
 
         assert_eq!(
-            client.request_response(Payload::from("subscribers")).await.unwrap().unwrap().data_utf8(),
+            client
+                .request_response(Payload::from("subscribers"))
+                .await
+                .unwrap()
+                .unwrap()
+                .data_utf8(),
             Some("1")
         );
 
@@ -137,7 +161,12 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(250)).await;
 
         assert_eq!(
-            client.request_response(Payload::from("subscribers")).await.unwrap().unwrap().data_utf8(),
+            client
+                .request_response(Payload::from("subscribers"))
+                .await
+                .unwrap()
+                .unwrap()
+                .data_utf8(),
             Some("0")
         );
     }
@@ -153,17 +182,19 @@ mod tests {
     /// Executes the [run_test] scenario using a client which is connected over a UDS transport to
     /// a TestSocket
     fn with_uds_test_socket_run<F, Fut>(run_test: F)
-        where
-            F: (FnOnce(Client) -> Fut) + Send + 'static,
-            Fut: Future<Output=()> + Send + 'static,
+    where
+        F: (FnOnce(Client) -> Fut) + Send + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
     {
         info!("=====> begin uds");
         let server_runtime = Runtime::new().unwrap();
 
         server_runtime.spawn(async move {
             RSocketFactory::receive()
-                .transport(UnixServerTransport::from("/tmp/rsocket-uds.sock".to_owned()))
-                .acceptor(Box::new(|_setup, _socket| { Ok(Box::new(TestSocket::new())) }))
+                .transport(UnixServerTransport::from(
+                    "/tmp/rsocket-uds.sock".to_owned(),
+                ))
+                .acceptor(Box::new(|_setup, _socket| Ok(Box::new(TestSocket::new()))))
                 .serve()
                 .await
         });
@@ -175,7 +206,9 @@ mod tests {
         client_runtime.block_on(async {
             let client = RSocketFactory::connect()
                 .acceptor(Box::new(|| Box::new(EchoRSocket)))
-                .transport(UnixClientTransport::from("/tmp/rsocket-uds.sock".to_owned()))
+                .transport(UnixClientTransport::from(
+                    "/tmp/rsocket-uds.sock".to_owned(),
+                ))
                 .setup(Payload::from("READY!"))
                 .mime_type("text/plain", "text/plain")
                 .start()
@@ -189,16 +222,16 @@ mod tests {
     /// Executes the [run_test] scenario using a client which is connected over a UDS transport to
     /// a TestSocket
     fn with_ws_test_socket_run<F, Fut>(run_test: F)
-        where
-            F: (FnOnce(Client) -> Fut) + Send + 'static,
-            Fut: Future<Output=()> + Send + 'static,
+    where
+        F: (FnOnce(Client) -> Fut) + Send + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
     {
         info!("=====> begin ws");
         let server_runtime = Runtime::new().unwrap();
         server_runtime.spawn(async move {
             RSocketFactory::receive()
                 .transport(WebsocketServerTransport::from("127.0.0.1:8080".to_owned()))
-                .acceptor(Box::new(|_setup, _socket| { Ok(Box::new(TestSocket::new())) }))
+                .acceptor(Box::new(|_setup, _socket| Ok(Box::new(TestSocket::new()))))
                 .serve()
                 .await
         });
@@ -217,7 +250,6 @@ mod tests {
                 .await
                 .unwrap();
 
-
             run_test(client).await;
         });
         info!("<===== ws done!");
@@ -226,16 +258,16 @@ mod tests {
     /// Executes the [run_test] scenario using a client which is connected over a TCP transport to
     /// a TestSocket
     fn with_tcp_test_socket_run<F, Fut>(run_test: F)
-        where
-            F: (FnOnce(Client) -> Fut) + Send + 'static,
-            Fut: Future<Output=()> + Send + 'static,
+    where
+        F: (FnOnce(Client) -> Fut) + Send + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
     {
         info!("=====> begin tcp");
         let server_runtime = Runtime::new().unwrap();
         server_runtime.spawn(async move {
             RSocketFactory::receive()
                 .transport(TcpServerTransport::from("127.0.0.1:7878".to_owned()))
-                .acceptor(Box::new(|_setup, _socket| { Ok(Box::new(TestSocket::new())) }))
+                .acceptor(Box::new(|_setup, _socket| Ok(Box::new(TestSocket::new()))))
                 .serve()
                 .await
         });
@@ -316,7 +348,9 @@ impl RSocket for TestSocket {
                 }
                 let payload = Payload::builder()
                     .set_data_utf8(format!("{}", i).as_str())
-                    .set_metadata_utf8(format!("subscribers: {}", *subscribers.lock().unwrap()).as_str())
+                    .set_metadata_utf8(
+                        format!("subscribers: {}", *subscribers.lock().unwrap()).as_str(),
+                    )
                     .build();
                 tx.send(Ok(payload)).await.unwrap();
                 tokio::time::sleep(Duration::from_millis(50)).await;
