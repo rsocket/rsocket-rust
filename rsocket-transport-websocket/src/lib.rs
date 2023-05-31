@@ -14,16 +14,17 @@ pub use server::WebsocketServerTransport;
 mod test_websocket {
     use super::*;
     use rsocket_rust::prelude::*;
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
     #[ignore]
     #[tokio::test]
     async fn test_client() {
-        let req: WebsocketRequest = WebsocketRequest::builder()
-            .uri("ws://127.0.0.1:8080/hello")
-            .header("x-foo-bar", "42")
-            .method("GET")
-            .body(())
-            .unwrap();
+        let mut req = "ws://127.0.0.1:8080/hello".into_client_request().unwrap();
+
+        // Optional: custom headers
+        let headers = req.headers_mut();
+        headers.insert("x-foo-bar", "42".parse().unwrap());
+
         let tp = WebsocketClientTransport::from(req);
         let c = RSocketFactory::connect()
             .transport(tp)
