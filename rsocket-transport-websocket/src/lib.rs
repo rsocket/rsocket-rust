@@ -12,9 +12,10 @@ pub use server::WebsocketServerTransport;
 
 #[cfg(test)]
 mod test_websocket {
-    use super::*;
     use rsocket_rust::prelude::*;
     use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+
+    use super::*;
 
     #[ignore]
     #[tokio::test]

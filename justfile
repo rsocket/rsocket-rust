@@ -9,7 +9,7 @@ test:
 lint:
     @cargo clippy
 fmt:
-    @cargo +nightly fmt
+    @cargo fmt
 echo:
     @RUST_LOG=release cargo run --release --example echo -- serve tcp://127.0.0.1:7878
 bench:

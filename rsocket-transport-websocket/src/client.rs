@@ -2,7 +2,9 @@ use std::net::SocketAddr;
 
 use rsocket_rust::{async_trait, error::RSocketError, transport::Transport, Result};
 use tokio::net::TcpStream;
-use tokio_tungstenite::{accept_async, connect_async, tungstenite::handshake::client::Request, MaybeTlsStream};
+use tokio_tungstenite::{
+    accept_async, connect_async, tungstenite::handshake::client::Request, MaybeTlsStream,
+};
 use url::Url;
 
 use super::connection::WebsocketConnection;
