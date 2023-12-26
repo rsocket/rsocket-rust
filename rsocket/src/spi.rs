@@ -7,7 +7,7 @@ use futures::Stream;
 use crate::payload::{Payload, SetupPayload};
 use crate::Result;
 
-pub type ClientResponder = Box<dyn Send + Sync + Fn() -> Box<dyn RSocket>>;
+pub type ClientResponder = Box<dyn Send + Sync + FnOnce() -> Box<dyn RSocket>>;
 pub type ServerResponder =
     Box<dyn Send + Sync + Fn(SetupPayload, Box<dyn RSocket>) -> Result<Box<dyn RSocket>>>;
 
