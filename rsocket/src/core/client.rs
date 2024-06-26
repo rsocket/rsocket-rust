@@ -14,14 +14,14 @@ use crate::payload::{Payload, SetupPayload, SetupPayloadBuilder};
 use crate::runtime;
 use crate::spi::{ClientResponder, Flux, RSocket};
 use crate::transport::{
-    self, Connection, DuplexSocket, FrameSink, FrameStream, Splitter, Transport,
+    self, Connection, DuplexSocket, FrameSink, FrameStream, ClientRequester, Splitter, Transport,
 };
 use crate::Result;
 
 #[derive(Clone)]
 pub struct Client {
     closed: Arc<Notify>,
-    socket: DuplexSocket,
+    requester: ClientRequester,
     closing: mpsc::Sender<()>,
 }
 
@@ -130,9 +130,9 @@ where
 
         let (snd_tx, mut snd_rx) = mpsc::unbounded_channel::<Frame>();
         let cloned_snd_tx = snd_tx.clone();
-        let mut socket = DuplexSocket::new(1, snd_tx, splitter).await;
+        let mut socket = DuplexSocket::new(1, snd_tx, splitter);
 
-        let mut cloned_socket = socket.clone();
+        let requester = socket.client_requester();
 
         if let Some(f) = self.responder {
             let responder = f();
@@ -211,10 +211,13 @@ where
             }
         });
 
+        
+        socket.setup(setup).await?;
+
         // process frames
         runtime::spawn(async move {
             while let Some(next) = read_rx.recv().await {
-                if let Err(e) = cloned_socket.dispatch(next, None).await {
+                if let Err(e) = socket.dispatch(next, None).await {
                     error!("dispatch frame failed: {}", e);
                     break;
                 }
@@ -237,16 +240,14 @@ where
             }
         });
 
-        socket.setup(setup).await?;
-
-        Ok(Client::new(socket, close_notify, closing))
+        Ok(Client::new(requester, close_notify, closing))
     }
 }
 
 impl Client {
-    fn new(socket: DuplexSocket, closed: Arc<Notify>, closing: mpsc::Sender<()>) -> Client {
+    fn new(requester: ClientRequester, closed: Arc<Notify>, closing: mpsc::Sender<()>) -> Client {
         Client {
-            socket,
+            requester,
             closed,
             closing,
         }
@@ -260,22 +261,22 @@ impl Client {
 #[async_trait]
 impl RSocket for Client {
     async fn metadata_push(&self, req: Payload) -> Result<()> {
-        self.socket.metadata_push(req).await
+        self.requester.metadata_push(req).await
     }
 
     async fn fire_and_forget(&self, req: Payload) -> Result<()> {
-        self.socket.fire_and_forget(req).await
+        self.requester.fire_and_forget(req).await
     }
 
     async fn request_response(&self, req: Payload) -> Result<Option<Payload>> {
-        self.socket.request_response(req).await
+        self.requester.request_response(req).await
     }
 
     fn request_stream(&self, req: Payload) -> Flux<Result<Payload>> {
-        self.socket.request_stream(req)
+        self.requester.request_stream(req)
     }
 
     fn request_channel(&self, reqs: Flux<Result<Payload>>) -> Flux<Result<Payload>> {
-        self.socket.request_channel(reqs)
+        self.requester.request_channel(reqs)
     }
 }

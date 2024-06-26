@@ -114,7 +114,7 @@ where
 
         // Init duplex socket.
         let (snd_tx, mut snd_rx) = mpsc::unbounded_channel::<Frame>();
-        let mut socket = DuplexSocket::new(0, snd_tx, splitter).await;
+        let mut socket = DuplexSocket::new(0, snd_tx, splitter);
 
         // Begin loop for writing frames.
         runtime::spawn(async move {
@@ -154,7 +154,6 @@ where
                 break;
             }
         }
-
         Ok(())
     }
 }
